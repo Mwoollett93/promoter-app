@@ -9,7 +9,15 @@ export default function Sidebar() {
       {/* Logo */}
       <div>
         <div className="flex items-center gap-2 mb-8">
-          <Image src="/logo.png" alt="Logo" width={32} height={32} />
+          <Image
+          src="/logo.png"
+          alt="Logo"
+          width={32}
+          height={32}
+          priority
+          sizes="32px"
+          />
+
           <h1 className="text-lg font-bold">PromoterPro</h1>
         </div>
 

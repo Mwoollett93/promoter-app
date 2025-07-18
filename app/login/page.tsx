@@ -30,7 +30,15 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
         <div className="flex flex-col items-center mb-6">
-          <Image src="/logo.png" alt="Logo" width={64} height={64} className="mb-2" />
+          <Image
+            src="/logo.png"
+            alt="Logo"
+            width={64}
+            height={64}
+            priority
+            sizes="64px"
+            className="mb-2"
+          />
           <h2 className="text-xl font-semibold text-gray-800">Welcome to RhythmRadar</h2>
           <p className="text-gray-500 text-sm">Sign in to continue</p>
         </div>
@@ -46,6 +54,8 @@ export default function LoginPage() {
             alt="Google"
             width={20}
             height={20}
+            priority
+            sizes="20px"
           />
           Continue with Google
         </button>
