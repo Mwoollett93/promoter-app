@@ -2,40 +2,40 @@
 
 import { useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { useRouter } from 'next/navigation';
 
-export default function ResetPasswordPage() {
-  const [email, setEmail] = useState('');
+export default function UpdatePasswordPage() {
+  const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
+  const router = useRouter();
 
-  const handleReset = async (e: React.FormEvent) => {
+  const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/update-password`,
-    });
+    const { error } = await supabase.auth.updateUser({ password });
     if (error) setMessage(error.message);
-    else setMessage('Password reset link sent to your email.');
+    else {
+      setMessage('Password updated! Redirecting to login...');
+      setTimeout(() => router.push('/login'), 2000);
+    }
   };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">Reset Password</h2>
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">Set New Password</h2>
         {message && <p>{message}</p>}
-        <form onSubmit={handleReset} className="space-y-4">
+        <form onSubmit={handleUpdate} className="space-y-4">
           <input
-            type="email"
-            placeholder="Enter your email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="password"
+            placeholder="New Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-orange-400"
           />
           <button type="submit" className="w-full py-2 bg-orange-500 text-white rounded-md">
-            Send Reset Link
+            Update Password
           </button>
         </form>
-        <div className="text-center mt-4 text-sm">
-          <a href="/login" className="text-orange-500 hover:underline">Back to login</a>
-        </div>
       </div>
     </div>
   );

@@ -11,7 +11,7 @@ export default function UpdatePasswordPage() {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { data, error } = await supabase.auth.updateUser({ password });
+    const { error } = await supabase.auth.updateUser({ password }); // Removed `data`
     if (error) setMessage(error.message);
     else {
       setMessage('Password updated! Redirecting to login...');

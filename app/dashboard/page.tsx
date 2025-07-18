@@ -9,7 +9,7 @@ export default function DashboardPage() {
 
       <main className="flex-1 p-8 space-y-8">
         <h1 className="text-3xl font-bold">Welcome Back</h1>
-        <p className="text-gray-400">Here's your music promotion overview</p>
+        <p className="text-gray-400">Here&apos;s your music promotion overview</p>
 
         {/* Placeholder sections */}
         <div className="grid grid-cols-4 gap-4">

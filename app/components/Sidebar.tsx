@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function Sidebar() {
   return (
@@ -8,7 +9,7 @@ export default function Sidebar() {
       {/* Logo */}
       <div>
         <div className="flex items-center gap-2 mb-8">
-          <img src="/logo.png" alt="Logo" className="w-8 h-8" />
+          <Image src="/logo.png" alt="Logo" width={32} height={32} />
           <h1 className="text-lg font-bold">PromoterPro</h1>
         </div>
 

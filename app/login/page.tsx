@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -29,7 +30,7 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
         <div className="flex flex-col items-center mb-6">
-          <img src="/logo.png" alt="Logo" className="w-16 h-16 mb-2" />
+          <Image src="/logo.png" alt="Logo" width={64} height={64} className="mb-2" />
           <h2 className="text-xl font-semibold text-gray-800">Welcome to RhythmRadar</h2>
           <p className="text-gray-500 text-sm">Sign in to continue</p>
         </div>
@@ -40,7 +41,12 @@ export default function LoginPage() {
           onClick={handleGoogleLogin}
           className="w-full py-2 mb-4 border rounded-md text-gray-700 hover:bg-gray-100 flex items-center justify-center gap-2"
         >
-          <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
+          <Image
+            src="https://www.svgrepo.com/show/475656/google-color.svg"
+            alt="Google"
+            width={20}
+            height={20}
+          />
           Continue with Google
         </button>
 
@@ -74,10 +80,9 @@ export default function LoginPage() {
         </form>
 
         <div className="flex justify-between text-sm text-gray-500 mt-4">
-        <a href="/reset-password" className="hover:underline">Forgot password?</a>
-        <a href="/signup" className="hover:underline">Sign up</a>
-      </div>
-
+          <a href="/reset-password" className="hover:underline">Forgot password?</a>
+          <a href="/signup" className="hover:underline">Sign up</a>
+        </div>
       </div>
     </div>
   );
