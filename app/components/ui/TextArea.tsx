@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type TextAreaState = "default" | "inactive" | "maxLetters";
 
@@ -9,7 +9,10 @@ type PromoSyncTextAreaProps = {
   required?: boolean;
   maxLength?: number;
   state?: TextAreaState;
+  /** Uncontrolled default */
   initialValue?: string;
+  /** Controlled value (preferred when syncing with parent state) */
+  value?: string;
   onChange?: (value: string) => void;
   onStateChange?: (state: TextAreaState) => void;
   className?: string;
@@ -21,11 +24,21 @@ export default function PromoSyncTextArea({
   maxLength = 500,
   state,
   initialValue = "",
+  value: controlledValue,
   onChange,
   onStateChange,
   className = "",
 }: PromoSyncTextAreaProps) {
-  const [value, setValue] = useState(initialValue);
+  const isControlled = controlledValue !== undefined;
+  const [internalValue, setInternalValue] = useState(initialValue);
+
+  useEffect(() => {
+    if (!isControlled && initialValue !== undefined) {
+      setInternalValue(initialValue);
+    }
+  }, [initialValue, isControlled]);
+
+  const value = isControlled ? controlledValue : internalValue;
 
   const derivedState: TextAreaState = useMemo(() => {
     if (state) return state;
@@ -55,7 +68,7 @@ export default function PromoSyncTextArea({
 
   function handleChange(next: string) {
     const trimmed = next.slice(0, maxLength);
-    setValue(trimmed);
+    if (!isControlled) setInternalValue(trimmed);
     onChange?.(trimmed);
 
     const nextState: TextAreaState = trimmed.length >= maxLength ? "maxLetters" : "default";

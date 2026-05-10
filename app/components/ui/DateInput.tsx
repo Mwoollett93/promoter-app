@@ -4,7 +4,6 @@ import * as React from "react";
 import { format } from "date-fns";
 import { CalendarIcon, ChevronDown, ChevronUp } from "lucide-react";
 
-// Fix these paths to match your project (often "@/components/ui/..." not "@/app/...")
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -27,6 +26,15 @@ export default function DateInput({
 }: DateInputProps) {
   const [open, setOpen] = React.useState(false);
 
+  /** Calendar month view — must update when user clicks prev/next */
+  const [month, setMonth] = React.useState<Date>(() => value ?? new Date());
+
+  React.useEffect(() => {
+    if (value && !Number.isNaN(value.getTime())) {
+      setMonth(value);
+    }
+  }, [value]);
+
   const interactiveRing = disabled
     ? ""
     : [
@@ -35,7 +43,6 @@ export default function DateInput({
         "focus-visible:outline-none",
         "focus-visible:border-[#8B5CF6]",
         "focus-visible:hover:border-[#8B5CF6]",
-        // Stay “active” while popover is open (Radix sets data-state on trigger)
         "data-[state=open]:border-[#8B5CF6]",
         "data-[state=open]:hover:border-[#8B5CF6]",
       ].join(" ");
@@ -97,19 +104,16 @@ export default function DateInput({
           align="start"
           sideOffset={8}
           className="z-[100] w-auto border-[#232330] bg-[#11111A] p-0 text-[#F5F5F7]"
-          // If the popover flashes open then closes, try uncommenting:
-          // onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <Calendar
             mode="single"
-            month={value ?? new Date()}
-            onMonthChange={() => {}}
+            month={month}
+            onMonthChange={setMonth}
             selected={value}
             onSelect={(date: Date | undefined) => {
               onChange?.(date);
               if (date) setOpen(false);
             }}
-            defaultMonth={value ?? new Date()}
             className="rounded-[12px] bg-[#11111A] p-3"
             classNames={{
               months: "flex flex-col",
@@ -117,11 +121,11 @@ export default function DateInput({
               month_caption: "relative flex h-8 items-center justify-center",
               caption_label:
                 "text-[14px] font-medium leading-[20px] text-[#F5F5F7]",
-              nav: "absolute left-1 right-1 top-0 flex h-8 items-center justify-between px-1",
+              nav: "absolute left-1 right-1 top-0 flex h-8 items-center justify-between px-1 pointer-events-none",
               button_previous:
-                "z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-[#A1A1AA] hover:bg-[#232330] hover:text-[#F5F5F7]",
+                "pointer-events-auto z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-[#A1A1AA] hover:bg-[#232330] hover:text-[#F5F5F7]",
               button_next:
-                "z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-[#A1A1AA] hover:bg-[#232330] hover:text-[#F5F5F7]",
+                "pointer-events-auto z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-[#A1A1AA] hover:bg-[#232330] hover:text-[#F5F5F7]",
               month_grid: "w-full border-collapse",
               weekdays: "grid grid-cols-7",
               weekday:
