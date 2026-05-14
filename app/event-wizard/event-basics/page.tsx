@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { ArrowRight, Info } from "lucide-react";
 
 import Stepper from "@/app/components/ui/Stepper";
@@ -13,6 +14,76 @@ import PromoSyncTextArea from "@/app/components/ui/TextArea";
 import Button from "@/app/components/ui/Button";
 import EventSummaryCard from "@/app/components/ui/EventSummaryCard";
 import TipCard from "@/app/components/ui/TipCard";
+import { saveWizardEventDraft } from "@/lib/data";
+import { getStoredSession, getSupabaseConfig } from "@/lib/supabase/browser";
+import * as SupabaseBrowser from "@/lib/supabase/browser";
+import type { SupabaseSession } from "@/lib/types/artist";
+
+type VenueProfile = {
+  id: string;
+  name: string;
+  city: string;
+  country: string;
+  addressLine1: string;
+  maxCapacity: number;
+  imageUrl?: string;
+};
+
+const venueApi = SupabaseBrowser as {
+  listVenues?: (session: SupabaseSession) => Promise<VenueProfile[]>;
+};
+
+type VenueRow = {
+  id: string;
+  name: string;
+  city: string;
+  country: string;
+  address_line1: string;
+  max_capacity: number | null;
+  image_url: string | null;
+};
+
+async function readSupabaseError(response: Response, fallback: string) {
+  try {
+    const data = (await response.json()) as { message?: string; error_description?: string; hint?: string };
+    return data.message ?? data.error_description ?? data.hint ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+async function listVenuesLocal(session: SupabaseSession): Promise<VenueProfile[]> {
+  const config = getSupabaseConfig();
+  if (!config) throw new Error("Missing Supabase environment variables.");
+
+  const response = await fetch(
+    `${config.url}/rest/v1/venues?select=id,name,city,country,address_line1,max_capacity,image_url&order=created_at.desc`,
+    {
+      headers: {
+        apikey: config.anonKey,
+        Authorization: `Bearer ${session.accessToken}`,
+        Accept: "application/json",
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readSupabaseError(response, "Unable to load venues."));
+  }
+
+  const rows = (await response.json()) as VenueRow[];
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    city: row.city,
+    country: row.country,
+    addressLine1: row.address_line1,
+    maxCapacity: row.max_capacity ?? 0,
+    imageUrl: row.image_url ?? undefined,
+  }));
+}
+
+const listVenues = venueApi.listVenues ?? listVenuesLocal;
 
 type Venue = {
   id: string;
@@ -33,20 +104,25 @@ type EventDraft = {
 
 const venues: Venue[] = [
   {
-    id: "sub-club",
-    name: "Sub Club",
-    cityLabel: "Sub Club, Melbourne",
-    address: "22-24 King St, Melbourne VIC 3000",
-    capacity: 250,
-    imageSrc:
-      "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=300&q=80",
+    id: "seed-ministry-of-sound",
+    name: "Ministry of Sound",
+    cityLabel: "Ministry of Sound, London",
+    address: "103 Gaunt St, London, United Kingdom",
+    capacity: 1500,
   },
   {
-    id: "revolver",
+    id: "seed-printworks-london",
+    name: "Printworks London",
+    cityLabel: "Printworks London, London",
+    address: "Surrey Quays Rd, London, United Kingdom",
+    capacity: 6000,
+  },
+  {
+    id: "seed-revolver-upstairs",
     name: "Revolver Upstairs",
     cityLabel: "Revolver Upstairs, Melbourne",
-    address: "229 Chapel St, Prahran VIC 3181",
-    capacity: 400,
+    address: "229 Chapel St, Melbourne, Australia",
+    capacity: 500,
   },
 ];
 
@@ -71,15 +147,36 @@ function formatTimeLabel(time24?: string) {
 }
 
 export default function EventBasicsPage() {
+  const router = useRouter();
+  const [availableVenues, setAvailableVenues] = React.useState<Venue[]>(venues);
   const [draft, setDraft] = React.useState<EventDraft>({
     eventName: "ABYSSAL 007",
     date: new Date(2026, 4, 5),
     startTime: "22:00",
-    venueId: "sub-club",
+    venueId: venues[0]?.id ?? "",
     description: "",
   });
 
-  const selectedVenue = venues.find((v) => v.id === draft.venueId) ?? venues[0];
+  React.useEffect(() => {
+    const stored = getStoredSession();
+    if (!stored || !getSupabaseConfig()) return;
+
+    listVenues(stored)
+      .then((rows) => {
+        if (!rows || rows.length === 0) return;
+        const mapped = rows.map(mapVenueOption);
+        setAvailableVenues(mapped);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  React.useEffect(() => {
+    if (!availableVenues.some((venue) => venue.id === draft.venueId)) {
+      setDraft((current) => ({ ...current, venueId: availableVenues[0]?.id ?? "" }));
+    }
+  }, [availableVenues, draft.venueId]);
+
+  const selectedVenue = availableVenues.find((v) => v.id === draft.venueId) ?? availableVenues[0];
 
   return (
     <div className="w-full space-y-3">
@@ -136,7 +233,7 @@ export default function EventBasicsPage() {
               required
               value={draft.venueId}
               onChange={(id) => setDraft((prev) => ({ ...prev, venueId: id }))}
-              options={venues.map((v) => ({ value: v.id, label: v.cityLabel }))}
+              options={availableVenues.map((v) => ({ value: v.id, label: v.cityLabel }))}
             />
 
             <EventCard
@@ -144,7 +241,7 @@ export default function EventBasicsPage() {
               address={selectedVenue.address}
               capacity={selectedVenue.capacity}
               imageSrc={selectedVenue.imageSrc}
-              editHref="#"
+              editHref={draft.venueId.startsWith("seed-") ? "/venues/new" : `/venues/new?venueId=${selectedVenue.id}`}
               className="max-w-none"
             />
 
@@ -171,7 +268,18 @@ export default function EventBasicsPage() {
               Cancel
             </Button>
             <div className="ml-auto">
-              <Button variant="primary" size="md" type="button">
+              <Button
+                variant="primary"
+                size="md"
+                type="button"
+                onClick={() => {
+                  saveWizardEventDraft({
+                    date: draft.date,
+                    startTime: draft.startTime,
+                  });
+                  router.push("/event-wizard/lineup-&-schedule");
+                }}
+              >
                 <span className="inline-flex items-center gap-2">
                   Continue
                   <ArrowRight
@@ -204,4 +312,15 @@ export default function EventBasicsPage() {
       </div>
     </div>
   );
+}
+
+function mapVenueOption(venue: VenueProfile): Venue {
+  return {
+    id: venue.id,
+    name: venue.name,
+    cityLabel: `${venue.name}, ${venue.city}`,
+    address: [venue.addressLine1, venue.city, venue.country].filter(Boolean).join(", "),
+    capacity: venue.maxCapacity,
+    imageSrc: venue.imageUrl,
+  };
 }

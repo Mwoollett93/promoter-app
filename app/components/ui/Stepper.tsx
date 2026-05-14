@@ -1,5 +1,7 @@
 "use client";
 
+import { Check } from "lucide-react";
+
 type StepperState =
   | "Event Basics"
   | "Lineup & Schedule"
@@ -10,9 +12,6 @@ type StepperProps = {
   state?: StepperState;
   className?: string;
 };
-
-const CHECK_ICON =
-  "http://localhost:3845/assets/45e10bfdd0b77c3e2e026aca5a4052fea1ab9f68.svg";
 
 const steps = [
   "Event Basics",
@@ -47,16 +46,16 @@ export default function Stepper({
             <div key={label} className="flex w-[86px] flex-col items-center gap-[10px]">
               <div
                 className={[
-                  "flex size-[35px] items-center justify-center overflow-hidden rounded-[50px] border",
+                  "flex size-[35px] shrink-0 items-center justify-center rounded-[50px] border",
                   isActive
                     ? "border-[#7C3AED] bg-[#7C3AED] text-[#F5F5F7]"
                     : isCompleted
-                      ? "border-[#22C55E] text-[#22C55E]"
-                      : "border-[#71717A] text-[#F5F5F7]",
+                      ? "border-2 border-[#22C55E] bg-[#0B0B10] text-[#F5F5F7]"
+                      : "border border-[#71717A] text-[#F5F5F7]",
                 ].join(" ")}
               >
                 {isCompleted ? (
-                  <img src={CHECK_ICON} alt="" className="size-5" />
+                  <Check className="size-5 text-[#F5F5F7]" strokeWidth={3} aria-hidden />
                 ) : (
                   <span
                     style={{
