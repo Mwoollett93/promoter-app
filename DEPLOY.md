@@ -32,7 +32,25 @@ Copy values from your local `.env.local` (do not commit `.env.local`).
 
 Apply variables to **Production**, **Preview**, and **Development** as needed.
 
-## 4. Supabase auth redirect URLs
+## 4. Supabase auth (sign-up / sign-in)
+
+In **Authentication → Providers → Email**:
+
+- Enable **Email** provider
+- Turn **Confirm email** on or off (if on, users must click the email link before sign-in)
+
+In **Authentication → URL Configuration**:
+
+- **Site URL:** `https://www.promosync.app`
+- **Redirect URLs:** `https://www.promosync.app/auth/callback` and `https://*.vercel.app/auth/callback`
+
+If sign-up shows a generic error, open the browser **Network** tab, retry sign-up, and check the `signup` request response. Common fixes:
+
+- Use the **legacy anon** JWT key (`eyJ...`) in `NEXT_PUBLIC_SUPABASE_ANON_KEY` if the publishable key fails
+- Ensure password and confirm password match exactly
+- Delete duplicate test users in **Authentication → Users** before re-testing the same email
+
+## 5. Supabase auth redirect URLs
 
 In **Supabase → Authentication → URL Configuration**:
 

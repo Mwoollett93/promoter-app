@@ -1,3 +1,5 @@
+import { createClient, type Session } from "@supabase/supabase-js";
+
 import type {
   ArtistDocument,
   ArtistDraft,
@@ -129,43 +131,44 @@ export function clearStoredSession() {
   window.localStorage.removeItem(SESSION_KEY);
 }
 
-type AuthTokenResponse = {
-  access_token: string;
-  refresh_token?: string;
-  expires_in?: number;
-  user?: { id: string; email?: string };
-};
-
 type OAuthProvider = "github" | "google" | "apple";
 
-function persistSessionFromTokenResponse(data: AuthTokenResponse): SupabaseSession {
-  if (!data.access_token || !data.user?.id) {
-    throw new Error("Supabase did not return a valid session.");
-  }
+function createBrowserAuthClient() {
+  const config = requireSupabaseConfig();
+  return createClient(config.url, config.anonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
 
-  const session: SupabaseSession = {
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token,
-    expiresAt: data.expires_in ? Math.floor(Date.now() / 1000) + data.expires_in : undefined,
+function persistSessionFromSupabase(session: Session): SupabaseSession {
+  const mapped: SupabaseSession = {
+    accessToken: session.access_token,
+    refreshToken: session.refresh_token,
+    expiresAt: session.expires_at ?? undefined,
     user: {
-      id: data.user.id,
-      email: data.user.email,
+      id: session.user.id,
+      email: session.user.email,
     },
   };
 
-  storeSession(session);
-  return session;
+  storeSession(mapped);
+  return mapped;
 }
 
-export function startOAuthSignIn(provider: OAuthProvider) {
-  const config = getSupabaseConfig();
-  if (!config) throw new Error("Missing Supabase environment variables.");
-
+export async function startOAuthSignIn(provider: OAuthProvider) {
+  const supabase = createBrowserAuthClient();
   const redirectTo = `${window.location.origin}${AUTH_RETURN_PATH}`;
-  const authUrl = new URL(`${config.url}/auth/v1/authorize`);
-  authUrl.searchParams.set("provider", provider);
-  authUrl.searchParams.set("redirect_to", redirectTo);
-  window.location.href = authUrl.toString();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: { redirectTo },
+  });
+
+  if (error) throw new Error(error.message);
+  if (data.url) window.location.href = data.url;
 }
 
 export function startGithubSignIn() {
@@ -183,53 +186,18 @@ export async function signInWithPassword(email: string, password: string): Promi
     return signInAsDemo();
   }
 
-  const config = requireSupabaseConfig();
-  const response = await fetch(`${config.url}/auth/v1/token?grant_type=password`, {
-    method: "POST",
-    headers: {
-      apikey: config.anonKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ email: normalizedEmail, password }),
+  const supabase = createBrowserAuthClient();
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: normalizedEmail,
+    password,
   });
 
-  if (!response.ok) {
-    throw new Error(await getErrorMessage(response, "Unable to sign in."));
+  if (error) throw new Error(error.message);
+  if (!data.session) {
+    throw new Error("Unable to sign in. Check your email is confirmed.");
   }
 
-  const data = (await response.json()) as AuthTokenResponse;
-  if (data.access_token && data.user?.id) {
-    return persistSessionFromTokenResponse(data);
-  }
-
-  if (!data.access_token) {
-    throw new Error("Supabase did not return a valid session.");
-  }
-
-  const userResponse = await fetch(`${config.url}/auth/v1/user`, {
-    headers: {
-      apikey: config.anonKey,
-      Authorization: `Bearer ${data.access_token}`,
-    },
-  });
-
-  if (!userResponse.ok) {
-    throw new Error(await getErrorMessage(userResponse, "Unable to fetch signed-in user."));
-  }
-
-  const user = (await userResponse.json()) as { id: string; email?: string };
-  const session: SupabaseSession = {
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token,
-    expiresAt: data.expires_in ? Math.floor(Date.now() / 1000) + data.expires_in : undefined,
-    user: {
-      id: user.id,
-      email: user.email,
-    },
-  };
-
-  storeSession(session);
-  return session;
+  return persistSessionFromSupabase(data.session);
 }
 
 export async function signUpWithPassword(input: {
@@ -239,94 +207,58 @@ export async function signUpWithPassword(input: {
   companyName?: string;
   teamSize?: string;
 }): Promise<SupabaseSession> {
-  const config = requireSupabaseConfig();
-  const response = await fetch(`${config.url}/auth/v1/signup`, {
-    method: "POST",
-    headers: {
-      apikey: config.anonKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      email: input.email.trim(),
-      password: input.password,
+  const supabase = createBrowserAuthClient();
+  const email = input.email.trim().toLowerCase();
+  const emailRedirectTo = `${window.location.origin}${AUTH_RETURN_PATH}`;
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password: input.password,
+    options: {
+      emailRedirectTo,
       data: {
         full_name: input.fullName?.trim() || null,
         company_name: input.companyName?.trim() || null,
         team_size: input.teamSize?.trim() || null,
       },
-    }),
+    },
   });
 
-  if (!response.ok) {
-    throw new Error(await getErrorMessage(response, "Unable to create account."));
-  }
-
-  const data = (await response.json()) as AuthTokenResponse;
-  if (data.access_token && data.user?.id) {
-    return persistSessionFromTokenResponse(data);
-  }
+  if (error) throw new Error(error.message);
+  if (data.session) return persistSessionFromSupabase(data.session);
 
   throw new Error("Account created. Check your email to confirm your address, then sign in.");
 }
 
 export async function sendPasswordResetEmail(email: string): Promise<void> {
-  const config = requireSupabaseConfig();
+  const supabase = createBrowserAuthClient();
   const redirectTo = `${window.location.origin}/?view=login`;
-
-  const response = await fetch(`${config.url}/auth/v1/recover`, {
-    method: "POST",
-    headers: {
-      apikey: config.anonKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      email: email.trim(),
-      redirect_to: redirectTo,
-    }),
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+    redirectTo,
   });
 
-  if (!response.ok) {
-    throw new Error(await getErrorMessage(response, "Unable to send reset link."));
-  }
+  if (error) throw new Error(error.message);
 }
 
 export async function completeSupabaseHashSession(hash: string): Promise<SupabaseSession> {
-  const config = getSupabaseConfig();
-  if (!config) throw new Error("Missing Supabase environment variables.");
-
+  const supabase = createBrowserAuthClient();
   const params = new URLSearchParams(hash.replace(/^#/, ""));
   const accessToken = params.get("access_token");
-  const refreshToken = params.get("refresh_token") ?? undefined;
-  const expiresIn = Number(params.get("expires_in") ?? 0);
+  const refreshToken = params.get("refresh_token");
 
   if (!accessToken) {
     throw new Error("Supabase did not return an access token.");
   }
 
-  const userResponse = await fetch(`${config.url}/auth/v1/user`, {
-    headers: {
-      apikey: config.anonKey,
-      Authorization: `Bearer ${accessToken}`,
-    },
+  const { data, error } = await supabase.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken ?? "",
   });
 
-  if (!userResponse.ok) {
-    throw new Error(await getErrorMessage(userResponse, "Unable to fetch Supabase user."));
-  }
+  if (error) throw new Error(error.message);
+  if (!data.session) throw new Error("Unable to complete Supabase sign in.");
 
-  const user = (await userResponse.json()) as { id: string; email?: string };
-  const session: SupabaseSession = {
-    accessToken,
-    refreshToken,
-    expiresAt: expiresIn ? Math.floor(Date.now() / 1000) + expiresIn : undefined,
-    user: {
-      id: user.id,
-      email: user.email,
-    },
-  };
-
-  storeSession(session);
-  return session;
+  return persistSessionFromSupabase(data.session);
 }
 
 export async function signOutOfSupabase() {
@@ -707,9 +639,23 @@ function mapArtistRow(row: ArtistRow): ArtistProfile {
 
 async function getErrorMessage(response: Response, fallback: string) {
   try {
-    const data = (await response.json()) as { message?: string; error_description?: string; hint?: string };
-    return data.message ?? data.error_description ?? data.hint ?? fallback;
+    const data = (await response.json()) as {
+      message?: string;
+      msg?: string;
+      error?: string;
+      error_description?: string;
+      hint?: string;
+      code?: string | number;
+    };
+    const detail =
+      data.message ??
+      data.msg ??
+      data.error_description ??
+      data.error ??
+      (data.code ? String(data.code) : null) ??
+      data.hint;
+    return detail ? `${detail} (${response.status})` : `${fallback} (${response.status})`;
   } catch {
-    return fallback;
+    return `${fallback} (${response.status})`;
   }
 }

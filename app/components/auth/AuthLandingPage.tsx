@@ -208,10 +208,11 @@ export default function AuthLandingPage() {
     }
   }
 
-  function handleOAuth(provider: "google" | "apple") {
+  async function handleOAuth(provider: "google" | "apple") {
     if (!hasSupabase) return;
+    setError(null);
     try {
-      startOAuthSignIn(provider);
+      await startOAuthSignIn(provider);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to start social sign in.");
     }
