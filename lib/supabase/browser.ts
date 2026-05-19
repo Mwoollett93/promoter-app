@@ -197,7 +197,7 @@ async function postAuthApi<T extends Record<string, unknown>>(path: string, body
   const payload = (await response.json().catch(() => ({}))) as T & { error?: string };
 
   if (!response.ok) {
-    throw new Error(payload.error ?? "Authentication request failed.");
+    throw new Error(payload.error ?? `Authentication request failed (${response.status}).`);
   }
 
   return payload;

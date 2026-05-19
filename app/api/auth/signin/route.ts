@@ -1,57 +1,39 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
-function getServerSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !key) return null;
-
-  return createClient(url.replace(/\/$/, ""), key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
+import { getSupabaseServerConfig, serverSignIn } from "@/lib/supabase/server-auth";
 
 export async function POST(request: Request) {
-  const supabase = getServerSupabase();
-  if (!supabase) {
-    return NextResponse.json({ error: "Supabase is not configured on the server." }, { status: 500 });
-  }
-
-  let body: { email?: string; password?: string };
-
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    if (!getSupabaseServerConfig()) {
+      return NextResponse.json(
+        {
+          error:
+            "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel, then redeploy.",
+        },
+        { status: 500 },
+      );
+    }
+
+    let body: { email?: string; password?: string };
+
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    }
+
+    const email = body.email?.trim().toLowerCase();
+    const password = body.password;
+
+    if (!email || !password) {
+      return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
+    }
+
+    const session = await serverSignIn({ email, password });
+    return NextResponse.json({ session });
+  } catch (error) {
+    console.error("[api/auth/signin]", error);
+    const message = error instanceof Error ? error.message : "Unable to sign in.";
+    return NextResponse.json({ error: message }, { status: 400 });
   }
-
-  const email = body.email?.trim().toLowerCase();
-  const password = body.password;
-
-  if (!email || !password) {
-    return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
-  }
-
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
-
-  if (!data.session) {
-    return NextResponse.json(
-      { error: "Unable to sign in. Confirm your email if required." },
-      { status: 400 },
-    );
-  }
-
-  return NextResponse.json({
-    session: {
-      access_token: data.session.access_token,
-      refresh_token: data.session.refresh_token,
-      expires_in: data.session.expires_in,
-      user: { id: data.session.user.id, email: data.session.user.email },
-    },
-  });
 }
