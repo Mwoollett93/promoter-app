@@ -159,6 +159,50 @@ function persistSessionFromSupabase(session: Session): SupabaseSession {
   return mapped;
 }
 
+type ApiAuthSessionPayload = {
+  access_token: string;
+  refresh_token?: string;
+  expires_in?: number;
+  user: { id: string; email?: string };
+};
+
+function persistSessionFromApiPayload(session: ApiAuthSessionPayload): SupabaseSession {
+  const mapped: SupabaseSession = {
+    accessToken: session.access_token,
+    refreshToken: session.refresh_token,
+    expiresAt: session.expires_in ? Math.floor(Date.now() / 1000) + session.expires_in : undefined,
+    user: {
+      id: session.user.id,
+      email: session.user.email,
+    },
+  };
+
+  storeSession(mapped);
+  return mapped;
+}
+
+async function postAuthApi<T extends Record<string, unknown>>(path: string, body: unknown): Promise<T> {
+  let response: Response;
+
+  try {
+    response = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error("Could not reach the server. Check your connection and try again.");
+  }
+
+  const payload = (await response.json().catch(() => ({}))) as T & { error?: string };
+
+  if (!response.ok) {
+    throw new Error(payload.error ?? "Authentication request failed.");
+  }
+
+  return payload;
+}
+
 export async function startOAuthSignIn(provider: OAuthProvider) {
   const supabase = createBrowserAuthClient();
   const redirectTo = `${window.location.origin}${AUTH_RETURN_PATH}`;
@@ -186,18 +230,12 @@ export async function signInWithPassword(email: string, password: string): Promi
     return signInAsDemo();
   }
 
-  const supabase = createBrowserAuthClient();
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const result = await postAuthApi<{ session: ApiAuthSessionPayload }>("/api/auth/signin", {
     email: normalizedEmail,
     password,
   });
 
-  if (error) throw new Error(error.message);
-  if (!data.session) {
-    throw new Error("Unable to sign in. Check your email is confirmed.");
-  }
-
-  return persistSessionFromSupabase(data.session);
+  return persistSessionFromApiPayload(result.session);
 }
 
 export async function signUpWithPassword(input: {
@@ -207,37 +245,36 @@ export async function signUpWithPassword(input: {
   companyName?: string;
   teamSize?: string;
 }): Promise<SupabaseSession> {
-  const supabase = createBrowserAuthClient();
   const email = input.email.trim().toLowerCase();
   const emailRedirectTo = `${window.location.origin}${AUTH_RETURN_PATH}`;
 
-  const { data, error } = await supabase.auth.signUp({
+  const result = await postAuthApi<{
+    session?: ApiAuthSessionPayload;
+    needsEmailConfirmation?: boolean;
+    message?: string;
+  }>("/api/auth/signup", {
     email,
     password: input.password,
-    options: {
-      emailRedirectTo,
-      data: {
-        full_name: input.fullName?.trim() || null,
-        company_name: input.companyName?.trim() || null,
-        team_size: input.teamSize?.trim() || null,
-      },
+    emailRedirectTo,
+    data: {
+      full_name: input.fullName?.trim() || null,
+      company_name: input.companyName?.trim() || null,
+      team_size: input.teamSize?.trim() || null,
     },
   });
 
-  if (error) throw new Error(error.message);
-  if (data.session) return persistSessionFromSupabase(data.session);
+  if (result.session) return persistSessionFromApiPayload(result.session);
 
-  throw new Error("Account created. Check your email to confirm your address, then sign in.");
+  throw new Error(
+    result.message ?? "Account created. Check your email to confirm your address, then sign in.",
+  );
 }
 
 export async function sendPasswordResetEmail(email: string): Promise<void> {
-  const supabase = createBrowserAuthClient();
-  const redirectTo = `${window.location.origin}/?view=login`;
-  const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-    redirectTo,
+  await postAuthApi<{ ok: boolean }>("/api/auth/recover", {
+    email: email.trim().toLowerCase(),
+    redirectTo: `${window.location.origin}/?view=login`,
   });
-
-  if (error) throw new Error(error.message);
 }
 
 export async function completeSupabaseHashSession(hash: string): Promise<SupabaseSession> {
