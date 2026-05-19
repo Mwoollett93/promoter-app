@@ -3,6 +3,13 @@ type SupabaseServerConfig = {
   anonKey: string;
 };
 
+function normalizeSupabaseUrl(url: string) {
+  return url
+    .replace(/\/$/, "")
+    .replace(/\/auth\/v1$/i, "")
+    .replace(/\/rest\/v1$/i, "");
+}
+
 export function getSupabaseServerConfig(): SupabaseServerConfig | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
@@ -10,17 +17,23 @@ export function getSupabaseServerConfig(): SupabaseServerConfig | null {
   if (!url || !anonKey) return null;
 
   return {
-    url: url.replace(/\/$/, ""),
+    url: normalizeSupabaseUrl(url),
     anonKey,
   };
 }
 
+/** Publishable keys (sb_publishable_...) must use apikey only — not Authorization: Bearer. */
 function supabaseHeaders(config: SupabaseServerConfig): HeadersInit {
-  return {
+  const headers: Record<string, string> = {
     apikey: config.anonKey,
-    Authorization: `Bearer ${config.anonKey}`,
     "Content-Type": "application/json",
   };
+
+  if (config.anonKey.startsWith("eyJ")) {
+    headers.Authorization = `Bearer ${config.anonKey}`;
+  }
+
+  return headers;
 }
 
 type GoTrueErrorBody = {
@@ -75,8 +88,8 @@ export async function serverSignUp(input: {
       body: JSON.stringify({
         email: input.email,
         password: input.password,
-        data: input.data,
-        options: input.emailRedirectTo ? { email_redirect_to: input.emailRedirectTo } : undefined,
+        data: input.data ?? {},
+        ...(input.emailRedirectTo ? { redirect_to: input.emailRedirectTo } : {}),
       }),
     });
   } catch (cause) {
