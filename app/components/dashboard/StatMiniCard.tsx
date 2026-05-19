@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 export default function StatMiniCard({
   icon: Icon,
@@ -9,7 +10,7 @@ export default function StatMiniCard({
 }: {
   icon: LucideIcon;
   label: string;
-  value: string;
+  value: ReactNode;
   trend: string;
   trendUp?: boolean;
 }) {

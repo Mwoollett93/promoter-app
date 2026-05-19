@@ -63,7 +63,7 @@ function artistProfileToScheduleArtist(profile: ArtistProfile): Artist {
     avatarUrl: profile.promoImageUrl,
     genres: profile.genres,
     tags: profile.tags,
-    defaultFeeCents: 0,
+    defaultFeeCents: profile.typicalFeeCents,
   };
 }
 
@@ -74,6 +74,27 @@ function slotArtistIds(slot: ScheduleSlot): string[] {
 function filterSlotsForLibrary(slots: ScheduleSlot[], artists: Artist[]) {
   const ids = new Set(artists.map((artist) => artist.id));
   return slots.filter((slot) => slotArtistIds(slot).every((artistId) => ids.has(artistId)));
+}
+
+function hydrateSlotFeesFromLibrary(slots: ScheduleSlot[], artists: Artist[]) {
+  const feesByArtistId = new Map(artists.map((artist) => [artist.id, artist.defaultFeeCents]));
+
+  return slots.map((slot) => {
+    if (slot.feeCents > 0) return slot;
+
+    if (slot.kind === "single") {
+      return {
+        ...slot,
+        feeCents: feesByArtistId.get(slot.artistId) ?? slot.feeCents,
+      };
+    }
+
+    const derivedFee = slot.artistIds.reduce((sum, artistId) => sum + (feesByArtistId.get(artistId) ?? 0), 0);
+    return {
+      ...slot,
+      feeCents: derivedFee > 0 ? derivedFee : slot.feeCents,
+    };
+  });
 }
 
 async function getSupabaseScheduleArtists(): Promise<Artist[]> {
@@ -155,8 +176,9 @@ export default function LineupSchedulePage() {
         const persistedSlots = loadWizardScheduleSlots();
         const fallbackSlots = supabaseArtists.length > 0 ? [] : fixtureSlots;
         const slots = persistedSlots !== null ? persistedSlots : fallbackSlots;
+        const normalizedSlots = hydrateSlotFeesFromLibrary(filterSlotsForLibrary(slots, artistLibrary), artistLibrary);
         setLibrary(artistLibrary);
-        setScheduleSlots(filterSlotsForLibrary(slots, artistLibrary));
+        setScheduleSlots(normalizedSlots);
         setEventStart(getWizardEventStartOrFallback());
       } finally {
         if (!cancelled) setReady(true);
@@ -518,16 +540,15 @@ export default function LineupSchedulePage() {
 
               {/* Column headings */}
               <div className="rounded-xl border border-[#181824] bg-[#11111A] px-4 py-3">
-                <div className="flex flex-wrap items-center gap-6 text-[12px] leading-4 text-white">
-                  <div className="flex min-w-[180px] flex-1 gap-6 uppercase tracking-wide">
-                    <span className="text-[12px] font-normal">ORDER</span>
-                    <span className="text-[12px] font-normal">ARTIST(S)</span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-8 uppercase tracking-wide lg:gap-16">
-                    <span>DURATION</span>
-                    <span>START TIME</span>
-                    <span>END TIME</span>
-                    <span className="px-3">FEE</span>
+                <div className="overflow-x-auto">
+                  <div className="grid min-w-[760px] grid-cols-[56px_minmax(220px,1fr)_96px_104px_104px_96px_40px] items-center gap-4 text-[12px] font-normal uppercase tracking-wide text-white">
+                    <span>ORDER</span>
+                    <span>ARTIST(S)</span>
+                    <span className="text-center">DURATION</span>
+                    <span className="text-center">START TIME</span>
+                    <span className="text-center">END TIME</span>
+                    <span className="text-center">FEE</span>
+                    <span aria-hidden />
                   </div>
                 </div>
               </div>
@@ -621,7 +642,15 @@ export default function LineupSchedulePage() {
               Back
             </Button>
             <div className="ml-auto">
-              <Button variant="primary" size="md" type="button">
+              <Button
+                variant="primary"
+                size="md"
+                type="button"
+                onClick={() => {
+                  saveWizardScheduleSlots(scheduleSlots);
+                  router.push("/event-wizard/finance-&-forecast");
+                }}
+              >
                 <span className="inline-flex items-center gap-2">
                   Continue
                   <ArrowRight className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
@@ -781,115 +810,119 @@ function ScheduleArtistCard({
           aria-hidden
         />
       ) : null}
-      <div
-        className="flex min-h-[52px] w-full min-w-0 flex-nowrap items-center gap-6 overflow-x-auto px-1.5"
-      >
-        <div className="flex shrink-0 items-center gap-3">
-          <div
-            onPointerDown={(e) => onGripPointerDown(e, index)}
-            onPointerMove={(e) => onGripPointerMove(e, index)}
-            onPointerUp={(e) => onGripPointerUp(e, index)}
-            onPointerCancel={(e) => onGripPointerCancel(e, index)}
-            className="inline-flex cursor-grab touch-none text-[#71717A] active:cursor-grabbing"
-            aria-label="Drag to reorder or merge into another slot"
-          >
-            <GripVertical className="size-5" strokeWidth={2} aria-hidden />
-          </div>
-          <span className="text-[12px] font-bold leading-4 tracking-[0.12px] text-[#F5F5F7]">{row.order}</span>
-        </div>
-
-        <div
-          className={`flex min-w-0 flex-1 flex-col justify-center ${
-            row.kind === "b2b" ? "items-start" : ""
-          }`}
-        >
-          {row.kind === "single" ? (
-            <div className="flex items-center gap-6">
-              <div className="size-[30px] shrink-0 rounded-[3px] bg-white" />
-              <span className="text-[12px] font-bold leading-4 tracking-[0.12px] text-[#F5F5F7]">
-                {row.artist.name}
-              </span>
+      <div className="overflow-x-auto px-1.5">
+        <div className="grid min-h-[52px] min-w-[760px] grid-cols-[56px_minmax(220px,1fr)_96px_104px_104px_96px_40px] items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div
+              onPointerDown={(e) => onGripPointerDown(e, index)}
+              onPointerMove={(e) => onGripPointerMove(e, index)}
+              onPointerUp={(e) => onGripPointerUp(e, index)}
+              onPointerCancel={(e) => onGripPointerCancel(e, index)}
+              className="inline-flex cursor-grab touch-none text-[#71717A] active:cursor-grabbing"
+              aria-label="Drag to reorder or merge into another slot"
+            >
+              <GripVertical className="size-5" strokeWidth={2} aria-hidden />
             </div>
-          ) : (
-            <div className="flex flex-col gap-[17px]">
-              <div className="flex items-center gap-6">
+            <span className="text-[12px] font-bold leading-4 tracking-[0.12px] text-[#F5F5F7]">{row.order}</span>
+          </div>
+
+          <div
+            className={`flex min-w-0 flex-col justify-center ${
+              row.kind === "b2b" ? "items-start" : ""
+            }`}
+          >
+            {row.kind === "single" ? (
+              <div className="flex min-w-0 items-center gap-6">
                 <div className="size-[30px] shrink-0 rounded-[3px] bg-white" />
-                <span className="text-[12px] font-bold leading-4 tracking-[0.12px] text-[#F5F5F7]">
-                  {row.artists[0]?.name}
+                <span className="truncate text-[12px] font-bold leading-4 tracking-[0.12px] text-[#F5F5F7]">
+                  {row.artist.name}
                 </span>
               </div>
-              <div className="inline-flex w-fit items-center justify-center rounded-[3px] border border-[#8B5CF6] px-1.5 py-0.5">
-                <span className="text-[12px] font-bold leading-4 tracking-[0.12px] text-[#8B5CF6]">B2B</span>
-              </div>
-              {row.artists.slice(1).map((ar) => (
-                <div key={ar.artistId} className="flex items-center gap-6">
+            ) : (
+              <div className="flex min-w-0 flex-col gap-[17px]">
+                <div className="flex min-w-0 items-center gap-6">
                   <div className="size-[30px] shrink-0 rounded-[3px] bg-white" />
-                  <span className="text-[12px] font-bold leading-4 tracking-[0.12px] text-[#F5F5F7]">
-                    {ar.name}
+                  <span className="truncate text-[12px] font-bold leading-4 tracking-[0.12px] text-[#F5F5F7]">
+                    {row.artists[0]?.name}
                   </span>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+                <div className="inline-flex w-fit items-center justify-center rounded-[3px] border border-[#8B5CF6] px-1.5 py-0.5">
+                  <span className="text-[12px] font-bold leading-4 tracking-[0.12px] text-[#8B5CF6]">B2B</span>
+                </div>
+                {row.artists.slice(1).map((ar) => (
+                  <div key={ar.artistId} className="flex min-w-0 items-center gap-6">
+                    <div className="size-[30px] shrink-0 rounded-[3px] bg-white" />
+                    <span className="truncate text-[12px] font-bold leading-4 tracking-[0.12px] text-[#F5F5F7]">
+                      {ar.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-        <div className="flex shrink-0 flex-nowrap items-center gap-8 lg:gap-[77px]">
-          <label className="relative inline-flex shrink-0 cursor-pointer items-center gap-[3px] rounded-[6px] border border-[#71717A] bg-gradient-to-b from-[#11111A] to-[#0D0D14] p-1.5">
-            {parts.h ? <span className="text-[12px] text-white">{parts.h}</span> : null}
-            {parts.m ? <span className="text-[12px] text-white">{parts.m}</span> : null}
-            <ChevronDown className="size-5 text-white/80" strokeWidth={2} aria-hidden />
-            <select
-              className="absolute inset-0 cursor-pointer opacity-0"
-              value={row.durationMinutes}
-              onChange={(e) => onDurationChange(index, Number(e.target.value))}
-              aria-label="Duration"
-            >
-              {!DURATION_OPTIONS.includes(row.durationMinutes) && (
-                <option value={row.durationMinutes}>{formatDurationMinutes(row.durationMinutes)}</option>
-              )}
-              {DURATION_OPTIONS.map((m) => (
-                <option key={m} value={m}>
-                  {formatDurationMinutes(m)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="flex justify-center">
+            <label className="relative inline-flex h-[31px] w-[88px] cursor-pointer items-center justify-center gap-[3px] rounded-[6px] border border-[#71717A] bg-gradient-to-b from-[#11111A] to-[#0D0D14] px-1.5">
+              {parts.h ? <span className="text-[12px] text-white">{parts.h}</span> : null}
+              {parts.m ? <span className="text-[12px] text-white">{parts.m}</span> : null}
+              <ChevronDown className="size-5 text-white/80" strokeWidth={2} aria-hidden />
+              <select
+                className="absolute inset-0 cursor-pointer opacity-0"
+                value={row.durationMinutes}
+                onChange={(e) => onDurationChange(index, Number(e.target.value))}
+                aria-label="Duration"
+              >
+                {!DURATION_OPTIONS.includes(row.durationMinutes) && (
+                  <option value={row.durationMinutes}>{formatDurationMinutes(row.durationMinutes)}</option>
+                )}
+                {DURATION_OPTIONS.map((m) => (
+                  <option key={m} value={m}>
+                    {formatDurationMinutes(m)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
 
-          <span className="shrink-0 whitespace-nowrap text-[12px] font-bold leading-4 tracking-[0.12px] text-[#F5F5F7]">
+          <span className="text-center whitespace-nowrap text-[12px] font-bold leading-4 tracking-[0.12px] text-[#F5F5F7]">
             {formatClock(row.start)}
           </span>
-          <span className="shrink-0 whitespace-nowrap text-[12px] font-bold leading-4 tracking-[0.12px] text-[#F5F5F7]">
+          <span className="text-center whitespace-nowrap text-[12px] font-bold leading-4 tracking-[0.12px] text-[#F5F5F7]">
             {formatClock(row.end)}
           </span>
 
-          <label className="relative flex h-[31px] min-w-[72px] shrink-0 items-center justify-center rounded-[6px] border border-[#71717A] bg-gradient-to-b from-[#11111A] to-[#0D0D14] px-1.5">
-            <span className="text-[12px] font-bold tracking-[0.12px] text-[#F5F5F7]">${fee}</span>
-            <input
-              type="number"
-              step={0.01}
-              min={0}
-              defaultValue={fee}
-              key={`${row.slotId}-${row.feeCents}`}
-              className="absolute inset-0 cursor-pointer opacity-0"
-              onBlur={(e) => onFeeBlur(index, e.target.value)}
-              aria-label="Fee in dollars"
-            />
-          </label>
+          <div className="flex justify-center">
+            <label className="relative flex h-[31px] w-[88px] items-center justify-center rounded-[6px] border border-[#71717A] bg-gradient-to-b from-[#11111A] to-[#0D0D14] px-1.5">
+              <span className="text-[12px] font-bold tracking-[0.12px] text-[#F5F5F7]">${fee}</span>
+              <input
+                type="number"
+                step={0.01}
+                min={0}
+                defaultValue={fee}
+                key={`${row.slotId}-${row.feeCents}`}
+                className="absolute inset-0 cursor-pointer opacity-0"
+                onBlur={(e) => onFeeBlur(index, e.target.value)}
+                aria-label="Fee in dollars"
+              />
+            </label>
+          </div>
 
-          <button
-            ref={menuBtnRef}
-            type="button"
-            className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-md text-[#71717A] hover:bg-[#181824] hover:text-[#F5F5F7]"
-            aria-expanded={isMenuOpen}
-            aria-haspopup="menu"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMenuButtonClick();
-            }}
-          >
-            <MoreVertical className="size-5" strokeWidth={2} />
-            <span className="sr-only">Row actions</span>
-          </button>
+          <div className="flex justify-end">
+            <button
+              ref={menuBtnRef}
+              type="button"
+              className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-md text-[#71717A] hover:bg-[#181824] hover:text-[#F5F5F7]"
+              aria-expanded={isMenuOpen}
+              aria-haspopup="menu"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMenuButtonClick();
+              }}
+            >
+              <MoreVertical className="size-5" strokeWidth={2} />
+              <span className="sr-only">Row actions</span>
+            </button>
+          </div>
         </div>
       </div>
 

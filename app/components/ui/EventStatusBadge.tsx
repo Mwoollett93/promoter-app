@@ -1,13 +1,23 @@
 /**
  * Event status pills — Figma `14:137` (PromoSync — Promoter OS).
  */
-export type EventStatus = "confirmed" | "planning" | "draft" | "cancelled";
+export type EventStatus =
+  | "confirmed"
+  | "planning"
+  | "draft"
+  | "cancelled"
+  | "active"
+  | "completed"
+  | "canceled";
 
 const LABELS: Record<EventStatus, string> = {
   confirmed: "CONFIRMED",
   planning: "PLANNING",
   draft: "DRAFT",
   cancelled: "CANCELLED",
+  active: "ACTIVE",
+  completed: "COMPLETED",
+  canceled: "CANCELED",
 };
 
 const variantClass: Record<EventStatus, string> = {
@@ -18,6 +28,9 @@ const variantClass: Record<EventStatus, string> = {
   draft: "border border-[#52525B]/60 bg-[#27272F]/80 text-[#A1A1AA]",
   cancelled:
     "border border-red-500/25 bg-red-500/10 text-red-300",
+  active: "border border-[#8B5CF6]/35 bg-[#8B5CF6]/12 text-[#C4B5FD]",
+  completed: "border border-emerald-500/25 bg-emerald-500/10 text-emerald-300",
+  canceled: "border border-red-500/25 bg-red-500/10 text-red-300",
 };
 
 export default function EventStatusBadge({

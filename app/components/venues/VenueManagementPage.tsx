@@ -4,8 +4,6 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowDown,
-  ArrowUpDown,
   Building2,
   CalendarDays,
   CheckCircle2,
@@ -20,12 +18,26 @@ import {
   X,
 } from "lucide-react";
 
+import PageContent from "@/app/components/layout/PageContent";
+import CurrencyText from "@/app/components/ui/CurrencyText";
+import {
+  ManagementTableCard,
+  ManagementTableCell,
+  ManagementTableEmptyState,
+  ManagementTableHead,
+  ManagementTableHeaderCell,
+  ManagementTablePagination,
+  ManagementTableViewport,
+  SortableManagementHeader,
+  managementTableRowClass,
+} from "@/app/components/management/ManagementTable";
 import {
   getStoredSession,
   getSupabaseConfig,
   signOutOfSupabase,
   startGithubSignIn,
 } from "@/lib/supabase/browser";
+import { MANAGEMENT_TABLE_PAGE_SIZE_VENUES, PAGE_STACK_GAP } from "@/lib/layout/page-layout";
 import * as SupabaseBrowser from "@/lib/supabase/browser";
 import type { SupabaseSession } from "@/lib/types/artist";
 
@@ -433,7 +445,7 @@ const venueSeedDrafts: VenueDraft[] = [
 type SortKey = "name" | "city" | "capacity" | "status" | "addedDate";
 
 const statusFilters: Array<VenueStatus | "all"> = ["all", "active", "inactive"];
-const pageSize = 6;
+const pageSize = MANAGEMENT_TABLE_PAGE_SIZE_VENUES;
 const showSeedAction = process.env.NODE_ENV !== "production";
 
 export default function VenueManagementPage() {
@@ -610,8 +622,8 @@ export default function VenueManagementPage() {
   }
 
   return (
-    <div className="flex w-full max-w-none flex-col gap-5 pb-10">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <PageContent>
+      <header className={`flex flex-col ${PAGE_STACK_GAP} lg:flex-row lg:items-start lg:justify-between`}>
         <div>
           <h1 className="text-[32px] font-bold leading-9 tracking-tight text-[#F5F5F7]">Venues</h1>
           <p className="mt-1 text-[14px] leading-5 text-[#A1A1AA]">
@@ -698,10 +710,8 @@ export default function VenueManagementPage() {
           selectedVenue ? "xl:grid-cols-[minmax(0,1fr)_minmax(360px,400px)]" : ""
         }`}
       >
-        <section className="rounded-xl border border-[#232330] bg-[#11111A] p-5 shadow-[0px_10px_40px_0px_rgba(0,0,0,0.35)]">
-          <div className="overflow-hidden rounded-lg border border-[#232330] bg-[#0B0B10]">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[880px] table-fixed border-collapse">
+        <ManagementTableCard>
+          <ManagementTableViewport minWidth={880}>
                 <colgroup>
                   <col className="w-[39%]" />
                   <col className="w-[17%]" />
@@ -710,29 +720,21 @@ export default function VenueManagementPage() {
                   <col className="w-[10%]" />
                   <col className="w-[8%]" />
                 </colgroup>
-                <thead>
-                  <tr className="border-b border-[#232330] bg-[#0F0F17] text-left text-xs font-medium text-[#A1A1AA]">
-                    <SortableHeader label="Venue" sortKey="name" current={sortKey} direction={sortDirection} onSort={handleSort} />
-                    <SortableHeader label="City" sortKey="city" current={sortKey} direction={sortDirection} onSort={handleSort} />
-                    <SortableHeader label="Capacity" sortKey="capacity" current={sortKey} direction={sortDirection} onSort={handleSort} />
-                    <SortableHeader label="Status" sortKey="status" current={sortKey} direction={sortDirection} onSort={handleSort} />
-                    <SortableHeader label="Added" sortKey="addedDate" current={sortKey} direction={sortDirection} onSort={handleSort} />
-                    <th className="px-4 py-4 text-right">Quick Actions</th>
-                  </tr>
-                </thead>
+            <ManagementTableHead>
+              <SortableManagementHeader label="Venue" sortKey="name" current={sortKey} direction={sortDirection} onSort={handleSort} />
+              <SortableManagementHeader label="City" sortKey="city" current={sortKey} direction={sortDirection} onSort={handleSort} />
+              <SortableManagementHeader label="Capacity" sortKey="capacity" current={sortKey} direction={sortDirection} onSort={handleSort} />
+              <SortableManagementHeader label="Status" sortKey="status" current={sortKey} direction={sortDirection} onSort={handleSort} />
+              <SortableManagementHeader label="Added" sortKey="addedDate" current={sortKey} direction={sortDirection} onSort={handleSort} />
+              <ManagementTableHeaderCell align="right">Quick Actions</ManagementTableHeaderCell>
+            </ManagementTableHead>
                 <tbody>
                   {loading ? (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-14 text-center text-sm text-[#A1A1AA]">
-                        Loading venues from Supabase...
-                      </td>
-                    </tr>
+                    <ManagementTableEmptyState colSpan={6}>Loading venues from Supabase...</ManagementTableEmptyState>
                   ) : paginatedVenues.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-14 text-center text-sm text-[#A1A1AA]">
-                        No venues match this view. Add your first venue to get started.
-                      </td>
-                    </tr>
+                    <ManagementTableEmptyState colSpan={6}>
+                      No venues match this view. Add your first venue to get started.
+                    </ManagementTableEmptyState>
                   ) : (
                     paginatedVenues.map((venue) => {
                       const selected = selectedVenue?.id === venue.id;
@@ -740,12 +742,9 @@ export default function VenueManagementPage() {
                         <tr
                           key={venue.id}
                           onClick={() => setSelectedId(venue.id)}
-                          className={[
-                            "cursor-pointer border-b border-[#232330]/80 text-sm transition-colors last:border-0 hover:bg-[#181824]",
-                            selected ? "bg-[#1A1430] shadow-[inset_0_0_0_1px_rgba(139,92,246,0.65)]" : "",
-                          ].join(" ")}
+                          className={managementTableRowClass(selected)}
                         >
-                          <td className="px-4 py-3">
+                          <ManagementTableCell>
                             <div className="flex items-center gap-3">
                               <VenueThumb venue={venue} />
                               <div className="min-w-0">
@@ -753,14 +752,14 @@ export default function VenueManagementPage() {
                                 <p className="truncate text-xs text-[#A1A1AA]">{formatFullAddress(venue)}</p>
                               </div>
                             </div>
-                          </td>
-                          <td className="px-4 py-3 text-[#E4E4E7]">{venue.city}</td>
-                          <td className="px-4 py-3 text-[#E4E4E7]">{formatCapacity(venue.maxCapacity)}</td>
-                          <td className="px-4 py-3">
+                          </ManagementTableCell>
+                          <ManagementTableCell className="text-[#E4E4E7]">{venue.city}</ManagementTableCell>
+                          <ManagementTableCell className="text-[#E4E4E7]">{formatCapacity(venue.maxCapacity)}</ManagementTableCell>
+                          <ManagementTableCell>
                             <StatusBadge status={venue.status} />
-                          </td>
-                          <td className="px-4 py-3 text-[#E4E4E7]">{formatDate(venue.addedDate)}</td>
-                          <td className="px-4 py-3">
+                          </ManagementTableCell>
+                          <ManagementTableCell className="text-[#E4E4E7]">{formatDate(venue.addedDate)}</ManagementTableCell>
+                          <ManagementTableCell>
                             <div className="flex justify-end">
                               <button
                                 type="button"
@@ -774,32 +773,24 @@ export default function VenueManagementPage() {
                                 <MoreHorizontal className="size-4" />
                               </button>
                             </div>
-                          </td>
+                          </ManagementTableCell>
                         </tr>
                       );
                     })
                   )}
                 </tbody>
-              </table>
-            </div>
-          </div>
+          </ManagementTableViewport>
 
-          <footer className="mt-3 flex flex-col gap-3 text-sm text-[#A1A1AA] sm:flex-row sm:items-center sm:justify-between">
-            <span>
-              Showing {paginatedVenues.length === 0 ? 0 : (page - 1) * pageSize + 1} to{" "}
-              {Math.min(page * pageSize, filteredVenues.length)} of {filteredVenues.length} venues
-            </span>
-            <div className="flex items-center justify-end gap-2">
-              <PaginationButton disabled={page === 1} onClick={() => setPage((value) => value - 1)}>
-                Previous
-              </PaginationButton>
-              <span className="rounded-md bg-[#7C3AED] px-3 py-1.5 text-white">{page}</span>
-              <PaginationButton disabled={page === totalPages} onClick={() => setPage((value) => value + 1)}>
-                Next
-              </PaginationButton>
-            </div>
-          </footer>
-        </section>
+          <ManagementTablePagination
+            page={page}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalCount={filteredVenues.length}
+            entityLabel="venues"
+            onPrevious={() => setPage((value) => value - 1)}
+            onNext={() => setPage((value) => value + 1)}
+          />
+        </ManagementTableCard>
 
         {selectedVenue ? (
           <VenueSidePanel
@@ -825,39 +816,7 @@ export default function VenueManagementPage() {
           onDownload={handleDownload}
         />
       ) : null}
-    </div>
-  );
-}
-
-function SortableHeader({
-  label,
-  sortKey,
-  current,
-  direction,
-  onSort,
-}: {
-  label: string;
-  sortKey: SortKey;
-  current: SortKey;
-  direction: "asc" | "desc";
-  onSort: (key: SortKey) => void;
-}) {
-  const active = current === sortKey;
-  return (
-    <th className="px-4 py-4">
-      <button
-        type="button"
-        onClick={() => onSort(sortKey)}
-        className="inline-flex items-center gap-1.5 hover:text-[#F5F5F7]"
-      >
-        {label}
-        {active && direction === "desc" ? (
-          <ArrowDown className="size-3.5" aria-hidden />
-        ) : (
-          <ArrowUpDown className="size-3.5" aria-hidden />
-        )}
-      </button>
-    </th>
+    </PageContent>
   );
 }
 
@@ -1105,12 +1064,18 @@ function VenueProfileModal({
               <ProfileSection title="Terms & Conditions">
                 <dl className="grid gap-4 md:grid-cols-2">
                   <ProfileDetail label="Deposit Required" value={venue.depositRequired ? "Yes" : "No"} />
-                  <ProfileDetail label="Deposit Amount" value={formatCurrency(venue.depositAmountCents)} />
+                  <ProfileDetail
+                    label="Deposit Amount"
+                    value={formatCentsValue(venue.depositAmountCents)}
+                  />
                   <ProfileDetail label="Deposit Due" value={venue.depositDueTerms} />
-                  <ProfileDetail label="Hire Fee" value={formatCurrency(venue.hireFeeCents)} />
+                  <ProfileDetail label="Hire Fee" value={formatCentsValue(venue.hireFeeCents)} />
                   <ProfileDetail label="Payment Terms" value={venue.paymentTerms} />
                   <ProfileDetail label="Bar Split" value={venue.barSplitPercent ? `${venue.barSplitPercent}%` : "Not set"} />
-                  <ProfileDetail label="Minimum Spend" value={formatCurrency(venue.minimumSpendCents)} />
+                  <ProfileDetail
+                    label="Minimum Spend"
+                    value={formatCentsValue(venue.minimumSpendCents)}
+                  />
                   <ProfileDetail label="Late License" value={venue.lateLicense ? "Yes" : "No"} />
                 </dl>
               </ProfileSection>
@@ -1284,7 +1249,12 @@ function Detail({ label, value }: { label: string; value?: string }) {
   );
 }
 
-function ProfileDetail({ label, value }: { label: string; value?: string }) {
+function formatCentsValue(cents: number) {
+  if (!cents) return "Not set";
+  return <CurrencyText value={cents} fromCents />;
+}
+
+function ProfileDetail({ label, value }: { label: string; value?: ReactNode }) {
   return (
     <div>
       <dt className="text-xs uppercase tracking-wide text-[#71717A]">{label}</dt>
@@ -1316,27 +1286,6 @@ function PillList({ items, empty }: { items: string[]; empty: string }) {
         </span>
       ))}
     </div>
-  );
-}
-
-function PaginationButton({
-  children,
-  disabled,
-  onClick,
-}: {
-  children: ReactNode;
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className="rounded-md border border-[#232330] px-3 py-1.5 text-[#E4E4E7] hover:border-[#8B5CF6]/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      {children}
-    </button>
   );
 }
 
@@ -1466,12 +1415,3 @@ function formatCapacity(value: number) {
   return value ? new Intl.NumberFormat("en-GB").format(value) : "Not set";
 }
 
-function formatCurrency(cents: number) {
-  if (!cents) return "Not set";
-
-  return new Intl.NumberFormat("en-GB", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
-}

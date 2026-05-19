@@ -35,6 +35,7 @@ describe("mergeDraggedIntoTarget", () => {
     expect(next[0]?.kind).toBe("b2b");
     if (next[0]?.kind === "b2b") {
       expect(next[0].artistIds).toEqual(["x", "y"]);
+      expect(next[0].feeCents).toBe(300);
     }
   });
 
@@ -53,6 +54,7 @@ describe("mergeDraggedIntoTarget", () => {
     expect(next).toHaveLength(1);
     if (next[0]?.kind === "b2b") {
       expect(next[0].artistIds).toEqual(["x", "y", "z"]);
+      expect(next[0].feeCents).toBe(150);
     }
   });
 });

@@ -3,6 +3,8 @@
 import * as React from "react";
 import Sidebar from "./Sidebar";
 import WizardHeader from "./WizardHeader";
+import { SHELL_PADDING_X, SHELL_PADDING_Y } from "@/lib/layout/page-layout";
+import { SettingsProvider } from "@/lib/settings/SettingsProvider";
 
 type WizardShellProps = {
   children: React.ReactNode;
@@ -13,21 +15,23 @@ export default function WizardShell({ children, title }: WizardShellProps) {
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
 
   return (
-    <div className="min-h-screen bg-[#0B0B10]">
+    <SettingsProvider>
+    <div className="h-screen overflow-hidden bg-[#0B0B10]">
       <div
-        className="isolate grid min-h-screen transition-[grid-template-columns] duration-300 ease-out"
+        className="isolate grid h-full transition-[grid-template-columns] duration-300 ease-out"
         style={{ gridTemplateColumns: sidebarOpen ? "218px 1fr" : "72px 1fr" }}
       >
         <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen((v) => !v)} />
 
-        <section className="relative z-0 min-w-0 overflow-x-hidden bg-[#0B0B10]">
+        <section
+          className={`relative z-0 box-border min-h-0 min-w-0 w-full overflow-x-hidden overflow-y-auto bg-[#0B0B10] ${SHELL_PADDING_X} ${SHELL_PADDING_Y}`}
+        >
           {/* No mx-auto/max-w so content can fill to right edge */}
-          <div className="h-full px-5 py-5">
-            <WizardHeader title={title} />
-            {children}
-          </div>
+          <WizardHeader title={title} />
+          {children}
         </section>
       </div>
     </div>
+    </SettingsProvider>
   );
 }

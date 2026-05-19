@@ -4,8 +4,6 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowDown,
-  ArrowUpDown,
   Check,
   Download,
   Edit3,
@@ -23,6 +21,21 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import PageContent from "@/app/components/layout/PageContent";
+import CurrencyText from "@/app/components/ui/CurrencyText";
+import {
+  ManagementTableCard,
+  ManagementTableCell,
+  ManagementTableEmptyState,
+  ManagementTableHead,
+  ManagementTableHeaderCell,
+  ManagementTablePagination,
+  ManagementTableViewport,
+  SortableManagementHeader,
+  managementTableRowClass,
+} from "@/app/components/management/ManagementTable";
+import { MANAGEMENT_TABLE_PAGE_SIZE_ARTISTS, PAGE_STACK_GAP } from "@/lib/layout/page-layout";
+
 import {
   createArtist,
   createSignedDocumentUrl,
@@ -38,7 +51,7 @@ import type { ArtistDraft, ArtistProfile, ArtistStatus, SupabaseSession } from "
 type SortKey = "name" | "artistType" | "genres" | "status" | "location" | "addedDate";
 
 const statusFilters: Array<ArtistStatus | "all"> = ["all", "active", "inactive", "archived"];
-const pageSize = 9;
+const pageSize = MANAGEMENT_TABLE_PAGE_SIZE_ARTISTS;
 const showSeedAction = process.env.NODE_ENV !== "production";
 const quickActions: Array<{ label: string; icon: LucideIcon }> = [
   { label: "View Profile", icon: UserCircle },
@@ -313,8 +326,8 @@ export default function ArtistManagementPage() {
   }
 
   return (
-    <div className="flex w-full max-w-none flex-col gap-5 pb-10">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <PageContent>
+      <header className={`flex flex-col ${PAGE_STACK_GAP} lg:flex-row lg:items-start lg:justify-between`}>
         <div>
           <h1 className="text-[32px] font-bold leading-9 tracking-tight text-[#F5F5F7]">Artists</h1>
           <p className="mt-1 text-[14px] leading-5 text-[#A1A1AA]">
@@ -410,10 +423,8 @@ export default function ArtistManagementPage() {
           selectedArtist ? "xl:grid-cols-[minmax(0,1fr)_minmax(420px,440px)]" : ""
         }`}
       >
-        <section className="rounded-xl border border-[#232330] bg-[#11111A] p-5 shadow-[0px_10px_40px_0px_rgba(0,0,0,0.35)]">
-          <div className="overflow-hidden rounded-lg border border-[#232330] bg-[#0B0B10]">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[920px] table-fixed border-collapse">
+        <ManagementTableCard>
+          <ManagementTableViewport minWidth={920}>
               <colgroup>
                 <col className="w-[21%]" />
                 <col className="w-[13%]" />
@@ -423,30 +434,22 @@ export default function ArtistManagementPage() {
                 <col className="w-[9%]" />
                 <col className="w-[10%]" />
               </colgroup>
-              <thead>
-                <tr className="border-b border-[#232330] bg-[#0F0F17] text-left text-xs font-medium text-[#A1A1AA]">
-                  <SortableHeader label="Artist" sortKey="name" current={sortKey} direction={sortDirection} onSort={handleSort} />
-                  <SortableHeader label="Category" sortKey="artistType" current={sortKey} direction={sortDirection} onSort={handleSort} />
-                  <SortableHeader label="Genre" sortKey="genres" current={sortKey} direction={sortDirection} onSort={handleSort} />
-                  <SortableHeader label="Status" sortKey="status" current={sortKey} direction={sortDirection} onSort={handleSort} />
-                  <SortableHeader label="Location / Reach" sortKey="location" current={sortKey} direction={sortDirection} onSort={handleSort} />
-                  <SortableHeader label="Added" sortKey="addedDate" current={sortKey} direction={sortDirection} onSort={handleSort} />
-                  <th className="px-4 py-4 text-right">Quick Actions</th>
-                </tr>
-              </thead>
+            <ManagementTableHead>
+              <SortableManagementHeader label="Artist" sortKey="name" current={sortKey} direction={sortDirection} onSort={handleSort} />
+              <SortableManagementHeader label="Category" sortKey="artistType" current={sortKey} direction={sortDirection} onSort={handleSort} />
+              <SortableManagementHeader label="Genre" sortKey="genres" current={sortKey} direction={sortDirection} onSort={handleSort} />
+              <SortableManagementHeader label="Status" sortKey="status" current={sortKey} direction={sortDirection} onSort={handleSort} />
+              <SortableManagementHeader label="Location / Reach" sortKey="location" current={sortKey} direction={sortDirection} onSort={handleSort} />
+              <SortableManagementHeader label="Added" sortKey="addedDate" current={sortKey} direction={sortDirection} onSort={handleSort} />
+              <ManagementTableHeaderCell align="right">Quick Actions</ManagementTableHeaderCell>
+            </ManagementTableHead>
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-14 text-center text-sm text-[#A1A1AA]">
-                      Loading artists from Supabase...
-                    </td>
-                  </tr>
+                  <ManagementTableEmptyState colSpan={7}>Loading artists from Supabase...</ManagementTableEmptyState>
                 ) : paginatedArtists.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-14 text-center text-sm text-[#A1A1AA]">
-                      No artists match this view. Add your first artist to get started.
-                    </td>
-                  </tr>
+                  <ManagementTableEmptyState colSpan={7}>
+                    No artists match this view. Add your first artist to get started.
+                  </ManagementTableEmptyState>
                 ) : (
                   paginatedArtists.map((artist) => {
                     const selected = selectedArtist?.id === artist.id;
@@ -455,12 +458,9 @@ export default function ArtistManagementPage() {
                       <tr
                         key={artist.id}
                         onClick={() => setSelectedId(artist.id)}
-                        className={[
-                          "h-[58px] cursor-pointer border-b border-[#232330]/80 text-sm transition-colors last:border-0 hover:bg-[#181824]",
-                          selected ? "bg-[#1A1430] shadow-[inset_0_0_0_1px_rgba(139,92,246,0.65)]" : "",
-                        ].join(" ")}
+                        className={managementTableRowClass(selected)}
                       >
-                        <td className="px-4 py-3">
+                        <ManagementTableCell>
                           <div className="flex items-center gap-3">
                             <ArtistAvatar artist={artist} />
                             <div className="min-w-0">
@@ -481,9 +481,9 @@ export default function ArtistManagementPage() {
                               <p className="truncate text-xs text-[#A1A1AA]">{artist.artistType}</p>
                             </div>
                           </div>
-                        </td>
-                        <td className="px-4 py-3 text-[#E4E4E7]">{artist.artistType}</td>
-                        <td className="px-4 py-3 text-[#E4E4E7]">
+                        </ManagementTableCell>
+                        <ManagementTableCell className="text-[#E4E4E7]">{artist.artistType}</ManagementTableCell>
+                        <ManagementTableCell className="text-[#E4E4E7]">
                           {editing ? (
                             <input
                               value={rowDraft.genres.join(", ")}
@@ -507,8 +507,8 @@ export default function ArtistManagementPage() {
                           ) : (
                             artist.genres.join(", ") || "Not set"
                           )}
-                        </td>
-                        <td className="px-4 py-3">
+                        </ManagementTableCell>
+                        <ManagementTableCell>
                           {editing ? (
                             <select
                               value={rowDraft.status}
@@ -529,13 +529,13 @@ export default function ArtistManagementPage() {
                           ) : (
                             <StatusBadge status={artist.status} />
                           )}
-                        </td>
-                        <td className="px-4 py-3">
+                        </ManagementTableCell>
+                        <ManagementTableCell>
                           <p className="text-[#E4E4E7]">{formatLocation(artist)}</p>
                           <p className="text-xs capitalize text-[#A1A1AA]">{artist.reach}</p>
-                        </td>
-                        <td className="px-4 py-3 text-[#E4E4E7]">{formatDate(artist.addedDate)}</td>
-                        <td className="px-4 py-3">
+                        </ManagementTableCell>
+                        <ManagementTableCell className="text-[#E4E4E7]">{formatDate(artist.addedDate)}</ManagementTableCell>
+                        <ManagementTableCell>
                           <div className="flex justify-end gap-2">
                             {editing ? (
                               <>
@@ -589,35 +589,24 @@ export default function ArtistManagementPage() {
                               </>
                             )}
                           </div>
-                        </td>
+                        </ManagementTableCell>
                       </tr>
                     );
                   })
                 )}
               </tbody>
-              </table>
-            </div>
-          </div>
+          </ManagementTableViewport>
 
-          <footer className="mt-3 flex flex-col gap-3 text-sm text-[#A1A1AA] sm:flex-row sm:items-center sm:justify-between">
-            <span>
-              Showing {paginatedArtists.length === 0 ? 0 : (page - 1) * pageSize + 1} to{" "}
-              {Math.min(page * pageSize, filteredArtists.length)} of {filteredArtists.length} artists
-            </span>
-            <div className="flex items-center justify-end gap-2">
-              <PaginationButton disabled={page === 1} onClick={() => setPage((value) => value - 1)}>
-                Previous
-              </PaginationButton>
-              <span className="rounded-md bg-[#7C3AED] px-3 py-1.5 text-white">{page}</span>
-              <PaginationButton
-                disabled={page === totalPages}
-                onClick={() => setPage((value) => value + 1)}
-              >
-                Next
-              </PaginationButton>
-            </div>
-          </footer>
-        </section>
+          <ManagementTablePagination
+            page={page}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalCount={filteredArtists.length}
+            entityLabel="artists"
+            onPrevious={() => setPage((value) => value - 1)}
+            onNext={() => setPage((value) => value + 1)}
+          />
+        </ManagementTableCard>
 
         {selectedArtist ? (
           <ArtistSidePanel
@@ -640,39 +629,7 @@ export default function ArtistManagementPage() {
           onDelete={() => void handleDeleteArtist(actionMenuArtist)}
         />
       ) : null}
-    </div>
-  );
-}
-
-function SortableHeader({
-  label,
-  sortKey,
-  current,
-  direction,
-  onSort,
-}: {
-  label: string;
-  sortKey: SortKey;
-  current: SortKey;
-  direction: "asc" | "desc";
-  onSort: (key: SortKey) => void;
-}) {
-  const active = current === sortKey;
-  return (
-    <th className="px-4 py-4">
-      <button
-        type="button"
-        onClick={() => onSort(sortKey)}
-        className="inline-flex items-center gap-1.5 hover:text-[#F5F5F7]"
-      >
-        {label}
-        {active && direction === "desc" ? (
-          <ArrowDown className="size-3.5" aria-hidden />
-        ) : (
-          <ArrowUpDown className="size-3.5" aria-hidden />
-        )}
-      </button>
-    </th>
+    </PageContent>
   );
 }
 
@@ -1015,9 +972,15 @@ function ArtistProfileModal({ artist, onClose }: { artist: ArtistProfile; onClos
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_360px]">
               <ProfileSection title="Booking Details">
                 <dl className="grid gap-4 md:grid-cols-2">
-                  <ProfileDetail label="Typical Fee" value={formatCurrency(artist.typicalFeeCents)} />
+                  <ProfileDetail
+                    label="Typical Fee"
+                    value={formatCentsValue(artist.typicalFeeCents)}
+                  />
                   <ProfileDetail label="Deposit Required" value={artist.depositRequired ? "Yes" : "No"} />
-                  <ProfileDetail label="Deposit Amount" value={formatCurrency(artist.depositAmountCents)} />
+                  <ProfileDetail
+                    label="Deposit Amount"
+                    value={formatCentsValue(artist.depositAmountCents)}
+                  />
                   <ProfileDetail label="Reliability Rating" value={formatRating(artist.reliabilityRating)} />
                 </dl>
               </ProfileSection>
@@ -1162,7 +1125,12 @@ function SocialLinkList({ artist }: { artist: ArtistProfile }) {
   );
 }
 
-function ProfileDetail({ label, value }: { label: string; value?: string }) {
+function formatCentsValue(cents: number) {
+  if (!cents) return "Not set";
+  return <CurrencyText value={cents} fromCents />;
+}
+
+function ProfileDetail({ label, value }: { label: string; value?: ReactNode }) {
   return (
     <div>
       <dt className="text-xs uppercase tracking-wide text-[#71717A]">{label}</dt>
@@ -1223,27 +1191,6 @@ function StatusBadge({ status }: { status: ArtistStatus }) {
     <span className={`inline-flex rounded-md px-2 py-1 text-xs font-medium capitalize ring-1 ${className}`}>
       {status}
     </span>
-  );
-}
-
-function PaginationButton({
-  children,
-  disabled,
-  onClick,
-}: {
-  children: ReactNode;
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className="rounded-md border border-[#232330] px-3 py-1.5 text-[#E4E4E7] hover:border-[#8B5CF6]/50 disabled:cursor-not-allowed disabled:opacity-40"
-    >
-      {children}
-    </button>
   );
 }
 
@@ -1350,16 +1297,6 @@ function formatDate(value: string) {
     month: "short",
     year: "numeric",
   }).format(new Date(value));
-}
-
-function formatCurrency(cents: number) {
-  if (!cents) return "Not set";
-
-  return new Intl.NumberFormat("en-GB", {
-    style: "currency",
-    currency: "GBP",
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
 }
 
 function formatFileSize(bytes: number) {

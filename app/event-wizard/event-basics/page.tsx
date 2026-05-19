@@ -276,6 +276,11 @@ export default function EventBasicsPage() {
                   saveWizardEventDraft({
                     date: draft.date,
                     startTime: draft.startTime,
+                    eventName: draft.eventName,
+                    venueId: selectedVenue.id,
+                    venueName: selectedVenue.name,
+                    venueCapacity: selectedVenue.capacity,
+                    description: draft.description,
                   });
                   router.push("/event-wizard/lineup-&-schedule");
                 }}

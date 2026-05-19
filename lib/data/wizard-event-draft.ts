@@ -2,13 +2,28 @@ import { getEventStartForWizard } from "./event-context";
 
 const STORAGE_KEY = "promosync:wizard-event-draft";
 
-export type WizardEventDraftV1 = {
+type WizardEventDraftV1 = {
   v: 1;
   /** Local calendar date YYYY-MM-DD (from `Date` in the viewer's timezone). */
   dateKey: string;
   /** 24h `HH:mm` as entered on Event Basics. */
   startTime: string;
 };
+
+export type WizardEventDraftV2 = {
+  v: 2;
+  /** Local calendar date YYYY-MM-DD (from `Date` in the viewer's timezone). */
+  dateKey: string;
+  /** 24h `HH:mm` as entered on Event Basics. */
+  startTime: string;
+  eventName?: string;
+  venueId?: string;
+  venueName?: string;
+  venueCapacity?: number;
+  description?: string;
+};
+
+export type WizardEventDraft = WizardEventDraftV2;
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -44,12 +59,28 @@ export function localDateTimeFromParts(day: Date, time24: string): Date | null {
  * Persist Event Basics date + start time for the Lineup step.
  * Call on Continue from Event Basics (client only).
  */
-export function saveWizardEventDraft(input: { date?: Date; startTime: string }): void {
+export function saveWizardEventDraft(input: {
+  date?: Date;
+  startTime: string;
+  eventName?: string;
+  venueId?: string;
+  venueName?: string;
+  venueCapacity?: number;
+  description?: string;
+}): void {
   if (typeof window === "undefined" || !input.date) return;
-  const payload: WizardEventDraftV1 = {
-    v: 1,
+  const payload: WizardEventDraftV2 = {
+    v: 2,
     dateKey: dateKeyFromLocalDate(input.date),
     startTime: input.startTime.trim(),
+    eventName: input.eventName?.trim() || undefined,
+    venueId: input.venueId?.trim() || undefined,
+    venueName: input.venueName?.trim() || undefined,
+    description: input.description?.trim() || undefined,
+    venueCapacity:
+      typeof input.venueCapacity === "number" && Number.isFinite(input.venueCapacity)
+        ? Math.max(0, Math.round(input.venueCapacity))
+        : undefined,
   };
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -58,16 +89,33 @@ export function saveWizardEventDraft(input: { date?: Date; startTime: string }):
   }
 }
 
-function loadWizardEventDraft(): WizardEventDraftV1 | null {
+export function loadWizardEventDraft(): WizardEventDraft | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<WizardEventDraftV1>;
-    if (parsed?.v !== 1 || typeof parsed.dateKey !== "string" || typeof parsed.startTime !== "string") {
-      return null;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (typeof parsed.dateKey !== "string" || typeof parsed.startTime !== "string") return null;
+
+    if (parsed.v === 1) {
+      return { v: 2, dateKey: parsed.dateKey, startTime: parsed.startTime };
     }
-    return { v: 1, dateKey: parsed.dateKey, startTime: parsed.startTime };
+
+    if (parsed.v !== 2) return null;
+
+    return {
+      v: 2,
+      dateKey: parsed.dateKey,
+      startTime: parsed.startTime,
+      eventName: typeof parsed.eventName === "string" ? parsed.eventName : undefined,
+      venueId: typeof parsed.venueId === "string" ? parsed.venueId : undefined,
+      venueName: typeof parsed.venueName === "string" ? parsed.venueName : undefined,
+      description: typeof parsed.description === "string" ? parsed.description : undefined,
+      venueCapacity:
+        typeof parsed.venueCapacity === "number" && Number.isFinite(parsed.venueCapacity)
+          ? Math.max(0, Math.round(parsed.venueCapacity))
+          : undefined,
+    };
   } catch {
     return null;
   }
@@ -89,4 +137,13 @@ export function tryWizardEventStartFromStorage(): Date | null {
  */
 export function getWizardEventStartOrFallback(): Date {
   return tryWizardEventStartFromStorage() ?? getEventStartForWizard();
+}
+
+export function clearWizardEventDraft(): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
 }

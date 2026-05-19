@@ -95,3 +95,12 @@ export function saveWizardScheduleSlots(slots: ScheduleSlot[]): void {
     /* quota / private mode */
   }
 }
+
+export function clearWizardScheduleSlots(): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}

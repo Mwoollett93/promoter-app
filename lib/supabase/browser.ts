@@ -80,6 +80,32 @@ export function getSupabaseConfig(): SupabaseConfig | null {
   };
 }
 
+export function isDemoAuthEnabled() {
+  if (process.env.NEXT_PUBLIC_DEMO_AUTH === "false") return false;
+  if (process.env.NEXT_PUBLIC_DEMO_AUTH === "true") return true;
+  return process.env.NODE_ENV !== "production";
+}
+
+export const DEMO_LOGIN_EMAIL = "demo@promosync.app";
+export const DEMO_LOGIN_PASSWORD = "demo1234";
+
+export function isDemoSession(session: SupabaseSession | null | undefined) {
+  return Boolean(session?.demo);
+}
+
+export function signInAsDemo(): SupabaseSession {
+  const session: SupabaseSession = {
+    accessToken: "demo-access-token",
+    demo: true,
+    user: {
+      id: "demo-user",
+      email: DEMO_LOGIN_EMAIL,
+    },
+  };
+  storeSession(session);
+  return session;
+}
+
 export function getStoredSession(): SupabaseSession | null {
   if (typeof window === "undefined") return null;
 
@@ -103,15 +129,165 @@ export function clearStoredSession() {
   window.localStorage.removeItem(SESSION_KEY);
 }
 
-export function startGithubSignIn() {
+type AuthTokenResponse = {
+  access_token: string;
+  refresh_token?: string;
+  expires_in?: number;
+  user?: { id: string; email?: string };
+};
+
+type OAuthProvider = "github" | "google" | "apple";
+
+function persistSessionFromTokenResponse(data: AuthTokenResponse): SupabaseSession {
+  if (!data.access_token || !data.user?.id) {
+    throw new Error("Supabase did not return a valid session.");
+  }
+
+  const session: SupabaseSession = {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    expiresAt: data.expires_in ? Math.floor(Date.now() / 1000) + data.expires_in : undefined,
+    user: {
+      id: data.user.id,
+      email: data.user.email,
+    },
+  };
+
+  storeSession(session);
+  return session;
+}
+
+export function startOAuthSignIn(provider: OAuthProvider) {
   const config = getSupabaseConfig();
   if (!config) throw new Error("Missing Supabase environment variables.");
 
   const redirectTo = `${window.location.origin}${AUTH_RETURN_PATH}`;
   const authUrl = new URL(`${config.url}/auth/v1/authorize`);
-  authUrl.searchParams.set("provider", "github");
+  authUrl.searchParams.set("provider", provider);
   authUrl.searchParams.set("redirect_to", redirectTo);
   window.location.href = authUrl.toString();
+}
+
+export function startGithubSignIn() {
+  startOAuthSignIn("github");
+}
+
+export async function signInWithPassword(email: string, password: string): Promise<SupabaseSession> {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (
+    isDemoAuthEnabled() &&
+    normalizedEmail === DEMO_LOGIN_EMAIL &&
+    password === DEMO_LOGIN_PASSWORD
+  ) {
+    return signInAsDemo();
+  }
+
+  const config = requireSupabaseConfig();
+  const response = await fetch(`${config.url}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: {
+      apikey: config.anonKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email: normalizedEmail, password }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response, "Unable to sign in."));
+  }
+
+  const data = (await response.json()) as AuthTokenResponse;
+  if (data.access_token && data.user?.id) {
+    return persistSessionFromTokenResponse(data);
+  }
+
+  if (!data.access_token) {
+    throw new Error("Supabase did not return a valid session.");
+  }
+
+  const userResponse = await fetch(`${config.url}/auth/v1/user`, {
+    headers: {
+      apikey: config.anonKey,
+      Authorization: `Bearer ${data.access_token}`,
+    },
+  });
+
+  if (!userResponse.ok) {
+    throw new Error(await getErrorMessage(userResponse, "Unable to fetch signed-in user."));
+  }
+
+  const user = (await userResponse.json()) as { id: string; email?: string };
+  const session: SupabaseSession = {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    expiresAt: data.expires_in ? Math.floor(Date.now() / 1000) + data.expires_in : undefined,
+    user: {
+      id: user.id,
+      email: user.email,
+    },
+  };
+
+  storeSession(session);
+  return session;
+}
+
+export async function signUpWithPassword(input: {
+  email: string;
+  password: string;
+  fullName?: string;
+  companyName?: string;
+  teamSize?: string;
+}): Promise<SupabaseSession> {
+  const config = requireSupabaseConfig();
+  const response = await fetch(`${config.url}/auth/v1/signup`, {
+    method: "POST",
+    headers: {
+      apikey: config.anonKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email: input.email.trim(),
+      password: input.password,
+      data: {
+        full_name: input.fullName?.trim() || null,
+        company_name: input.companyName?.trim() || null,
+        team_size: input.teamSize?.trim() || null,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response, "Unable to create account."));
+  }
+
+  const data = (await response.json()) as AuthTokenResponse;
+  if (data.access_token && data.user?.id) {
+    return persistSessionFromTokenResponse(data);
+  }
+
+  throw new Error("Account created. Check your email to confirm your address, then sign in.");
+}
+
+export async function sendPasswordResetEmail(email: string): Promise<void> {
+  const config = requireSupabaseConfig();
+  const redirectTo = `${window.location.origin}/?view=login`;
+
+  const response = await fetch(`${config.url}/auth/v1/recover`, {
+    method: "POST",
+    headers: {
+      apikey: config.anonKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email: email.trim(),
+      redirect_to: redirectTo,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response, "Unable to send reset link."));
+  }
 }
 
 export async function completeSupabaseHashSession(hash: string): Promise<SupabaseSession> {
@@ -157,7 +333,7 @@ export async function signOutOfSupabase() {
   const config = getSupabaseConfig();
   const session = getStoredSession();
 
-  if (config && session) {
+  if (config && session && !isDemoSession(session)) {
     await fetch(`${config.url}/auth/v1/logout`, {
       method: "POST",
       headers: {

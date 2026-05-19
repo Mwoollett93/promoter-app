@@ -119,7 +119,7 @@ export function mergeDraggedIntoTarget(
     const without = removeSlotAt(slots, draggedIndex);
     const newTarget =
       draggedIndex < targetIndex ? targetIndex - 1 : targetIndex;
-    return pairSingleWithArtist(without, newTarget, dragged.artistId);
+    return pairSingleWithArtist(without, newTarget, dragged.artistId, dragged.feeCents);
   }
 
   if (target.kind === "b2b") {
@@ -127,7 +127,7 @@ export function mergeDraggedIntoTarget(
     const without = removeSlotAt(slots, draggedIndex);
     const newTarget =
       draggedIndex < targetIndex ? targetIndex - 1 : targetIndex;
-    return addArtistToB2BSlot(without, newTarget, dragged.artistId);
+    return addArtistToB2BSlot(without, newTarget, dragged.artistId, dragged.feeCents);
   }
 
   return slots;
@@ -140,7 +140,8 @@ export function mergeDraggedIntoTarget(
 export function pairSingleWithArtist(
   slots: ScheduleSlot[],
   singleIndex: number,
-  secondArtistId: string
+  secondArtistId: string,
+  secondFeeCents = 0
 ): ScheduleSlot[] {
   const slot = slots[singleIndex];
   if (!slot || slot.kind !== "single") return slots;
@@ -150,7 +151,7 @@ export function pairSingleWithArtist(
     slotId: newSlotId(),
     artistIds: [slot.artistId, secondArtistId],
     durationMinutes: slot.durationMinutes,
-    feeCents: slot.feeCents,
+    feeCents: slot.feeCents + Math.max(0, secondFeeCents),
   };
 
   return [...slots.slice(0, singleIndex), b2b, ...slots.slice(singleIndex + 1)];
@@ -160,7 +161,8 @@ export function pairSingleWithArtist(
 export function addArtistToB2BSlot(
   slots: ScheduleSlot[],
   b2bIndex: number,
-  artistId: string
+  artistId: string,
+  artistFeeCents = 0
 ): ScheduleSlot[] {
   const slot = slots[b2bIndex];
   if (!slot || slot.kind !== "b2b") return slots;
@@ -169,6 +171,7 @@ export function addArtistToB2BSlot(
   const updated: B2BSlot = {
     ...slot,
     artistIds: [...slot.artistIds, artistId],
+    feeCents: slot.feeCents + Math.max(0, artistFeeCents),
   };
 
   return slots.map((s, i) => (i === b2bIndex ? updated : s));

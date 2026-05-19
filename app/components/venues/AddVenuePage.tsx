@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -23,6 +24,7 @@ import {
 } from "@/lib/supabase/browser";
 import * as SupabaseBrowser from "@/lib/supabase/browser";
 import type { SupabaseSession } from "@/lib/types/artist";
+import CurrencyText from "@/app/components/ui/CurrencyText";
 
 type VenueStatus = "active" | "inactive";
 
@@ -1504,8 +1506,11 @@ function ReviewStep({
 
           <ReviewCard title="Terms & Conditions" onEdit={() => onEditStep("operations")}>
             <ReviewField label="Deposit Required" value={draft.depositRequired ? "Yes" : "No"} />
-            <ReviewField label="Deposit Amount" value={formatCurrency(draft.depositAmountCents)} />
-            <ReviewField label="Hire Fee" value={formatCurrency(draft.hireFeeCents)} />
+            <ReviewField
+              label="Deposit Amount"
+              value={formatCentsValue(draft.depositAmountCents)}
+            />
+            <ReviewField label="Hire Fee" value={formatCentsValue(draft.hireFeeCents)} />
             <ReviewField label="Payment Terms" value={draft.paymentTerms} />
           </ReviewCard>
 
@@ -1806,7 +1811,12 @@ function ReviewCard({
   );
 }
 
-function ReviewField({ label, value }: { label: string; value: string }) {
+function formatCentsValue(cents: number) {
+  if (!cents) return "Not set";
+  return <CurrencyText value={cents} fromCents />;
+}
+
+function ReviewField({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div>
       <p className="text-xs uppercase tracking-wide text-[#71717A]">{label}</p>
@@ -1857,12 +1867,3 @@ function SetupState({
   );
 }
 
-function formatCurrency(cents: number) {
-  if (!cents) return "Not set";
-
-  return new Intl.NumberFormat("en-GB", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
-}

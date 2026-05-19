@@ -89,6 +89,8 @@ export type SupabaseSession = {
   accessToken: string;
   refreshToken?: string;
   expiresAt?: number;
+  /** Local demo session — no Supabase API calls. */
+  demo?: boolean;
   user: {
     id: string;
     email?: string;

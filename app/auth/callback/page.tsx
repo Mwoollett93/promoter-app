@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { reactivateAccount } from "@/lib/settings/settings";
 import { completeSupabaseHashSession } from "@/lib/supabase/browser";
 
 export default function SupabaseAuthCallbackPage() {
@@ -13,7 +14,8 @@ export default function SupabaseAuthCallbackPage() {
   useEffect(() => {
     completeSupabaseHashSession(window.location.hash)
       .then(() => {
-        router.replace("/artists");
+        reactivateAccount();
+        router.replace("/dashboard");
       })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : "Unable to complete Supabase sign in.");
@@ -28,14 +30,14 @@ export default function SupabaseAuthCallbackPage() {
         </h1>
         <p className="mt-3 text-sm leading-6 text-[#A1A1AA]">
           {error ??
-            "We are completing your Supabase session and will return you to Artist management."}
+            "We are completing your Supabase session and will return you to your dashboard."}
         </p>
         {error ? (
           <Link
-            href="/artists"
+            href="/"
             className="mt-5 inline-flex h-11 items-center justify-center rounded-lg border border-[#8B5CF6]/60 bg-[#7C3AED] px-5 text-sm font-semibold text-white"
           >
-            Back to Artists
+            Back to sign in
           </Link>
         ) : null}
       </section>
