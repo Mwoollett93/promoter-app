@@ -62,8 +62,33 @@ export type AuthSessionPayload = {
   access_token: string;
   refresh_token?: string;
   expires_in?: number;
-  user: { id: string; email?: string };
+  user: {
+    id: string;
+    email?: string;
+    metadata?: {
+      full_name?: string | null;
+      company_name?: string | null;
+      team_size?: string | null;
+    };
+  };
 };
+
+function mapAuthUser(user: {
+  id: string;
+  email?: string;
+  user_metadata?: Record<string, unknown>;
+}) {
+  const meta = user.user_metadata ?? {};
+  return {
+    id: user.id,
+    email: user.email,
+    metadata: {
+      full_name: typeof meta.full_name === "string" ? meta.full_name : null,
+      company_name: typeof meta.company_name === "string" ? meta.company_name : null,
+      team_size: typeof meta.team_size === "string" ? meta.team_size : null,
+    },
+  };
+}
 
 export async function serverSignUp(input: {
   email: string;
@@ -105,7 +130,7 @@ export async function serverSignUp(input: {
     access_token?: string;
     refresh_token?: string;
     expires_in?: number;
-    user?: { id: string; email?: string };
+    user?: { id: string; email?: string; user_metadata?: Record<string, unknown> };
   };
 
   if (data.access_token && data.user?.id) {
@@ -115,7 +140,7 @@ export async function serverSignUp(input: {
         access_token: data.access_token,
         refresh_token: data.refresh_token,
         expires_in: data.expires_in,
-        user: { id: data.user.id, email: data.user.email },
+        user: mapAuthUser(data.user),
       },
     };
   }
@@ -156,7 +181,7 @@ export async function serverSignIn(input: {
     access_token?: string;
     refresh_token?: string;
     expires_in?: number;
-    user?: { id: string; email?: string };
+    user?: { id: string; email?: string; user_metadata?: Record<string, unknown> };
   };
 
   if (!data.access_token || !data.user?.id) {
@@ -167,7 +192,7 @@ export async function serverSignIn(input: {
     access_token: data.access_token,
     refresh_token: data.refresh_token,
     expires_in: data.expires_in,
-    user: { id: data.user.id, email: data.user.email },
+    user: mapAuthUser(data.user),
   };
 }
 

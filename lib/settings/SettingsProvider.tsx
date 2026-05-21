@@ -11,6 +11,8 @@ import {
   mergeSettings,
   saveSettings,
 } from "@/lib/settings/settings";
+import { bootstrapSettingsFromAuth } from "@/lib/settings/user-bootstrap";
+import { getStoredSession, isDemoSession } from "@/lib/supabase/browser";
 
 type SettingsContextValue = {
   settings: AppSettings;
@@ -31,6 +33,15 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   React.useEffect(() => {
+    const session = getStoredSession();
+    if (session && !isDemoSession(session)) {
+      bootstrapSettingsFromAuth({
+        userId: session.user.id,
+        email: session.user.email,
+        metadata: session.user.metadata,
+      });
+    }
+
     hydrate();
 
     const onStorage = (event: StorageEvent) => {

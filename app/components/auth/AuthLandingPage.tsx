@@ -18,6 +18,7 @@ import {
 
 import AuthField from "@/app/components/auth/AuthField";
 import { getLandingPagePath, reactivateAccount } from "@/lib/settings/settings";
+import { bootstrapSettingsFromAuth } from "@/lib/settings/user-bootstrap";
 import {
   getPasswordStrength,
   strengthLabelText,
@@ -28,6 +29,7 @@ import {
   getStoredSession,
   getSupabaseConfig,
   isDemoAuthEnabled,
+  isDemoSession,
   sendPasswordResetEmail,
   signInAsDemo,
   signInWithPassword,
@@ -121,7 +123,14 @@ export default function AuthLandingPage() {
     setSuccess(null);
 
     try {
-      await signInWithPassword(email, password);
+      const session = await signInWithPassword(email, password);
+      if (!isDemoSession(session)) {
+        bootstrapSettingsFromAuth({
+          userId: session.user.id,
+          email: session.user.email,
+          metadata: session.user.metadata,
+        });
+      }
       window.localStorage.setItem(REMEMBER_KEY, rememberMe ? "true" : "false");
       reactivateAccount();
       router.push(getLandingPagePath());
@@ -168,12 +177,19 @@ export default function AuthLandingPage() {
     setSuccess(null);
 
     try {
-      await signUpWithPassword({
+      const session = await signUpWithPassword({
         email,
         password,
         fullName,
         companyName,
         teamSize,
+      });
+      bootstrapSettingsFromAuth({
+        userId: session.user.id,
+        email: session.user.email ?? email,
+        fullName,
+        companyName,
+        metadata: session.user.metadata,
       });
       reactivateAccount();
       router.push(getLandingPagePath());

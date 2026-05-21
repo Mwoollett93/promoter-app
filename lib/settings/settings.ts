@@ -233,7 +233,7 @@ export function mergeSettings(partial: Partial<AppSettings>): AppSettings {
     account: { ...DEFAULT_SETTINGS.account, ...partial.account },
     notifications: { ...DEFAULT_SETTINGS.notifications, ...partial.notifications },
     preferences: { ...DEFAULT_SETTINGS.preferences, ...partial.preferences },
-    team: partial.team?.length ? partial.team : DEFAULT_SETTINGS.team,
+    team: Array.isArray(partial.team) ? partial.team : DEFAULT_SETTINGS.team,
     integrations: { ...DEFAULT_SETTINGS.integrations, ...partial.integrations },
     security: {
       ...DEFAULT_SETTINGS.security,

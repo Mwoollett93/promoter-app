@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { reactivateAccount } from "@/lib/settings/settings";
-import { completeSupabaseHashSession } from "@/lib/supabase/browser";
+import { bootstrapSettingsFromAuth } from "@/lib/settings/user-bootstrap";
+import { completeSupabaseHashSession, isDemoSession } from "@/lib/supabase/browser";
 
 export default function SupabaseAuthCallbackPage() {
   const router = useRouter();
@@ -13,7 +14,14 @@ export default function SupabaseAuthCallbackPage() {
 
   useEffect(() => {
     completeSupabaseHashSession(window.location.hash)
-      .then(() => {
+      .then((session) => {
+        if (!isDemoSession(session)) {
+          bootstrapSettingsFromAuth({
+            userId: session.user.id,
+            email: session.user.email,
+            metadata: session.user.metadata,
+          });
+        }
         reactivateAccount();
         router.replace("/dashboard");
       })

@@ -94,5 +94,10 @@ export type SupabaseSession = {
   user: {
     id: string;
     email?: string;
+    metadata?: {
+      full_name?: string | null;
+      company_name?: string | null;
+      team_size?: string | null;
+    };
   };
 };
