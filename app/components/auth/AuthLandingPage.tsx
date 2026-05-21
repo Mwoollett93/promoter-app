@@ -82,7 +82,7 @@ export default function AuthLandingPage() {
       if (searchParams.get("signout") === "1") {
         await signOutOfSupabase();
         setExistingSession(false);
-        router.replace("/", { scroll: false });
+        router.replace("/login", { scroll: false });
       } else {
         reactivateAccount();
         setExistingSession(Boolean(getStoredSession()));
@@ -111,7 +111,7 @@ export default function AuthLandingPage() {
     setView(next);
     setError(null);
     setSuccess(null);
-    router.replace(next === "login" ? "/" : `/?view=${next}`, { scroll: false });
+    router.replace(next === "login" ? "/login" : `/login?view=${next}`, { scroll: false });
   }
 
   async function handleSignIn(event: React.FormEvent) {

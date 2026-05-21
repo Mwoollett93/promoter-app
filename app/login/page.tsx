@@ -1,6 +1,12 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 
 import AuthLandingPage from "@/app/components/auth/AuthLandingPage";
+
+export const metadata: Metadata = {
+  title: "Log in",
+  robots: { index: false },
+};
 
 function AuthLoading() {
   return (
@@ -10,7 +16,7 @@ function AuthLoading() {
   );
 }
 
-export default function Home() {
+export default function LoginPage() {
   return (
     <Suspense fallback={<AuthLoading />}>
       <AuthLandingPage />

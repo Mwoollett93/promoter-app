@@ -120,7 +120,7 @@ export default function SettingsPage() {
     if (!window.confirm("Deactivate your account? You can sign in again to reactivate.")) return;
     deactivateAccount();
     await signOutOfSupabase();
-    router.replace("/?view=login");
+    router.replace("/login");
   }
 
   async function handleDeleteAccount() {
@@ -130,7 +130,7 @@ export default function SettingsPage() {
 
     clearPromoSyncLocalData();
     await signOutOfSupabase();
-    router.replace("/");
+    router.replace("/login");
   }
 
   function handleExportData() {

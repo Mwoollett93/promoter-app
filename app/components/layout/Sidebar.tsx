@@ -232,7 +232,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
 
   async function handleSignOut() {
     await signOutOfSupabase();
-    router.replace("/");
+    router.replace("/login");
   }
 
   function renderNavItem(item: NavItem) {

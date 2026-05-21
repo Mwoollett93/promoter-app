@@ -276,7 +276,7 @@ export async function signUpWithPassword(input: {
 export async function sendPasswordResetEmail(email: string): Promise<void> {
   await postAuthApi<{ ok: boolean }>("/api/auth/recover", {
     email: email.trim().toLowerCase(),
-    redirectTo: `${window.location.origin}/?view=login`,
+    redirectTo: `${window.location.origin}/login`,
   });
 }
 

@@ -42,7 +42,7 @@ export default function SupabaseAuthCallbackPage() {
         </p>
         {error ? (
           <Link
-            href="/"
+            href="/login"
             className="mt-5 inline-flex h-11 items-center justify-center rounded-lg border border-[#8B5CF6]/60 bg-[#7C3AED] px-5 text-sm font-semibold text-white"
           >
             Back to sign in
