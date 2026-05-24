@@ -206,13 +206,27 @@ async function ensureActiveMembership(
 
 export async function acceptPendingWorkspaceInvites(
   session: SupabaseSession,
-): Promise<void> {
+): Promise<number> {
   const email = session.user.email?.trim().toLowerCase();
-  if (!email) return;
+  if (!email) return 0;
 
   if (shouldUseLocalCollaboration(session)) {
-    acceptLocalPendingInvites(session, email);
-    return;
+    const accepted = acceptLocalPendingInvites(session, email);
+    return accepted ? 1 : 0;
+  }
+
+  let acceptedCount = 0;
+
+  try {
+    const rpcRows = await supabaseRest<{ workspace_id: string; member_id: string }[]>(
+      "rpc/accept_my_workspace_invites",
+      session,
+      { method: "POST", body: {} },
+    );
+    acceptedCount = rpcRows?.length ?? 0;
+    if (acceptedCount > 0) return acceptedCount;
+  } catch {
+    /* RPC not deployed yet — fall back to REST below */
   }
 
   try {
@@ -232,6 +246,7 @@ export async function acceptPendingWorkspaceInvites(
         },
         prefer: "return=minimal",
       });
+      acceptedCount += 1;
 
       const invites = await supabaseRest<InviteRow[]>(
         `workspace_invites?workspace_id=eq.${row.workspace_id}&email=eq.${encodeURIComponent(email)}&accepted_at=is.null`,
@@ -247,26 +262,38 @@ export async function acceptPendingWorkspaceInvites(
       }
     }
   } catch {
-    /* best-effort; user may still use their own workspace */
+    /* best-effort */
   }
+
+  return acceptedCount;
 }
 
 async function resolvePrimaryMembership(
   session: SupabaseSession,
 ): Promise<{ workspace: Workspace; membership: WorkspaceMember } | null> {
+  const email = session.user.email?.trim().toLowerCase();
+
   const rows = await supabaseRest<MemberRow[]>(
     `workspace_members?user_id=eq.${session.user.id}&status=eq.active&order=joined_at.desc`,
     session,
   );
   if (rows.length === 0) return null;
 
+  // Prefer a team workspace you were invited to (not one you created yourself).
   for (const row of rows) {
     const workspaces = await supabaseRest<WorkspaceRow[]>(
       `workspaces?id=eq.${row.workspace_id}&limit=1`,
       session,
     );
     const workspace = workspaces[0];
-    if (workspace && workspace.created_by !== session.user.id) {
+    if (!workspace) continue;
+
+    const wasInvite =
+      email &&
+      row.invited_email?.trim().toLowerCase() === email &&
+      workspace.created_by !== session.user.id;
+
+    if (wasInvite || workspace.created_by !== session.user.id) {
       return { workspace: mapWorkspace(workspace), membership: mapMember(row) };
     }
   }
@@ -336,6 +363,7 @@ export async function ensureWorkspaceForUser(
   }
 
   try {
+    const email = session.user.email?.trim().toLowerCase();
     await acceptPendingWorkspaceInvites(session);
 
     const resolved = await resolvePrimaryMembership(session);
@@ -343,6 +371,20 @@ export async function ensureWorkspaceForUser(
       saveLocalWorkspace(session.user.id, resolved.workspace);
       clearLocalCollaborationMode(session.user.id);
       return resolved;
+    }
+
+    // Pending invite but accept failed (usually missing SQL) — don't create a duplicate workspace.
+    if (email) {
+      const stillPending = await supabaseRest<MemberRow[]>(
+        `workspace_members?invited_email=eq.${encodeURIComponent(email)}&status=eq.invited&user_id=is.null&limit=1`,
+        session,
+      ).catch(() => [] as MemberRow[]);
+
+      if (stillPending.length > 0) {
+        throw new Error(
+          "You have a pending team invite but it could not be activated. Ask your admin to run supabase/accept-workspace-invite-rpc.sql in Supabase, then sign out and back in.",
+        );
+      }
     }
 
     // Orphan workspace: created but membership insert failed under old RLS.

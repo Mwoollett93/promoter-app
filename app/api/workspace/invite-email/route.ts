@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 
-import { getResendEnvDiagnostics } from "@/lib/email/resend-env";
+import {
+  ensureResendEnvLoaded,
+  getResendEnvDiagnostics,
+} from "@/lib/email/resend-env";
 import { buildWorkspaceInviteEmail } from "@/lib/email/workspace-invite-template";
 import { sendTransactionalEmail } from "@/lib/email/send-transactional";
 
 export const runtime = "nodejs";
+
+ensureResendEnvLoaded();
 import { supabaseRest } from "@/lib/supabase/client-rest";
 import { getBearerToken, getUserFromAccessToken } from "@/lib/supabase/server-user";
 import type { SupabaseSession } from "@/lib/types/artist";
@@ -24,6 +29,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  ensureResendEnvLoaded();
+
   try {
     const accessToken = getBearerToken(request);
     if (!accessToken) {
@@ -80,7 +87,12 @@ export async function POST(request: Request) {
 
     const sent = await sendTransactionalEmail({ to, subject, html });
     if (!sent.ok) {
-      return NextResponse.json({ error: sent.error }, { status: 503 });
+      const diagnostics =
+        process.env.NODE_ENV !== "production" ? getResendEnvDiagnostics() : undefined;
+      return NextResponse.json(
+        { error: sent.error, diagnostics },
+        { status: 503 },
+      );
     }
 
     return NextResponse.json({ ok: true, stub: sent.stub });

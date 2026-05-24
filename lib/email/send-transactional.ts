@@ -1,4 +1,8 @@
-import { getResendApiKey, getResendFromAddress } from "@/lib/email/resend-env";
+import {
+  ensureResendEnvLoaded,
+  getResendApiKey,
+  getResendFromAddress,
+} from "@/lib/email/resend-env";
 
 export type SendTransactionalEmailResult =
   | { ok: true; stub: false }
@@ -10,16 +14,19 @@ export async function sendTransactionalEmail(input: {
   subject: string;
   html: string;
 }): Promise<SendTransactionalEmailResult> {
+  ensureResendEnvLoaded();
   const apiKey = getResendApiKey();
+
   if (!apiKey) {
-    if (process.env.NODE_ENV === "development") {
+    const isDev = process.env.NODE_ENV !== "production";
+    if (isDev) {
       console.info("[email stub]", input.to, input.subject);
       return { ok: true, stub: true };
     }
     return {
       ok: false,
       error:
-        "RESEND_API_KEY is not loaded. Add it to promoter-app/.env.local and restart npm run dev (from the promoter-app folder).",
+        "RESEND_API_KEY is missing on the server. For local: add it to promoter-app/.env.local and run npm run dev from promoter-app. For production: add RESEND_API_KEY in your host (e.g. Vercel → Environment Variables).",
     };
   }
 

@@ -25,10 +25,15 @@ In **Project → Settings → Environment Variables**, add:
 |----------|----------|--------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | From Supabase → Project Settings → API |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon/public key |
-| `NEXT_PUBLIC_APP_URL` | Recommended | Production URL, e.g. `https://your-app.vercel.app` |
+| `RESEND_API_KEY` | Yes (for team invites) | From [Resend → API Keys](https://resend.com/api-keys) (`re_…`) — **not** in git; set only in Vercel |
+| `RESEND_FROM` | Yes (for team invites) | e.g. `PromoSync <invites@promosync.app>` (must use your verified domain) |
+| `NEXT_PUBLIC_APP_URL` | Recommended | Production URL, e.g. `https://www.promosync.app` — used in invite email links |
 | `NEXT_PUBLIC_DEMO_AUTH` | Optional | Set to `true` only if you want demo login in production |
 
-Copy values from your local `.env.local` (do not commit `.env.local`).
+Copy values from your local `.env.local` (do not commit `.env.local`).  
+**Vercel does not read `.env.local` on deploy** — every row above must be added in the Vercel dashboard (or `vercel env add`).
+
+Apply variables to **Production**, **Preview**, and **Development** as needed, then **Redeploy** (env changes do not apply to past deployments until you redeploy).
 
 Apply variables to **Production**, **Preview**, and **Development** as needed.
 
@@ -87,6 +92,9 @@ Follow prompts. Link to an existing project or create a new one. Add env vars in
 ```bash
 vercel env add NEXT_PUBLIC_SUPABASE_URL
 vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
+vercel env add RESEND_API_KEY
+vercel env add RESEND_FROM
+vercel env add NEXT_PUBLIC_APP_URL
 ```
 
 Production deploy:
@@ -104,9 +112,11 @@ Run SQL migrations in the Supabase SQL editor (in order):
 
 3. If Team is empty or you see read-only role errors, also run `promoter-app/supabase/collaboration-rls-bootstrap.sql` (fixes first-admin RLS and backfills your membership).
 
-Enable **Realtime** for `activity_log`, `comments`, and `tasks` if you want live updates on event workspace pages.
+4. For team invite emails, run `promoter-app/supabase/workspace-invite-accept-rls.sql`.
 
-Optional email notifications: set `RESEND_API_KEY` and `RESEND_FROM` for `/api/notifications/email`.
+5. For invitees joining on sign-in, run `promoter-app/supabase/accept-workspace-invite-rpc.sql`.
+
+Enable **Realtime** for `activity_log`, `comments`, and `tasks` if you want live updates on event workspace pages.
 
 ## Notes
 

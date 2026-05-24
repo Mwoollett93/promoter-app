@@ -23,10 +23,15 @@ export async function sendWorkspaceInviteEmail(
   const payload = (await response.json().catch(() => ({}))) as {
     error?: string;
     stub?: boolean;
+    diagnostics?: { hasKey?: boolean; nodeEnv?: string };
   };
 
   if (!response.ok) {
-    throw new Error(payload.error ?? "Failed to send invite email");
+    let message = payload.error ?? "Failed to send invite email";
+    if (payload.diagnostics && !payload.diagnostics.hasKey) {
+      message += ` (server NODE_ENV=${payload.diagnostics.nodeEnv ?? "unknown"})`;
+    }
+    throw new Error(message);
   }
 
   return { stub: Boolean(payload.stub) };
