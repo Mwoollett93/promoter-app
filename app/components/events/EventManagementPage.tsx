@@ -245,7 +245,7 @@ export default function EventManagementPage() {
                         <div className="min-w-0">
                           <p className="truncate font-semibold text-[#F5F5F7]">{event.name}</p>
                           <p className="truncate text-xs text-[#A1A1AA]">
-                            {event.artistCount} artists Â· {event.slotCount} lineup slots
+                            {event.artistCount} artists {"\u00b7"} {event.slotCount} lineup slots
                           </p>
                         </div>
                       </ManagementTableCell>

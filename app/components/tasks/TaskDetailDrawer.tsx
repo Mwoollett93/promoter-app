@@ -5,7 +5,7 @@ import { Trash2, X } from "lucide-react";
 
 import CommentThread from "@/app/components/collaboration/CommentThread";
 import DateInput from "@/app/components/ui/DateInput";
-import { updateTask } from "@/lib/collaboration/tasks";
+import { createTask, updateTask } from "@/lib/collaboration/tasks";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import { newId } from "@/lib/collaboration/local-store";
 import type { Task, TaskChecklistItem } from "@/lib/types/collaboration";
@@ -23,6 +23,7 @@ function parseDueDate(iso?: string | null) {
 type TaskDetailDrawerProps = {
   task: Task;
   members: WorkspaceMember[];
+  isNew?: boolean;
   onClose: () => void;
   onUpdated: (task: Task) => void;
 };
@@ -30,6 +31,7 @@ type TaskDetailDrawerProps = {
 export default function TaskDetailDrawer({
   task,
   members,
+  isNew = false,
   onClose,
   onUpdated,
 }: TaskDetailDrawerProps) {
@@ -44,22 +46,41 @@ export default function TaskDetailDrawer({
   const newItemRef = React.useRef<HTMLInputElement | null>(null);
 
   async function save() {
-    if (!session || !workspace) return;
+    if (!session || !workspace || !title.trim()) return;
     setSaving(true);
     try {
       const dueAt = dueDate
         ? new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate(), 12, 0, 0).toISOString()
         : null;
+      const checklistPayload = checklist.map((item) => ({
+        ...item,
+        text: item.text.trim() || "Untitled item",
+      }));
+
+      if (isNew) {
+        const created = await createTask(session, {
+          workspaceId: workspace.id,
+          eventId: task.eventId,
+          title: title.trim(),
+          column: task.column,
+          description: description.trim() || undefined,
+          assigneeId: assigneeId || null,
+          dueAt,
+          priority,
+          checklist: checklistPayload,
+        });
+        onUpdated(created);
+        onClose();
+        return;
+      }
+
       const updated = await updateTask(session, workspace.id, task.id, {
         title,
         description,
         assigneeId: assigneeId || null,
         dueAt,
         priority,
-        checklist: checklist.map((item) => ({
-          ...item,
-          text: item.text.trim() || "Untitled item",
-        })),
+        checklist: checklistPayload,
       });
       onUpdated(updated);
     } finally {
@@ -92,7 +113,9 @@ export default function TaskDetailDrawer({
     <div className="fixed inset-0 z-50 flex justify-end bg-black/60">
       <div className="flex h-full w-full max-w-md flex-col border-l border-[#232330] bg-[#11111A] shadow-2xl">
         <div className="flex items-center justify-between border-b border-[#232330] px-4 py-3">
-          <h2 className="text-[16px] font-semibold text-[#F5F5F7]">Task</h2>
+          <h2 className="text-[16px] font-semibold text-[#F5F5F7]">
+            {isNew ? "New task" : "Task"}
+          </h2>
           <button type="button" onClick={onClose} className="text-[#A1A1AA] hover:text-[#F5F5F7]">
             <X className="size-5" />
           </button>
@@ -203,7 +226,11 @@ export default function TaskDetailDrawer({
             </ul>
           </div>
 
-          <CommentThread targetType="task" targetId={task.id} eventId={task.eventId ?? undefined} />
+          {isNew ? (
+            <p className="text-[12px] text-[#71717A]">Save the task to add comments.</p>
+          ) : (
+            <CommentThread targetType="task" targetId={task.id} eventId={task.eventId ?? undefined} />
+          )}
         </div>
 
         <div className="border-t border-[#232330] p-4">
@@ -213,7 +240,7 @@ export default function TaskDetailDrawer({
             disabled={saving || !title.trim()}
             className="w-full rounded-lg border border-[rgba(139,92,246,0.45)] bg-[#7C3AED] py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-[#6D28D9] disabled:opacity-50"
           >
-            {saving ? "Saving…" : "Save task"}
+            {saving ? "Saving…" : isNew ? "Create task" : "Save task"}
           </button>
         </div>
       </div>

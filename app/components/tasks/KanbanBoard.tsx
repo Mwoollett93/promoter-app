@@ -22,9 +22,14 @@ import TaskDetailDrawer from "@/app/components/tasks/TaskDetailDrawer";
 import { logActivity } from "@/lib/collaboration/activity";
 import { createTask, deleteTask, listTasks, moveTask } from "@/lib/collaboration/tasks";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
+import { newId } from "@/lib/collaboration/local-store";
 import { notifyTaskAssigned } from "@/lib/notifications/rules";
 import type { Task, TaskColumn } from "@/lib/types/collaboration";
 import { TASK_COLUMN_LABELS, TASK_COLUMNS } from "@/lib/types/collaboration";
+
+function isDraftTaskId(taskId: string) {
+  return taskId.startsWith("draft-");
+}
 
 const fieldClassName =
   "min-w-[200px] flex-1 rounded-lg border border-[#3F3F46] bg-[#11111A] px-3 py-2 text-[13px] text-[#F5F5F7] outline-none transition-colors placeholder:text-[#71717A] focus:border-[#8B5CF6] focus:ring-0 focus-visible:outline-none focus-visible:border-[#8B5CF6]";
@@ -131,6 +136,30 @@ export default function KanbanBoard({ workspaceId, eventId }: KanbanBoardProps) 
     }
   }
 
+  function buildDraftTask(title: string): Task {
+    const now = new Date().toISOString();
+    return {
+      id: `draft-${newId()}`,
+      workspaceId,
+      eventId: eventId ?? null,
+      artistId: null,
+      venueId: null,
+      bookingId: null,
+      column: "todo",
+      position: 0,
+      title,
+      description: null,
+      assigneeId: null,
+      dueAt: null,
+      priority: "medium",
+      labels: [],
+      checklist: [],
+      createdBy: session!.user.id,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
   async function handleQuickAdd(column: TaskColumn) {
     if (!session || !newTitle.trim()) return;
     const task = await createTask(session, {
@@ -143,7 +172,18 @@ export default function KanbanBoard({ workspaceId, eventId }: KanbanBoardProps) 
     setTasks((prev) => [...prev, task]);
   }
 
+  function handleCreateToDo() {
+    if (!session) return;
+    const trimmed = newTitle.trim();
+    if (trimmed) {
+      void handleQuickAdd("todo");
+      return;
+    }
+    setSelectedTask(buildDraftTask(""));
+  }
+
   const activeTask = tasks.find((t) => t.id === activeId) ?? null;
+  const isNewDrawerTask = selectedTask ? isDraftTaskId(selectedTask.id) : false;
 
   return (
     <div className="space-y-4">
@@ -152,17 +192,17 @@ export default function KanbanBoard({ workspaceId, eventId }: KanbanBoardProps) 
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") void handleQuickAdd("todo");
+            if (e.key === "Enter") handleCreateToDo();
           }}
           placeholder="Quick add task…"
           className={fieldClassName}
         />
         <button
           type="button"
-          onClick={() => void handleQuickAdd("todo")}
+          onClick={handleCreateToDo}
           className="rounded-lg border border-[rgba(139,92,246,0.45)] bg-[#7C3AED] px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[#6D28D9]"
         >
-          Add to To Do
+          Create To Do
         </button>
       </div>
 
@@ -191,10 +231,16 @@ export default function KanbanBoard({ workspaceId, eventId }: KanbanBoardProps) 
         <TaskDetailDrawer
           task={selectedTask}
           members={members}
+          isNew={isNewDrawerTask}
           onClose={() => setSelectedTask(null)}
           onUpdated={(updated) => {
-            setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
-            setSelectedTask(updated);
+            if (isNewDrawerTask) {
+              setTasks((prev) => [...prev, updated]);
+              setNewTitle("");
+            } else {
+              setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+              setSelectedTask(updated);
+            }
             if (updated.assigneeId) {
               void notifyTaskAssigned(
                 session,

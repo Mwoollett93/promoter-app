@@ -320,7 +320,7 @@ function ScheduleTableRow(props: RowProps) {
   const names =
     slot.kind === "single"
       ? slot.artist.name
-      : slot.artists.map((a) => a.name).join(" Â· ");
+      : slot.artists.map((a) => a.name).join(" \u00b7 ");
 
   const b2bPairOptions = artistLibrary.filter((a) =>
     slot.kind === "single"
