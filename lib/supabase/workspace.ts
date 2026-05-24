@@ -25,6 +25,7 @@ import type {
   WorkspaceRole,
 } from "@/lib/types/collaboration";
 
+import { getSupabaseConfig, isDemoSession } from "./browser";
 import { isUuid, supabaseRest } from "./client-rest";
 
 type WorkspaceRow = {
@@ -279,11 +280,39 @@ async function resolvePrimaryMembership(
   return { workspace: mapWorkspace(workspaces[0]), membership: mapMember(first) };
 }
 
+export async function probeCloudCollaboration(
+  session: SupabaseSession,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (isDemoSession(session)) {
+    return { ok: false, error: "Demo login cannot use cloud collaboration." };
+  }
+  if (!getSupabaseConfig()) {
+    return { ok: false, error: "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY." };
+  }
+
+  try {
+    await supabaseRest<MemberRow[]>(
+      `workspace_members?user_id=eq.${session.user.id}&status=eq.active&limit=1`,
+      session,
+    );
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Could not reach Supabase workspace tables.",
+    };
+  }
+}
+
 export async function ensureWorkspaceForUser(
   session: SupabaseSession,
-  options?: { companyName?: string; displayName?: string },
+  options?: { companyName?: string; displayName?: string; forceCloud?: boolean },
 ): Promise<{ workspace: Workspace; membership: WorkspaceMember }> {
-  if (shouldUseLocalCollaboration(session)) {
+  if (isDemoSession(session)) {
+    return ensureLocalWorkspace(session, options);
+  }
+
+  if (!options?.forceCloud && shouldUseLocalCollaboration(session)) {
     const email = session.user.email?.trim().toLowerCase();
     if (email) acceptLocalPendingInvites(session, email);
 
@@ -325,6 +354,7 @@ export async function ensureWorkspaceForUser(
       const workspace = mapWorkspace(owned[0]);
       const membership = await ensureActiveMembership(session, workspace.id, options);
       saveLocalWorkspace(session.user.id, workspace);
+      clearLocalCollaborationMode(session.user.id);
       return { workspace, membership };
     }
 
@@ -345,9 +375,11 @@ export async function ensureWorkspaceForUser(
     saveLocalWorkspace(session.user.id, workspace);
     clearLocalCollaborationMode(session.user.id);
     return { workspace, membership };
-  } catch {
+  } catch (err) {
     markLocalCollaborationMode(session.user.id);
-    return ensureLocalWorkspace(session, options);
+    const message =
+      err instanceof Error ? err.message : "Workspace could not connect to Supabase.";
+    throw new Error(message);
   }
 }
 

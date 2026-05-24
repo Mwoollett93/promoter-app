@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import Button from "@/app/components/ui/Button";
+import { reconnectCloudCollaboration } from "@/lib/collaboration/storage-mode";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import { canInviteMembers } from "@/lib/collaboration/permissions";
 import { sendWorkspaceInviteEmail } from "@/lib/notifications/send-workspace-invite-email";
@@ -32,10 +33,13 @@ export default function TeamWorkspaceSettings() {
     members,
     membership,
     refreshMembers,
+    refresh,
     role,
-    error,
+    error: workspaceError,
     usingLocalFallback,
   } = useWorkspace();
+  const error = workspaceError;
+  const [reconnecting, setReconnecting] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [inviteRole, setInviteRole] = React.useState<WorkspaceRole>("promoter");
   const [loading, setLoading] = React.useState(false);
@@ -65,7 +69,7 @@ export default function TeamWorkspaceSettings() {
 
       if (usingLocalFallback) {
         setMessage(
-          "Invitation saved on this device (offline mode). Connect Supabase and set RESEND_API_KEY to email invites.",
+          `Invitation saved on this device only (offline mode). Fix cloud sync first — ${error ?? "use Reconnect to cloud or sign out and back in."}`,
         );
       } else {
         try {
@@ -108,6 +112,15 @@ export default function TeamWorkspaceSettings() {
     await refreshMembers();
   }
 
+  async function handleReconnectCloud() {
+    if (!session) return;
+    setReconnecting(true);
+    setMessage(null);
+    reconnectCloudCollaboration(session.user.id);
+    await refresh();
+    setReconnecting(false);
+  }
+
   async function handleRemove(memberId: string) {
     if (!session || !workspace) return;
     if (!window.confirm("Remove this team member?")) return;
@@ -120,11 +133,42 @@ export default function TeamWorkspaceSettings() {
       <h2 className="text-[18px] font-semibold text-[#F5F5F7]">Team Members</h2>
       <div className="mt-5">
       {usingLocalFallback ? (
-        <p className="mb-4 rounded-lg border border-amber-900/50 bg-amber-950/30 px-3 py-2 text-[13px] text-amber-200/90">
-          Team sync is in offline mode on this device. Run{" "}
-          <code className="text-[#F5F5F7]">supabase/collaboration-rls-bootstrap.sql</code>{" "}
-          in the Supabase SQL editor, then sign out and back in to enable cloud collaboration.
-        </p>
+        <div className="mb-4 rounded-lg border border-amber-900/50 bg-amber-950/30 px-3 py-3 text-[13px] text-amber-200/90">
+          <p>
+            Team sync is in <strong className="text-amber-100">offline mode</strong> on this device
+            (usually after Supabase permissions failed once). Invites and events are stored in this
+            browser only until cloud sync works.
+          </p>
+          {error ? (
+            <p className="mt-2 text-[12px] text-amber-200/80">Last error: {error}</p>
+          ) : null}
+          <ol className="mt-3 list-decimal space-y-1 pl-5 text-[12px] text-amber-200/85">
+            <li>
+              Supabase → <strong>SQL Editor</strong> → run{" "}
+              <code className="text-[#F5F5F7]">supabase/collaboration.sql</code> if you have not
+              already
+            </li>
+            <li>
+              Then run{" "}
+              <code className="text-[#F5F5F7]">supabase/collaboration-rls-bootstrap.sql</code>
+            </li>
+            <li>
+              Then run{" "}
+              <code className="text-[#F5F5F7]">supabase/workspace-invite-accept-rls.sql</code>
+            </li>
+            <li>Click reconnect below, or sign out and back in</li>
+          </ol>
+          <Button
+            variant="secondary"
+            size="sm"
+            type="button"
+            className="mt-3"
+            disabled={reconnecting}
+            onClick={() => void handleReconnectCloud()}
+          >
+            {reconnecting ? "Reconnecting…" : "Reconnect to cloud"}
+          </Button>
+        </div>
       ) : null}
       {error && !usingLocalFallback ? (
         <p className="mb-4 rounded-lg border border-[#232330] bg-[#0F0F17] px-3 py-2 text-[13px] text-[#FCA5A5]">

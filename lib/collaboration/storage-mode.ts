@@ -39,3 +39,10 @@ export function shouldUseLocalCollaboration(
 export function isPersistedWorkspaceId(workspaceId: string) {
   return isUuid(workspaceId);
 }
+
+/** Clear offline flag and cached workspace so the next load refetches from Supabase. */
+export function reconnectCloudCollaboration(userId: string) {
+  clearLocalCollaborationMode(userId);
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(`promosync:collab:workspace:${userId}`);
+}

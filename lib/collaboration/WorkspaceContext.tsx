@@ -9,12 +9,16 @@ import {
   listWorkspaceEvents,
   workspaceEventToManaged,
 } from "@/lib/supabase/events";
-import { isLocalCollaborationMode } from "@/lib/collaboration/storage-mode";
+import {
+  clearLocalCollaborationMode,
+  isLocalCollaborationMode,
+} from "@/lib/collaboration/storage-mode";
 import {
   acceptPendingWorkspaceInvites,
   ensureLocalWorkspace,
   ensureWorkspaceForUser,
   listWorkspaceMembers,
+  probeCloudCollaboration,
 } from "@/lib/supabase/workspace";
 import { getStoredSession } from "@/lib/supabase/browser";
 import type { SupabaseSession } from "@/lib/types/artist";
@@ -85,35 +89,48 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
+      if (isLocalCollaborationMode(current.user.id)) {
+        clearLocalCollaborationMode(current.user.id);
+      }
+
       await acceptPendingWorkspaceInvites(current);
 
       const settings = loadSettings();
       let ws: Workspace;
       let mem: WorkspaceMember;
+      let connectionError: string | null = null;
 
       try {
         const ensured = await ensureWorkspaceForUser(current, {
           companyName: settings.profile.company,
           displayName: settings.profile.fullName,
+          forceCloud: true,
         });
         ws = ensured.workspace;
         mem = ensured.membership;
       } catch (err) {
+        connectionError =
+          err instanceof Error
+            ? err.message
+            : "Workspace could not connect to Supabase. Using offline mode on this device.";
         const fallback = ensureLocalWorkspace(current, {
           companyName: settings.profile.company,
           displayName: settings.profile.fullName,
         });
         ws = fallback.workspace;
         mem = fallback.membership;
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Workspace could not connect to Supabase. Using offline mode on this device.",
-        );
+        setError(connectionError);
       }
 
       const localFallback = isLocalCollaborationMode(current.user.id);
       setUsingLocalFallback(localFallback);
+
+      if (localFallback && !connectionError) {
+        const probe = await probeCloudCollaboration(current);
+        if (!probe.ok) {
+          setError(probe.error);
+        }
+      }
 
       try {
         await migrateLocalEventsToWorkspace(current, ws.id);
