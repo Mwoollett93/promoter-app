@@ -24,7 +24,7 @@ import {
   listWorkspaceMembers,
   probeCloudCollaboration,
 } from "@/lib/supabase/workspace";
-import { getStoredSession } from "@/lib/supabase/browser";
+import { getValidSession } from "@/lib/supabase/browser";
 import type { SupabaseSession } from "@/lib/types/artist";
 import type {
   Workspace,
@@ -76,14 +76,22 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   }, [session, workspace]);
 
   const refresh = React.useCallback(async () => {
-    const current = getStoredSession();
+    let current: SupabaseSession | null = null;
+    try {
+      current = await getValidSession();
+    } catch {
+      current = null;
+    }
+
     if (!current) {
       setSession(null);
       setWorkspace(null);
       setMembership(null);
       setMembers([]);
       setEvents([]);
-      setError(null);
+      setError(
+        "Your session expired. Sign out and sign in again to restore cloud sync.",
+      );
       setUsingLocalFallback(false);
       setReady(true);
       return;

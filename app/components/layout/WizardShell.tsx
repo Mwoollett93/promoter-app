@@ -8,7 +8,7 @@ import WizardHeader from "./WizardHeader";
 import { SHELL_PADDING_X, SHELL_PADDING_Y } from "@/lib/layout/page-layout";
 import { WorkspaceProvider, useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import { SettingsProvider } from "@/lib/settings/SettingsProvider";
-import { getStoredSession } from "@/lib/supabase/browser";
+import { getValidSession } from "@/lib/supabase/browser";
 import {
   hasWizardProgress,
   saveWizardProgressAsDraft,
@@ -94,11 +94,13 @@ export default function WizardShell({ children, title }: WizardShellProps) {
   const [ready, setReady] = React.useState(false);
 
   React.useEffect(() => {
-    if (!getStoredSession()) {
-      router.replace("/login");
-      return;
-    }
-    setReady(true);
+    void getValidSession().then((session) => {
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
+      setReady(true);
+    });
   }, [router]);
 
   if (!ready) {

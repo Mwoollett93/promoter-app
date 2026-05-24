@@ -134,30 +134,45 @@ export default function TeamWorkspaceSettings() {
       <div className="mt-5">
       {usingLocalFallback ? (
         <div className="mb-4 rounded-lg border border-amber-900/50 bg-amber-950/30 px-3 py-3 text-[13px] text-amber-200/90">
-          <p>
-            Team sync is in <strong className="text-amber-100">offline mode</strong> on this device
-            (usually after Supabase permissions failed once). Invites and events are stored in this
-            browser only until cloud sync works.
-          </p>
-          {error ? (
-            <p className="mt-2 text-[12px] text-amber-200/80">Last error: {error}</p>
-          ) : null}
-          <ol className="mt-3 list-decimal space-y-1 pl-5 text-[12px] text-amber-200/85">
-            <li>
-              Supabase → <strong>SQL Editor</strong> → run{" "}
-              <code className="text-[#F5F5F7]">supabase/collaboration.sql</code> if you have not
-              already
-            </li>
-            <li>
-              Then run{" "}
-              <code className="text-[#F5F5F7]">supabase/collaboration-rls-bootstrap.sql</code>
-            </li>
-            <li>
-              Then run{" "}
-              <code className="text-[#F5F5F7]">supabase/workspace-invite-accept-rls.sql</code>
-            </li>
-            <li>Click reconnect below, or sign out and back in</li>
-          </ol>
+          {error && /jwt expired|session expired/i.test(error) ? (
+            <>
+              <p>
+                Your <strong className="text-amber-100">login session expired</strong>. Cloud team
+                sync is paused until you sign in again.
+              </p>
+              <p className="mt-2 text-[12px] text-amber-200/80">
+                Sign out (bottom of the sidebar), then sign back in. After deploy, the app will
+                refresh your session automatically when possible.
+              </p>
+            </>
+          ) : (
+            <>
+              <p>
+                Team sync is in <strong className="text-amber-100">offline mode</strong> on this
+                device (usually after Supabase permissions failed once). Invites and events are
+                stored in this browser only until cloud sync works.
+              </p>
+              {error ? (
+                <p className="mt-2 text-[12px] text-amber-200/80">Last error: {error}</p>
+              ) : null}
+              <ol className="mt-3 list-decimal space-y-1 pl-5 text-[12px] text-amber-200/85">
+                <li>
+                  Supabase → <strong>SQL Editor</strong> → run{" "}
+                  <code className="text-[#F5F5F7]">supabase/collaboration.sql</code> if you have not
+                  already
+                </li>
+                <li>
+                  Then run{" "}
+                  <code className="text-[#F5F5F7]">supabase/collaboration-rls-bootstrap.sql</code>
+                </li>
+                <li>
+                  Then run{" "}
+                  <code className="text-[#F5F5F7]">supabase/workspace-invite-accept-rls.sql</code>
+                </li>
+                <li>Click reconnect below, or sign out and back in</li>
+              </ol>
+            </>
+          )}
           <Button
             variant="secondary"
             size="sm"

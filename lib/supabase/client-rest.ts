@@ -1,6 +1,10 @@
 import type { SupabaseSession } from "@/lib/types/artist";
 
-import { getSupabaseConfig } from "./browser";
+import {
+  getSupabaseConfig,
+  isDemoSession,
+  refreshSupabaseSession,
+} from "./browser";
 
 type SupabaseConfig = {
   url: string;
@@ -24,6 +28,10 @@ async function getErrorMessage(response: Response, fallback: string) {
   }
 }
 
+function isJwtExpiredMessage(message: string) {
+  return /jwt expired|invalid jwt|token.*expired/i.test(message);
+}
+
 export async function supabaseRest<T>(
   path: string,
   session: SupabaseSession,
@@ -34,26 +42,42 @@ export async function supabaseRest<T>(
   } = {},
 ): Promise<T> {
   const config = requireSupabaseConfig();
-  const headers: Record<string, string> = {
-    apikey: config.anonKey,
-    Authorization: `Bearer ${session.accessToken}`,
-    "Content-Type": "application/json",
-    Prefer: options.prefer ?? "return=representation",
-  };
+  let activeSession = session;
 
-  const response = await fetch(`${config.url}/rest/v1/${path}`, {
-    method: options.method ?? "GET",
-    headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const headers: Record<string, string> = {
+      apikey: config.anonKey,
+      Authorization: `Bearer ${activeSession.accessToken}`,
+      "Content-Type": "application/json",
+      Prefer: options.prefer ?? "return=representation",
+    };
 
-  if (!response.ok) {
-    throw new Error(await getErrorMessage(response, "Supabase request failed."));
+    const response = await fetch(`${config.url}/rest/v1/${path}`, {
+      method: options.method ?? "GET",
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    });
+
+    if (!response.ok) {
+      const message = await getErrorMessage(response, "Supabase request failed.");
+      if (
+        attempt === 0 &&
+        !isDemoSession(activeSession) &&
+        activeSession.refreshToken &&
+        isJwtExpiredMessage(message)
+      ) {
+        activeSession = await refreshSupabaseSession(activeSession);
+        continue;
+      }
+      throw new Error(message);
+    }
+
+    if (response.status === 204) return undefined as T;
+    const text = await response.text();
+    return (text ? JSON.parse(text) : undefined) as T;
   }
 
-  if (response.status === 204) return undefined as T;
-  const text = await response.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  throw new Error("Supabase request failed.");
 }
 
 export function isUuid(value: string) {

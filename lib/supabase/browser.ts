@@ -108,6 +108,8 @@ export function signInAsDemo(): SupabaseSession {
   return session;
 }
 
+const SESSION_REFRESH_SKEW_SEC = 120;
+
 export function getStoredSession(): SupabaseSession | null {
   if (typeof window === "undefined") return null;
 
@@ -119,6 +121,92 @@ export function getStoredSession(): SupabaseSession | null {
     if (!session.accessToken || !session.user?.id) return null;
     return session;
   } catch {
+    return null;
+  }
+}
+
+export function isSessionNearExpiry(session: SupabaseSession) {
+  if (!session.expiresAt) return false;
+  return session.expiresAt <= Math.floor(Date.now() / 1000) + SESSION_REFRESH_SKEW_SEC;
+}
+
+function authHeaders(config: SupabaseConfig): Record<string, string> {
+  const headers: Record<string, string> = {
+    apikey: config.anonKey,
+    "Content-Type": "application/json",
+  };
+  if (config.anonKey.startsWith("eyJ")) {
+    headers.Authorization = `Bearer ${config.anonKey}`;
+  }
+  return headers;
+}
+
+/** Refresh an expired access token using the stored refresh token. */
+export async function refreshSupabaseSession(
+  session: SupabaseSession,
+): Promise<SupabaseSession> {
+  if (isDemoSession(session)) return session;
+
+  const config = getSupabaseConfig();
+  if (!config) {
+    throw new Error("Supabase is not configured.");
+  }
+  if (!session.refreshToken) {
+    throw new Error("Your session expired. Please sign out and sign in again.");
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${config.url}/auth/v1/token?grant_type=refresh_token`, {
+      method: "POST",
+      headers: authHeaders(config),
+      body: JSON.stringify({ refresh_token: session.refreshToken }),
+    });
+  } catch {
+    throw new Error("Could not reach Supabase to refresh your session.");
+  }
+
+  const payload = (await response.json().catch(() => ({}))) as {
+    access_token?: string;
+    refresh_token?: string;
+    expires_in?: number;
+    user?: SupabaseSession["user"];
+    error_description?: string;
+    msg?: string;
+    message?: string;
+  };
+
+  if (!response.ok || !payload.access_token || !payload.user?.id) {
+    const detail =
+      payload.message ??
+      payload.msg ??
+      payload.error_description ??
+      "Unable to refresh session.";
+    throw new Error(detail);
+  }
+
+  return persistSessionFromApiPayload({
+    access_token: payload.access_token,
+    refresh_token: payload.refresh_token ?? session.refreshToken,
+    expires_in: payload.expires_in,
+    user: payload.user,
+  });
+}
+
+/**
+ * Returns a session with a valid access token, refreshing automatically when needed.
+ */
+export async function getValidSession(): Promise<SupabaseSession | null> {
+  const session = getStoredSession();
+  if (!session) return null;
+  if (isDemoSession(session)) return session;
+
+  if (!isSessionNearExpiry(session)) return session;
+
+  try {
+    return await refreshSupabaseSession(session);
+  } catch {
+    clearStoredSession();
     return null;
   }
 }
