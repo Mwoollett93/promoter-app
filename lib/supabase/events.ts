@@ -94,6 +94,7 @@ export function workspaceEventToManaged(event: WorkspaceEvent): ManagedEventReco
     status: event.status,
     dateKey: event.dateKey ?? undefined,
     startTime: event.startTime ?? undefined,
+    venueId: event.venueId ?? undefined,
     venueName: event.venueName,
     description: event.description ?? undefined,
     artistCount: event.artistCount,

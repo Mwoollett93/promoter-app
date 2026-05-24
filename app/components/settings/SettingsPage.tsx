@@ -12,12 +12,9 @@ import {
   Shield,
   User,
   UserCog,
-  Users,
 } from "lucide-react";
 
 import PageContent from "@/app/components/layout/PageContent";
-import TeamWorkspaceSettings from "@/app/components/settings/TeamWorkspaceSettings";
-import TemplatesSettings from "@/app/components/settings/TemplatesSettings";
 import Button from "@/app/components/ui/Button";
 import { GRID_CARD_GAP, PAGE_STACK_GAP } from "@/lib/layout/page-layout";
 import { useSettings } from "@/lib/settings/SettingsProvider";
@@ -49,7 +46,6 @@ type SettingsTab = {
 const TABS: SettingsTab[] = [
   { id: "profile", label: "Profile", icon: User },
   { id: "account", label: "Account", icon: UserCog },
-  { id: "team", label: "Team", icon: Users },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "billing", label: "Billing", icon: CreditCard },
   { id: "integrations", label: "Integrations", icon: Plug },
@@ -227,13 +223,6 @@ export default function SettingsPage() {
             onExport={handleExportData}
             onPrivacyReport={handlePrivacyReport}
           />
-        ) : null}
-
-        {activeTab === "team" ? (
-          <div className="space-y-6">
-            <TeamWorkspaceSettings />
-            <TemplatesSettings />
-          </div>
         ) : null}
 
         {activeTab === "notifications" ? (

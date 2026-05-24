@@ -42,7 +42,7 @@ import {
   runMarketingCountdownAutomation,
   runVenueConfirmedAutomation,
 } from "@/lib/automations/runner";
-import { upsertManagedEvent } from "@/lib/data/events";
+import { resolveManagedEventStatus, upsertManagedEvent } from "@/lib/data/events";
 import { createWorkspaceEvent, workspaceEventToManaged } from "@/lib/supabase/events";
 import { getVenueFee, loadVenueFinanceContext, type VenueFinanceContext } from "@/lib/data/venue-finance-context";
 import { buildScheduleSummary, calculateScheduleTimes, formatClock, formatDurationMinutes } from "@/lib/schedule";
@@ -93,12 +93,9 @@ function formatTimeLabel(time24?: string) {
   return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
 }
 
-function getManagedStatus(dateKey?: string): ManagedEventStatus {
-  if (!dateKey) return "draft";
-
-  const eventDate = Date.parse(`${dateKey}T00:00:00`);
-  if (!Number.isFinite(eventDate)) return "draft";
-  return eventDate < Date.now() ? "completed" : "active";
+function getManagedStatus(dateKey?: string, asDraft?: boolean): ManagedEventStatus {
+  if (asDraft) return "draft";
+  return resolveManagedEventStatus(dateKey, "active");
 }
 
 export default function ReviewCreatePage() {
@@ -246,7 +243,7 @@ export default function ReviewCreatePage() {
       const created = await createWorkspaceEvent(session, {
         workspaceId: workspace.id,
         name: reviewState.eventDraft?.eventName?.trim() || "Untitled Event",
-        status: options?.asDraft ? "draft" : getManagedStatus(reviewState.eventDraft?.dateKey),
+        status: getManagedStatus(reviewState.eventDraft?.dateKey, options?.asDraft),
         venueId: reviewState.eventDraft?.venueId ?? null,
         venueName,
         description: reviewState.eventDraft?.description,

@@ -9,6 +9,11 @@ import {
 } from "@/lib/data/format";
 import type { PreferencesState } from "@/lib/settings/settings";
 import type { ArtistProfile } from "@/lib/types/artist";
+import {
+  buildVenueImageLookup,
+  resolveVenueImage,
+  type VenueSummary,
+} from "@/lib/supabase/venue-summaries";
 
 export type DashboardStat = {
   label: string;
@@ -41,16 +46,6 @@ export type DashboardSnapshot = {
   sparklineValues: number[];
 };
 
-const DEFAULT_EVENT_IMAGE =
-  "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=200&q=80";
-
-const VENUE_THUMBS: Record<string, string> = {
-  "sub club": "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=80&q=60",
-  revolver: "https://images.unsplash.com/photo-1571266028243-e473f69f7db5?auto=format&fit=crop&w=80&q=60",
-  "brown alley": "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=80&q=60",
-  forum: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=80&q=60",
-};
-
 function toBadgeStatus(status: ManagedEventStatus): EventStatus {
   return status;
 }
@@ -63,12 +58,11 @@ function parseDateKey(dateKey?: string) {
 }
 
 function isUpcoming(event: ManagedEventRecord) {
-  if (event.status === "canceled") return false;
-  if (event.status === "completed") return false;
+  if (event.status === "canceled" || event.status === "completed") return false;
   if (!event.dateKey) return event.status === "draft" || event.status === "active";
 
   const date = parseDateKey(event.dateKey);
-  if (!date) return true;
+  if (!date) return event.status === "draft" || event.status === "active";
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -78,14 +72,6 @@ function isUpcoming(event: ManagedEventRecord) {
 
 function shortVenueName(venueName: string) {
   return venueName.split(",")[0]?.trim() || venueName;
-}
-
-function venueThumb(venueName: string) {
-  const key = shortVenueName(venueName).toLowerCase();
-  for (const [needle, url] of Object.entries(VENUE_THUMBS)) {
-    if (key.includes(needle)) return url;
-  }
-  return DEFAULT_EVENT_IMAGE;
 }
 
 function trendLabel(current: number, previous: number, suffix: string) {
@@ -158,7 +144,10 @@ function buildStats(events: ManagedEventRecord[], prefs?: PreferencesState): Das
   ];
 }
 
-function buildUpcoming(events: ManagedEventRecord[]): UpcomingEventRowProps[] {
+function buildUpcoming(
+  events: ManagedEventRecord[],
+  venueLookup: ReturnType<typeof buildVenueImageLookup>,
+): UpcomingEventRowProps[] {
   return events
     .filter(isUpcoming)
     .sort((a, b) => {
@@ -169,14 +158,14 @@ function buildUpcoming(events: ManagedEventRecord[]): UpcomingEventRowProps[] {
     })
     .slice(0, 5)
     .map((event) => ({
-      href: "/events",
+      href: `/events/${event.id}/workspace`,
       title: event.name,
       venueLabel: event.venueName,
       timeRangeLabel: event.startTime ? formatTimeLabel(event.startTime) : "Time TBD",
       status: toBadgeStatus(event.status),
       dateLabel: formatDateLabel(event.dateKey),
       relativeLabel: formatRelativeEventDate(event.dateKey),
-      imageSrc: venueThumb(event.venueName),
+      imageSrc: resolveVenueImage(event, venueLookup),
     }));
 }
 
@@ -231,22 +220,30 @@ function buildStatusDistribution(events: ManagedEventRecord[]): StatusSlice[] {
     .filter((slice) => slice.count > 0);
 }
 
-function buildTopVenues(events: ManagedEventRecord[]): TopVenueRow[] {
-  const counts = new Map<string, number>();
+function buildTopVenues(
+  events: ManagedEventRecord[],
+  venueLookup: ReturnType<typeof buildVenueImageLookup>,
+): TopVenueRow[] {
+  const counts = new Map<string, { count: number; sample: ManagedEventRecord }>();
 
   for (const event of events) {
     if (event.status === "canceled") continue;
     const name = shortVenueName(event.venueName);
-    counts.set(name, (counts.get(name) ?? 0) + 1);
+    const existing = counts.get(name);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      counts.set(name, { count: 1, sample: event });
+    }
   }
 
   return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]))
     .slice(0, 3)
-    .map(([name, count]) => ({
+    .map(([name, { count, sample }]) => ({
       name,
       events: count,
-      thumb: venueThumb(name),
+      thumb: resolveVenueImage(sample, venueLookup),
     }));
 }
 
@@ -299,18 +296,20 @@ function buildSparkline(events: ManagedEventRecord[]): number[] {
 export function buildDashboardSnapshot(input: {
   events: ManagedEventRecord[];
   artists?: ArtistProfile[];
+  venues?: VenueSummary[];
   preferences?: PreferencesState;
 }): DashboardSnapshot {
   const events = input.events;
   const artists = input.artists ?? [];
   const prefs = input.preferences;
+  const venueLookup = buildVenueImageLookup(input.venues ?? []);
 
   return {
     stats: buildStats(events, prefs),
-    upcomingEvents: buildUpcoming(events),
+    upcomingEvents: buildUpcoming(events, venueLookup),
     financialRows: buildFinancialRows(events, prefs),
     eventStatusDistribution: buildStatusDistribution(events),
-    topVenues: buildTopVenues(events),
+    topVenues: buildTopVenues(events, venueLookup),
     topArtists: buildTopArtists(events, artists),
     sparklineValues: buildSparkline(events),
   };

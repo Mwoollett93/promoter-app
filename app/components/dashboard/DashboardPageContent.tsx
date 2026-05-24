@@ -21,9 +21,10 @@ import { buildDashboardSnapshot, type DashboardSnapshot } from "@/lib/data/dashb
 import { useSettings } from "@/lib/settings/SettingsProvider";
 import { getProfileFirstName } from "@/lib/settings/settings";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
-import { loadManagedEvents } from "@/lib/data/events";
+import { loadManagedEvents, publishManagedEvents } from "@/lib/data/events";
 import { GRID_CARD_GAP, PAGE_STACK_GAP } from "@/lib/layout/page-layout";
 import { getStoredSession, getSupabaseConfig, listArtists } from "@/lib/supabase/browser";
+import { listVenueSummaries } from "@/lib/supabase/venue-summaries";
 
 function FinancialSparkline({ values }: { values: number[] }) {
   const width = 400;
@@ -125,19 +126,31 @@ export default function DashboardPageContent() {
 
   const refreshSnapshot = React.useCallback(async () => {
     const events = loadManagedEvents();
+    if (events.length > 0) publishManagedEvents(events);
     const session = getStoredSession();
     let artists: Awaited<ReturnType<typeof listArtists>> = [];
 
+    let venues: Awaited<ReturnType<typeof listVenueSummaries>> = [];
+
     if (session && getSupabaseConfig()) {
       try {
-        artists = await listArtists(session);
+        [artists, venues] = await Promise.all([
+          listArtists(session),
+          listVenueSummaries(session),
+        ]);
       } catch {
         artists = [];
+        venues = [];
       }
     }
 
     setSnapshot(
-      buildDashboardSnapshot({ events, artists, preferences: settings.preferences }),
+      buildDashboardSnapshot({
+        events,
+        artists,
+        venues,
+        preferences: settings.preferences,
+      }),
     );
   }, [settings.preferences]);
 

@@ -47,7 +47,7 @@ const mainNavItems: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { label: "Events", icon: CalendarPlus, href: "/events" },
   { label: "Tasks", icon: CheckSquare, href: "/tasks" },
-  { label: "Team", icon: Users, href: "/settings?tab=team" },
+  { label: "Team", icon: Users, href: "/team" },
   { label: "Venues", icon: MapPin, href: "/venues" },
   { label: "Artists", icon: Mic2, href: "/artists" },
 ];
@@ -68,7 +68,7 @@ type ProfileMenuItem = {
 const profileMenuItems: ProfileMenuItem[] = [
   { id: "profile", label: "Profile", icon: User, href: "/settings" },
   { id: "account", label: "Account", icon: UserCog, href: "/settings?tab=account" },
-  { id: "team", label: "Team", icon: Users, href: "/settings?tab=team" },
+  { id: "team", label: "Team", icon: Users, href: "/team" },
   { id: "notifications", label: "Notifications", icon: Bell, href: "/settings?tab=notifications" },
   { id: "billing", label: "Billing", icon: CreditCard, href: "/settings?tab=billing" },
   { id: "integrations", label: "Integrations", icon: Plug, href: "/settings?tab=integrations" },
@@ -98,9 +98,9 @@ function isNavItemActive(
     case "Tasks":
       return pathname.startsWith("/tasks");
     case "Team":
-      return pathname.startsWith("/settings") && settingsTab === "team";
+      return pathname.startsWith("/team");
     case "Settings":
-      return pathname.startsWith("/settings") && settingsTab !== "team";
+      return pathname.startsWith("/settings");
     default:
       return false;
   }

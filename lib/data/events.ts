@@ -6,6 +6,7 @@ export type ManagedEventRecord = {
   status: ManagedEventStatus;
   dateKey?: string;
   startTime?: string;
+  venueId?: string;
   venueName: string;
   description?: string;
   artistCount: number;
@@ -68,6 +69,7 @@ function parseManagedEventRecord(raw: unknown): ManagedEventRecord | null {
     status: value.status,
     dateKey: isNonEmptyString(value.dateKey) ? value.dateKey.trim() : undefined,
     startTime: isNonEmptyString(value.startTime) ? value.startTime.trim() : undefined,
+    venueId: isNonEmptyString(value.venueId) ? value.venueId.trim() : undefined,
     venueName: value.venueName.trim(),
     description: isNonEmptyString(value.description) ? value.description.trim() : undefined,
     artistCount: sanitizeWholeNumber(value.artistCount),
@@ -81,6 +83,42 @@ function parseManagedEventRecord(raw: unknown): ManagedEventRecord | null {
     createdAt: value.createdAt,
     updatedAt: value.updatedAt,
   };
+}
+
+function parseEventDateKey(dateKey?: string) {
+  if (!dateKey) return null;
+  const [year, month, day] = dateKey.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
+/** Derive status from calendar date (today still counts as active/upcoming). */
+export function resolveManagedEventStatus(
+  dateKey?: string,
+  current?: ManagedEventStatus,
+): ManagedEventStatus {
+  if (current === "canceled") return "canceled";
+  if (!dateKey) return current ?? "draft";
+
+  const eventDate = parseEventDateKey(dateKey);
+  if (!eventDate) return current ?? "draft";
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  eventDate.setHours(0, 0, 0, 0);
+
+  if (eventDate.getTime() < today.getTime()) return "completed";
+  if (current === "draft") return "draft";
+  return "active";
+}
+
+export function normalizeManagedEvent(event: ManagedEventRecord): ManagedEventRecord {
+  const status = resolveManagedEventStatus(event.dateKey, event.status);
+  return status === event.status ? event : { ...event, status };
+}
+
+function normalizeManagedEvents(events: ManagedEventRecord[]) {
+  return events.map(normalizeManagedEvent);
 }
 
 function sortManagedEvents(events: ManagedEventRecord[]) {
@@ -112,7 +150,7 @@ export function loadManagedEvents(): ManagedEventRecord[] {
   }
 
   const cached = (window as unknown as { __promosyncEvents?: ManagedEventRecord[] }).__promosyncEvents;
-  if (cached) return sortManagedEvents(cached);
+  if (cached) return sortManagedEvents(normalizeManagedEvents(cached));
 
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -129,7 +167,7 @@ export function loadManagedEvents(): ManagedEventRecord[] {
       .map(parseManagedEventRecord)
       .filter((event): event is ManagedEventRecord => event !== null);
 
-    return sortManagedEvents(events);
+    return sortManagedEvents(normalizeManagedEvents(events));
   } catch {
     return [];
   }
@@ -143,7 +181,7 @@ export function cacheManagedEventsForSync(events: ManagedEventRecord[]) {
 
 /** Persist workspace events for dashboard / events list and notify listeners. */
 export function publishManagedEvents(events: ManagedEventRecord[]) {
-  const sorted = sortManagedEvents(events);
+  const sorted = sortManagedEvents(normalizeManagedEvents(events));
   cacheManagedEventsForSync(sorted);
   saveManagedEvents(sorted);
   if (typeof window !== "undefined") {
