@@ -25,6 +25,9 @@ import { notifyTaskAssigned } from "@/lib/notifications/rules";
 import type { Task, TaskColumn } from "@/lib/types/collaboration";
 import { TASK_COLUMN_LABELS, TASK_COLUMNS } from "@/lib/types/collaboration";
 
+const fieldClassName =
+  "min-w-[200px] flex-1 rounded-lg border border-[#3F3F46] bg-[#11111A] px-3 py-2 text-[13px] text-[#F5F5F7] outline-none transition-colors placeholder:text-[#71717A] focus:border-[#8B5CF6] focus:ring-0 focus-visible:outline-none focus-visible:border-[#8B5CF6]";
+
 type KanbanBoardProps = {
   workspaceId: string;
   eventId?: string;
@@ -78,21 +81,34 @@ export default function KanbanBoard({ workspaceId, eventId }: KanbanBoardProps) 
 
     const targetColumn = TASK_COLUMNS.includes(overId as TaskColumn)
       ? (overId as TaskColumn)
-      : tasks.find((t) => t.id === overId)?.column ?? task.column;
+      : (tasks.find((t) => t.id === overId)?.column ?? task.column);
+
+    if (targetColumn === task.column) return;
 
     const position = tasksByColumn[targetColumn].length;
-    const updated = await moveTask(session, taskId, targetColumn, position);
+    const optimistic: Task = {
+      ...task,
+      column: targetColumn,
+      position,
+      updatedAt: new Date().toISOString(),
+    };
 
-    await logActivity(session, {
-      workspaceId,
-      eventId: eventId ?? task.eventId,
-      entityType: "task",
-      entityId: taskId,
-      verb: "moved",
-      summary: `Moved "${task.title}" to ${TASK_COLUMN_LABELS[targetColumn]}`,
-    });
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? optimistic : t)));
 
-    setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
+    try {
+      const updated = await moveTask(session, taskId, targetColumn, position);
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
+      void logActivity(session, {
+        workspaceId,
+        eventId: eventId ?? task.eventId,
+        entityType: "task",
+        entityId: taskId,
+        verb: "moved",
+        summary: `Moved "${task.title}" to ${TASK_COLUMN_LABELS[targetColumn]}`,
+      });
+    } catch {
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? task : t)));
+    }
   }
 
   async function handleQuickAdd(column: TaskColumn) {
@@ -115,13 +131,16 @@ export default function KanbanBoard({ workspaceId, eventId }: KanbanBoardProps) 
         <input
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void handleQuickAdd("todo");
+          }}
           placeholder="Quick add task…"
-          className="min-w-[200px] flex-1 rounded-lg border border-[#3F3F46] bg-[#0B0B10] px-3 py-2 text-[13px] text-[#F5F5F7]"
+          className={fieldClassName}
         />
         <button
           type="button"
-          onClick={() => handleQuickAdd("todo")}
-          className="rounded-lg bg-[#7C3AED] px-4 py-2 text-[13px] font-medium text-white"
+          onClick={() => void handleQuickAdd("todo")}
+          className="rounded-lg border border-[rgba(139,92,246,0.45)] bg-[#7C3AED] px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[#6D28D9]"
         >
           Add to To Do
         </button>
@@ -142,8 +161,8 @@ export default function KanbanBoard({ workspaceId, eventId }: KanbanBoardProps) 
             />
           ))}
         </div>
-        <DragOverlay>
-          {activeTask ? <TaskCardPreview task={activeTask} members={members} /> : null}
+        <DragOverlay dropAnimation={null}>
+          {activeTask ? <TaskCardPreview task={activeTask} /> : null}
         </DragOverlay>
       </DndContext>
 
@@ -161,9 +180,7 @@ export default function KanbanBoard({ workspaceId, eventId }: KanbanBoardProps) 
                 workspaceId,
                 updated.assigneeId,
                 updated.title,
-                eventId
-                  ? `/events/${eventId}/workspace?tab=tasks`
-                  : "/tasks",
+                eventId ? `/events/${eventId}/workspace?tab=tasks` : "/tasks",
               );
             }
           }}
@@ -189,7 +206,7 @@ function KanbanColumn({
       ref={setNodeRef}
       className={[
         "flex min-h-[320px] flex-col rounded-xl border border-[#232330] bg-[#0F0F17]",
-        isOver ? "ring-1 ring-[#8B5CF6]/50" : "",
+        isOver ? "border-[#8B5CF6]/40 bg-[#14141F]" : "",
       ].join(" ")}
     >
       <div className="border-b border-[#232330] px-3 py-2">
@@ -220,38 +237,39 @@ function SortableTaskCard({
     id: task.id,
   });
 
-  const style = {
+  const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
+    transition: isDragging ? undefined : transition,
+    opacity: isDragging ? 0.35 : 1,
   };
 
   return (
-    <li ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <button
-        type="button"
-        onClick={() => onSelect(task)}
-        className="w-full rounded-lg border border-[#3F3F46] bg-[#11111A] px-3 py-2 text-left"
+    <li ref={setNodeRef} style={style} className="touch-none">
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing"
       >
-        <p className="text-[13px] font-medium text-[#F5F5F7]">{task.title}</p>
-        {task.dueAt ? (
-          <p className="mt-1 text-[11px] text-[#71717A]">
-            Due {new Date(task.dueAt).toLocaleDateString()}
-          </p>
-        ) : null}
-      </button>
+        <button
+          type="button"
+          onClick={() => onSelect(task)}
+          className="w-full rounded-lg border border-[#3F3F46] bg-[#11111A] px-3 py-2 text-left transition-colors hover:border-[#52525B]"
+        >
+          <p className="text-[13px] font-medium text-[#F5F5F7]">{task.title}</p>
+          {task.dueAt ? (
+            <p className="mt-1 text-[11px] text-[#71717A]">
+              Due {new Date(task.dueAt).toLocaleDateString()}
+            </p>
+          ) : null}
+        </button>
+      </div>
     </li>
   );
 }
 
-function TaskCardPreview({
-  task,
-}: {
-  task: Task;
-  members: { userId: string | null; displayName: string | null }[];
-}) {
+function TaskCardPreview({ task }: { task: Task }) {
   return (
-    <div className="rounded-lg border border-[#8B5CF6]/50 bg-[#11111A] px-3 py-2 shadow-lg">
+    <div className="rounded-lg border border-[#8B5CF6]/40 bg-[#11111A] px-3 py-2 shadow-lg">
       <p className="text-[13px] font-medium text-[#F5F5F7]">{task.title}</p>
     </div>
   );

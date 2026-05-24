@@ -42,7 +42,8 @@ import {
   runMarketingCountdownAutomation,
   runVenueConfirmedAutomation,
 } from "@/lib/automations/runner";
-import { createWorkspaceEvent } from "@/lib/supabase/events";
+import { upsertManagedEvent } from "@/lib/data/events";
+import { createWorkspaceEvent, workspaceEventToManaged } from "@/lib/supabase/events";
 import { getVenueFee, loadVenueFinanceContext, type VenueFinanceContext } from "@/lib/data/venue-finance-context";
 import { buildScheduleSummary, calculateScheduleTimes, formatClock, formatDurationMinutes } from "@/lib/schedule";
 import { getStoredSession, getSupabaseConfig, listArtists } from "@/lib/supabase/browser";
@@ -278,6 +279,7 @@ export default function ReviewCreatePage() {
       await runMarketingCountdownAutomation(session, workspace.id, created);
       await runForecastNegativeAutomation(session, workspace.id, created);
 
+      upsertManagedEvent(workspaceEventToManaged(created));
       await refreshEvents();
       clearWizardEventDraft();
       clearWizardScheduleSlots();

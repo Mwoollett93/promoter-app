@@ -141,6 +141,16 @@ export function cacheManagedEventsForSync(events: ManagedEventRecord[]) {
     sortManagedEvents(events);
 }
 
+/** Persist workspace events for dashboard / events list and notify listeners. */
+export function publishManagedEvents(events: ManagedEventRecord[]) {
+  const sorted = sortManagedEvents(events);
+  cacheManagedEventsForSync(sorted);
+  saveManagedEvents(sorted);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("promosync:events-updated"));
+  }
+}
+
 export function saveManagedEvents(events: ManagedEventRecord[]) {
   if (typeof window === "undefined") return;
   try {
@@ -183,10 +193,7 @@ export function upsertManagedEvent(event: ManagedEventRecord) {
       ? [event, ...current]
       : current.map((item, itemIndex) => (itemIndex === index ? event : item));
 
-  saveManagedEvents(next);
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new Event("promosync:events-updated"));
-  }
-  return sortManagedEvents(next);
+  publishManagedEvents(next);
+  return next;
 }
 

@@ -3,7 +3,7 @@
 import * as React from "react";
 
 import { migrateLocalEventsToWorkspace } from "@/lib/data/events-migrate";
-import { cacheManagedEventsForSync, type ManagedEventRecord } from "@/lib/data/events";
+import { publishManagedEvents, type ManagedEventRecord } from "@/lib/data/events";
 import { resolveEventCapabilities, type EventCapabilities } from "@/lib/collaboration/permissions";
 import {
   listWorkspaceEvents,
@@ -63,7 +63,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     const list = await listWorkspaceEvents(session, workspace.id);
     const mapped = list.map(workspaceEventToManaged);
     setEvents(mapped);
-    cacheManagedEventsForSync(mapped);
+    publishManagedEvents(mapped);
   }, [session, workspace]);
 
   const refresh = React.useCallback(async () => {
@@ -134,7 +134,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       setMembers(memberList.length > 0 ? memberList : [mem]);
       const mapped = eventList.map(workspaceEventToManaged);
       setEvents(mapped);
-      cacheManagedEventsForSync(mapped);
+      publishManagedEvents(mapped);
     } catch (err) {
       const settings = loadSettings();
       const fallback = ensureLocalWorkspace(current, {

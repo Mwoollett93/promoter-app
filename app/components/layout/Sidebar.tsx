@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -47,6 +47,7 @@ const mainNavItems: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { label: "Events", icon: CalendarPlus, href: "/events" },
   { label: "Tasks", icon: CheckSquare, href: "/tasks" },
+  { label: "Team", icon: Users, href: "/settings?tab=team" },
   { label: "Venues", icon: MapPin, href: "/venues" },
   { label: "Artists", icon: Mic2, href: "/artists" },
 ];
@@ -78,7 +79,11 @@ const profileMenuItems: ProfileMenuItem[] = [
 const labelTransition =
   "truncate whitespace-nowrap transition-[max-width,opacity] duration-300 ease-out";
 
-function isNavItemActive(label: string, pathname: string | null): boolean {
+function isNavItemActive(
+  label: string,
+  pathname: string | null,
+  settingsTab: string | null,
+): boolean {
   if (pathname === null) return false;
 
   switch (label) {
@@ -92,8 +97,10 @@ function isNavItemActive(label: string, pathname: string | null): boolean {
       return pathname.startsWith("/artists");
     case "Tasks":
       return pathname.startsWith("/tasks");
+    case "Team":
+      return pathname.startsWith("/settings") && settingsTab === "team";
     case "Settings":
-      return pathname.startsWith("/settings");
+      return pathname.startsWith("/settings") && settingsTab !== "team";
     default:
       return false;
   }
@@ -233,6 +240,8 @@ function ProfileMenu({
 
 export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const settingsTab = searchParams.get("tab");
   const router = useRouter();
   const { settings } = useSettings();
 
@@ -243,7 +252,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
 
   function renderNavItem(item: NavItem) {
     const Icon = item.icon;
-    const active = isNavItemActive(item.label, pathname);
+    const active = isNavItemActive(item.label, pathname, settingsTab);
     const className = navItemClassName(active);
     const labels = labelClassName(isOpen);
 

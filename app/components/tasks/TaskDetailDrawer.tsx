@@ -1,14 +1,24 @@
 "use client";
 
 import * as React from "react";
-import { X } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 
 import CommentThread from "@/app/components/collaboration/CommentThread";
+import DateInput from "@/app/components/ui/DateInput";
 import { updateTask } from "@/lib/collaboration/tasks";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
+import { newId } from "@/lib/collaboration/local-store";
 import type { Task, TaskChecklistItem } from "@/lib/types/collaboration";
 import type { WorkspaceMember } from "@/lib/types/collaboration";
-import { newId } from "@/lib/collaboration/local-store";
+
+const fieldClassName =
+  "mt-1 w-full rounded-lg border border-[#3F3F46] bg-[#0B0B10] px-3 py-2 text-[#F5F5F7] outline-none transition-colors focus:border-[#8B5CF6] focus:ring-0 focus-visible:outline-none focus-visible:border-[#8B5CF6]";
+
+function parseDueDate(iso?: string | null) {
+  if (!iso) return undefined;
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
 
 type TaskDetailDrawerProps = {
   task: Task;
@@ -27,22 +37,29 @@ export default function TaskDetailDrawer({
   const [title, setTitle] = React.useState(task.title);
   const [description, setDescription] = React.useState(task.description ?? "");
   const [assigneeId, setAssigneeId] = React.useState(task.assigneeId ?? "");
-  const [dueAt, setDueAt] = React.useState(task.dueAt?.slice(0, 10) ?? "");
+  const [dueDate, setDueDate] = React.useState<Date | undefined>(() => parseDueDate(task.dueAt));
   const [priority, setPriority] = React.useState(task.priority);
   const [checklist, setChecklist] = React.useState<TaskChecklistItem[]>(task.checklist);
   const [saving, setSaving] = React.useState(false);
+  const newItemRef = React.useRef<HTMLInputElement | null>(null);
 
   async function save() {
     if (!session || !workspace) return;
     setSaving(true);
     try {
+      const dueAt = dueDate
+        ? new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate(), 12, 0, 0).toISOString()
+        : null;
       const updated = await updateTask(session, workspace.id, task.id, {
         title,
         description,
         assigneeId: assigneeId || null,
-        dueAt: dueAt ? new Date(dueAt).toISOString() : null,
+        dueAt,
         priority,
-        checklist,
+        checklist: checklist.map((item) => ({
+          ...item,
+          text: item.text.trim() || "Untitled item",
+        })),
       });
       onUpdated(updated);
     } finally {
@@ -56,8 +73,19 @@ export default function TaskDetailDrawer({
     );
   }
 
+  function updateChecklistText(id: string, text: string) {
+    setChecklist((items) =>
+      items.map((item) => (item.id === id ? { ...item, text } : item)),
+    );
+  }
+
+  function removeChecklistItem(id: string) {
+    setChecklist((items) => items.filter((item) => item.id !== id));
+  }
+
   function addChecklistItem() {
-    setChecklist((items) => [...items, { id: newId(), text: "New item", done: false }]);
+    setChecklist((items) => [...items, { id: newId(), text: "", done: false }]);
+    requestAnimationFrame(() => newItemRef.current?.focus());
   }
 
   return (
@@ -76,7 +104,7 @@ export default function TaskDetailDrawer({
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-[#3F3F46] bg-[#0B0B10] px-3 py-2 text-[14px] text-[#F5F5F7]"
+              className={`${fieldClassName} text-[14px]`}
             />
           </label>
 
@@ -86,7 +114,7 @@ export default function TaskDetailDrawer({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="mt-1 w-full rounded-lg border border-[#3F3F46] bg-[#0B0B10] px-3 py-2 text-[13px] text-[#F5F5F7]"
+              className={`${fieldClassName} text-[13px]`}
             />
           </label>
 
@@ -95,7 +123,7 @@ export default function TaskDetailDrawer({
             <select
               value={assigneeId}
               onChange={(e) => setAssigneeId(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-[#3F3F46] bg-[#0B0B10] px-3 py-2 text-[13px] text-[#F5F5F7]"
+              className={`${fieldClassName} text-[13px]`}
             >
               <option value="">Unassigned</option>
               {members
@@ -108,22 +136,20 @@ export default function TaskDetailDrawer({
             </select>
           </label>
 
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className="text-[11px] uppercase text-[#71717A]">Due date</span>
-              <input
-                type="date"
-                value={dueAt}
-                onChange={(e) => setDueAt(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[#3F3F46] bg-[#0B0B10] px-3 py-2 text-[13px] text-[#F5F5F7]"
-              />
-            </label>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <DateInput
+              label="Due date"
+              required={false}
+              value={dueDate}
+              onChange={setDueDate}
+              className="min-w-0"
+            />
             <label className="block">
               <span className="text-[11px] uppercase text-[#71717A]">Priority</span>
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as Task["priority"])}
-                className="mt-1 w-full rounded-lg border border-[#3F3F46] bg-[#0B0B10] px-3 py-2 text-[13px] text-[#F5F5F7]"
+                className={`${fieldClassName} text-[13px]`}
               >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
@@ -139,24 +165,41 @@ export default function TaskDetailDrawer({
               <button
                 type="button"
                 onClick={addChecklistItem}
-                className="text-[12px] text-[#8B5CF6]"
+                className="text-[12px] font-medium text-[#8B5CF6] hover:text-[#A855F7]"
               >
-                + Add
+                + Add item
               </button>
             </div>
-            <ul className="mt-2 space-y-1">
-              {checklist.map((item) => (
+            <ul className="mt-2 space-y-2">
+              {checklist.map((item, index) => (
                 <li key={item.id} className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={item.done}
                     onChange={() => toggleChecklistItem(item.id)}
+                    className="size-4 shrink-0 rounded border-[#3F3F46] bg-[#0B0B10] accent-[#7C3AED]"
                   />
-                  <span className={item.done ? "text-[#71717A] line-through" : "text-[#E4E4E7]"}>
-                    {item.text}
-                  </span>
+                  <input
+                    ref={index === checklist.length - 1 && item.text === "" ? newItemRef : undefined}
+                    type="text"
+                    value={item.text}
+                    onChange={(e) => updateChecklistText(item.id, e.target.value)}
+                    placeholder="Checklist item…"
+                    className={`${fieldClassName} mt-0 flex-1 py-1.5 text-[13px]`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeChecklistItem(item.id)}
+                    className="shrink-0 text-[#71717A] hover:text-[#FCA5A5]"
+                    aria-label="Remove checklist item"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
                 </li>
               ))}
+              {checklist.length === 0 ? (
+                <li className="text-[12px] text-[#71717A]">No checklist items yet.</li>
+              ) : null}
             </ul>
           </div>
 
@@ -167,8 +210,8 @@ export default function TaskDetailDrawer({
           <button
             type="button"
             onClick={() => void save()}
-            disabled={saving}
-            className="w-full rounded-lg bg-[#7C3AED] py-2.5 text-[14px] font-medium text-white disabled:opacity-50"
+            disabled={saving || !title.trim()}
+            className="w-full rounded-lg border border-[rgba(139,92,246,0.45)] bg-[#7C3AED] py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-[#6D28D9] disabled:opacity-50"
           >
             {saving ? "Saving…" : "Save task"}
           </button>

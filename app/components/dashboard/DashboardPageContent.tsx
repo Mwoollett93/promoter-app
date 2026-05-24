@@ -20,6 +20,7 @@ import CurrencyText from "@/app/components/ui/CurrencyText";
 import { buildDashboardSnapshot, type DashboardSnapshot } from "@/lib/data/dashboard-snapshot";
 import { useSettings } from "@/lib/settings/SettingsProvider";
 import { getProfileFirstName } from "@/lib/settings/settings";
+import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import { loadManagedEvents } from "@/lib/data/events";
 import { GRID_CARD_GAP, PAGE_STACK_GAP } from "@/lib/layout/page-layout";
 import { getStoredSession, getSupabaseConfig, listArtists } from "@/lib/supabase/browser";
@@ -118,6 +119,7 @@ const UPCOMING_EVENTS_LIST_MAX_HEIGHT =
 
 export default function DashboardPageContent() {
   const { settings } = useSettings();
+  const { events: workspaceEvents, ready: workspaceReady } = useWorkspace();
   const [snapshot, setSnapshot] = React.useState<DashboardSnapshot>(EMPTY_SNAPSHOT);
   const icons = [CalendarDays, Users, DollarSign, TrendingUp];
 
@@ -138,6 +140,10 @@ export default function DashboardPageContent() {
       buildDashboardSnapshot({ events, artists, preferences: settings.preferences }),
     );
   }, [settings.preferences]);
+
+  React.useEffect(() => {
+    if (workspaceReady) void refreshSnapshot();
+  }, [workspaceEvents, workspaceReady, refreshSnapshot]);
 
   React.useEffect(() => {
     void refreshSnapshot();
