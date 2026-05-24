@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
-import { getSupabaseConfig } from "@/lib/supabase/browser";
+import { getSupabaseConfig, getSupabaseRealtimeClient } from "@/lib/supabase/browser";
 
 type PresenceUser = {
   userId: string;
@@ -14,13 +15,17 @@ export default function EventPresence({ eventId }: { eventId: string }) {
   const { session, members } = useWorkspace();
   const [viewers, setViewers] = React.useState<PresenceUser[]>([]);
 
-  React.useEffect(() => {
-    if (!session) return;
-
-    const displayName =
+  const displayName = React.useMemo(() => {
+    if (!session) return "You";
+    return (
       members.find((m) => m.userId === session.user.id)?.displayName ??
       session.user.email?.split("@")[0] ??
-      "You";
+      "You"
+    );
+  }, [session, members]);
+
+  React.useEffect(() => {
+    if (!session) return;
 
     const self: PresenceUser = { userId: session.user.id, name: displayName };
 
@@ -30,14 +35,12 @@ export default function EventPresence({ eventId }: { eventId: string }) {
       return;
     }
 
-    let channel: { track: (s: object) => void; unsubscribe: () => void } | null = null;
+    let channel: RealtimeChannel | null = null;
+    let cancelled = false;
 
     async function subscribe() {
       try {
-        const { createClient } = await import("@supabase/supabase-js");
-        const client = createClient(config!.url, config!.anonKey, {
-          auth: { persistSession: false },
-        });
+        const client = getSupabaseRealtimeClient();
         await client.realtime.setAuth(session!.accessToken);
 
         const ch = client.channel(`presence:event:${eventId}`, {
@@ -45,6 +48,7 @@ export default function EventPresence({ eventId }: { eventId: string }) {
         });
 
         ch.on("presence", { event: "sync" }, () => {
+          if (cancelled) return;
           const state = ch.presenceState() as Record<string, Array<{ name?: string }>>;
           const list: PresenceUser[] = [];
           for (const [userId, payloads] of Object.entries(state)) {
@@ -53,7 +57,7 @@ export default function EventPresence({ eventId }: { eventId: string }) {
               name: payloads[0]?.name ?? userId.slice(0, 8),
             });
           }
-          setViewers(list);
+          setViewers(list.length > 0 ? list : [self]);
         });
 
         await ch.subscribe(async (status) => {
@@ -64,16 +68,19 @@ export default function EventPresence({ eventId }: { eventId: string }) {
 
         channel = ch;
       } catch {
-        setViewers([self]);
+        if (!cancelled) setViewers([self]);
       }
     }
 
     void subscribe();
 
     return () => {
-      channel?.unsubscribe();
+      cancelled = true;
+      if (channel) {
+        void channel.unsubscribe();
+      }
     };
-  }, [session, eventId, members]);
+  }, [session, eventId, displayName]);
 
   if (viewers.length === 0) return null;
 

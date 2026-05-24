@@ -171,21 +171,38 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     role ?? (workspace?.createdBy === session?.user.id ? "admin" : "read_only"),
   );
 
-  const value: WorkspaceContextValue = {
-    ready,
-    session,
-    workspace,
-    membership,
-    members,
-    events,
-    role,
-    capabilities,
-    error,
-    usingLocalFallback,
-    refresh,
-    refreshMembers,
-    refreshEvents,
-  };
+  const value = React.useMemo<WorkspaceContextValue>(
+    () => ({
+      ready,
+      session,
+      workspace,
+      membership,
+      members,
+      events,
+      role,
+      capabilities,
+      error,
+      usingLocalFallback,
+      refresh,
+      refreshMembers,
+      refreshEvents,
+    }),
+    [
+      ready,
+      session,
+      workspace,
+      membership,
+      members,
+      events,
+      role,
+      capabilities,
+      error,
+      usingLocalFallback,
+      refresh,
+      refreshMembers,
+      refreshEvents,
+    ],
+  );
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }

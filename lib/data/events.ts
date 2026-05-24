@@ -179,14 +179,28 @@ export function cacheManagedEventsForSync(events: ManagedEventRecord[]) {
     sortManagedEvents(events);
 }
 
+function managedEventsFingerprint(events: ManagedEventRecord[]) {
+  return events
+    .map((event) => `${event.id}:${event.updatedAt}:${event.status}:${event.name}`)
+    .join("|");
+}
+
 /** Persist workspace events for dashboard / events list and notify listeners. */
 export function publishManagedEvents(events: ManagedEventRecord[]) {
   const sorted = sortManagedEvents(normalizeManagedEvents(events));
   cacheManagedEventsForSync(sorted);
+
+  if (typeof window === "undefined") return;
+
+  const fingerprint = managedEventsFingerprint(sorted);
+  const lastFingerprint = (window as unknown as { __promosyncEventsFp?: string })
+    .__promosyncEventsFp;
+
+  if (lastFingerprint === fingerprint) return;
+
+  (window as unknown as { __promosyncEventsFp?: string }).__promosyncEventsFp = fingerprint;
   saveManagedEvents(sorted);
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new Event("promosync:events-updated"));
-  }
+  window.dispatchEvent(new Event("promosync:events-updated"));
 }
 
 export function saveManagedEvents(events: ManagedEventRecord[]) {

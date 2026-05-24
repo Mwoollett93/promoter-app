@@ -144,6 +144,16 @@ function createBrowserAuthClient() {
   });
 }
 
+let realtimeClient: ReturnType<typeof createBrowserAuthClient> | null = null;
+
+/** Single shared client for Realtime presence — avoids spawning one per page view. */
+export function getSupabaseRealtimeClient() {
+  if (!realtimeClient) {
+    realtimeClient = createBrowserAuthClient();
+  }
+  return realtimeClient;
+}
+
 function persistSessionFromSupabase(session: Session): SupabaseSession {
   const meta = session.user.user_metadata ?? {};
   const mapped: SupabaseSession = {

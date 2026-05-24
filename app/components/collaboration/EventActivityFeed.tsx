@@ -35,11 +35,25 @@ export default function EventActivityFeed({ eventId }: { eventId?: string }) {
       }
     }
 
+    function startPolling() {
+      return window.setInterval(() => {
+        if (document.visibilityState === "visible") void load();
+      }, 30000);
+    }
+
     void load();
-    const interval = window.setInterval(load, 15000);
+    const interval = startPolling();
+
+    function onVisibilityChange() {
+      if (document.visibilityState === "visible") void load();
+    }
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
     return () => {
       cancelled = true;
       window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [session, workspace, eventId]);
 

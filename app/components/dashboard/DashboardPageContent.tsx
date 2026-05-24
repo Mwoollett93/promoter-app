@@ -21,7 +21,7 @@ import { buildDashboardSnapshot, type DashboardSnapshot } from "@/lib/data/dashb
 import { useSettings } from "@/lib/settings/SettingsProvider";
 import { getProfileFirstName } from "@/lib/settings/settings";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
-import { loadManagedEvents, publishManagedEvents } from "@/lib/data/events";
+import { loadManagedEvents } from "@/lib/data/events";
 import { GRID_CARD_GAP, PAGE_STACK_GAP } from "@/lib/layout/page-layout";
 import { getStoredSession, getSupabaseConfig, listArtists } from "@/lib/supabase/browser";
 import { listVenueSummaries } from "@/lib/supabase/venue-summaries";
@@ -118,6 +118,16 @@ const EMPTY_SNAPSHOT = buildDashboardSnapshot({ events: [] });
 const UPCOMING_EVENTS_LIST_MAX_HEIGHT =
   "max-h-[264px] overflow-y-auto overscroll-contain sm:max-h-[312px]";
 
+const artistsCache: {
+  sessionId: string | null;
+  artists: Awaited<ReturnType<typeof listArtists>>;
+} = { sessionId: null, artists: [] };
+
+const venuesCache: {
+  sessionId: string | null;
+  venues: Awaited<ReturnType<typeof listVenueSummaries>>;
+} = { sessionId: null, venues: [] };
+
 export default function DashboardPageContent() {
   const { settings } = useSettings();
   const { events: workspaceEvents, ready: workspaceReady } = useWorkspace();
@@ -126,21 +136,34 @@ export default function DashboardPageContent() {
 
   const refreshSnapshot = React.useCallback(async () => {
     const events = loadManagedEvents();
-    if (events.length > 0) publishManagedEvents(events);
     const session = getStoredSession();
     let artists: Awaited<ReturnType<typeof listArtists>> = [];
-
     let venues: Awaited<ReturnType<typeof listVenueSummaries>> = [];
 
     if (session && getSupabaseConfig()) {
-      try {
-        [artists, venues] = await Promise.all([
-          listArtists(session),
-          listVenueSummaries(session),
-        ]);
-      } catch {
-        artists = [];
-        venues = [];
+      const sessionId = session.user.id;
+      if (artistsCache.sessionId === sessionId) {
+        artists = artistsCache.artists;
+      } else {
+        try {
+          artists = await listArtists(session);
+          artistsCache.sessionId = sessionId;
+          artistsCache.artists = artists;
+        } catch {
+          artists = [];
+        }
+      }
+
+      if (venuesCache.sessionId === sessionId) {
+        venues = venuesCache.venues;
+      } else {
+        try {
+          venues = await listVenueSummaries(session);
+          venuesCache.sessionId = sessionId;
+          venuesCache.venues = venues;
+        } catch {
+          venues = [];
+        }
       }
     }
 
@@ -161,6 +184,8 @@ export default function DashboardPageContent() {
   React.useEffect(() => {
     void refreshSnapshot();
 
+    let focusTimer: ReturnType<typeof setTimeout> | null = null;
+
     const onStorage = (event: StorageEvent) => {
       if (event.key === "promosync:managed-events") {
         void refreshSnapshot();
@@ -171,13 +196,19 @@ export default function DashboardPageContent() {
       void refreshSnapshot();
     };
 
+    const onFocus = () => {
+      if (focusTimer) clearTimeout(focusTimer);
+      focusTimer = setTimeout(() => void refreshSnapshot(), 500);
+    };
+
     window.addEventListener("storage", onStorage);
-    window.addEventListener("focus", refreshSnapshot);
+    window.addEventListener("focus", onFocus);
     window.addEventListener("promosync:events-updated", onEventsUpdated);
 
     return () => {
+      if (focusTimer) clearTimeout(focusTimer);
       window.removeEventListener("storage", onStorage);
-      window.removeEventListener("focus", refreshSnapshot);
+      window.removeEventListener("focus", onFocus);
       window.removeEventListener("promosync:events-updated", onEventsUpdated);
     };
   }, [refreshSnapshot]);

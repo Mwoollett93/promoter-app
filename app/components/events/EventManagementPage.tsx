@@ -78,11 +78,11 @@ export default function EventManagementPage() {
 
   React.useEffect(() => {
     function onUpdated() {
-      void refreshWorkspaceEvents();
+      refreshEvents();
     }
     window.addEventListener("promosync:events-updated", onUpdated);
     return () => window.removeEventListener("promosync:events-updated", onUpdated);
-  }, [refreshWorkspaceEvents]);
+  }, [refreshEvents]);
 
   function handleSeedEvents() {
     if (seeding) return;
