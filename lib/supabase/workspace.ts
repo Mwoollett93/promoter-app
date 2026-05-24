@@ -1,5 +1,7 @@
+import { shouldUseLocalCollaboration } from "@/lib/collaboration/storage-mode";
 import {
-  getDemoWorkspaceId,
+  clearLocalWorkspaceForUser,
+  createLocalWorkspaceId,
   loadLocalInvites,
   loadLocalMembers,
   loadLocalWorkspace,
@@ -17,8 +19,7 @@ import type {
   WorkspaceRole,
 } from "@/lib/types/collaboration";
 
-import { getSupabaseConfig, isDemoSession } from "./browser";
-import { supabaseRest } from "./client-rest";
+import { isUuid, supabaseRest } from "./client-rest";
 
 type WorkspaceRow = {
   id: string;
@@ -103,8 +104,13 @@ export async function ensureWorkspaceForUser(
   session: SupabaseSession,
   options?: { companyName?: string; displayName?: string },
 ): Promise<{ workspace: Workspace; membership: WorkspaceMember }> {
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session)) {
     return ensureLocalWorkspace(session, options);
+  }
+
+  const stale = loadLocalWorkspace(session.user.id);
+  if (stale && !isUuid(stale.id)) {
+    clearLocalWorkspaceForUser(session.user.id);
   }
 
   try {
@@ -149,9 +155,14 @@ export async function ensureWorkspaceForUser(
       prefer: "return=representation",
     });
 
+    saveLocalWorkspace(session.user.id, workspace);
     return { workspace, membership: mapMember(members[0]) };
-  } catch {
-    return ensureLocalWorkspace(session, options);
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Unable to connect workspace to Supabase.";
+    throw new Error(
+      `${message} Check that collaboration.sql has been applied and you are signed in.`,
+    );
   }
 }
 
@@ -160,8 +171,13 @@ function ensureLocalWorkspace(
   options?: { companyName?: string; displayName?: string },
 ): { workspace: Workspace; membership: WorkspaceMember } {
   const userId = session.user.id;
-  const existing = loadLocalWorkspace(userId);
+  let existing = loadLocalWorkspace(userId);
   const now = new Date().toISOString();
+
+  if (existing && !isUuid(existing.id)) {
+    clearLocalWorkspaceForUser(userId);
+    existing = null;
+  }
 
   if (existing) {
     const members = loadLocalMembers(existing.id);
@@ -181,7 +197,7 @@ function ensureLocalWorkspace(
     return { workspace: existing, membership };
   }
 
-  const workspaceId = getDemoWorkspaceId(userId);
+  const workspaceId = createLocalWorkspaceId();
   const name = options?.companyName?.trim() || `${options?.displayName || "My"} Collective`;
   const workspace: Workspace = {
     id: workspaceId,
@@ -214,7 +230,7 @@ export async function listWorkspaceMembers(
   session: SupabaseSession,
   workspaceId: string,
 ): Promise<WorkspaceMember[]> {
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session, workspaceId)) {
     return loadLocalMembers(workspaceId);
   }
 
@@ -237,7 +253,7 @@ export async function inviteWorkspaceMember(
   const email = input.email.trim().toLowerCase();
   const now = new Date().toISOString();
 
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session, workspaceId)) {
     const members = loadLocalMembers(workspaceId);
     const member: WorkspaceMember = {
       id: newId(),
@@ -301,7 +317,7 @@ export async function updateMemberRole(
   memberId: string,
   role: WorkspaceRole,
 ): Promise<WorkspaceMember> {
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session)) {
     const userId = session.user.id;
     const ws = loadLocalWorkspace(userId);
     if (!ws) throw new Error("Workspace not found");
@@ -327,7 +343,7 @@ export async function removeWorkspaceMember(
   workspaceId: string,
   memberId: string,
 ): Promise<void> {
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session, workspaceId)) {
     const members = loadLocalMembers(workspaceId).filter((m) => m.id !== memberId);
     saveLocalMembers(workspaceId, members);
     return;

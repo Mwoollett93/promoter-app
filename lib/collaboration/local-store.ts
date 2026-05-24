@@ -35,8 +35,38 @@ function writeJson(storageKey: string, value: unknown) {
   window.localStorage.setItem(storageKey, JSON.stringify(value));
 }
 
+/** @deprecated Legacy ids — use createLocalWorkspaceId() */
 export function getDemoWorkspaceId(userId: string) {
   return `demo-ws-${userId}`;
+}
+
+export function createLocalWorkspaceId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return newId();
+}
+
+export function clearLocalWorkspaceForUser(userId: string) {
+  if (typeof window === "undefined") return;
+  const ws = loadLocalWorkspace(userId);
+  window.localStorage.removeItem(`${PREFIX}workspace:${userId}`);
+  if (ws?.id) {
+    window.localStorage.removeItem(key("members", ws.id));
+    window.localStorage.removeItem(key("events", ws.id));
+    window.localStorage.removeItem(key("activity", ws.id));
+    window.localStorage.removeItem(key("comments", ws.id));
+    window.localStorage.removeItem(key("tasks", ws.id));
+    window.localStorage.removeItem(key("invites", ws.id));
+  }
+}
+
+/** Strip legacy `demo-ws-` prefix if the suffix is a valid UUID shape. */
+export function normalizeLegacyWorkspaceId(workspaceId: string) {
+  const match = /^demo-ws-([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(
+    workspaceId,
+  );
+  return match ? match[1] : workspaceId;
 }
 
 export function loadLocalWorkspace(userId: string): Workspace | null {

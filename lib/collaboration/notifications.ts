@@ -6,7 +6,7 @@ import {
 import type { SupabaseSession } from "@/lib/types/artist";
 import type { AppNotification, NotificationType } from "@/lib/types/collaboration";
 
-import { getSupabaseConfig, isDemoSession } from "@/lib/supabase/browser";
+import { shouldUseLocalCollaboration } from "@/lib/collaboration/storage-mode";
 import { supabaseRest } from "@/lib/supabase/client-rest";
 
 type NotificationRow = {
@@ -41,7 +41,7 @@ export async function listNotifications(
   session: SupabaseSession,
   unreadOnly = false,
 ): Promise<AppNotification[]> {
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session)) {
     let list = loadLocalNotifications(session.user.id);
     if (unreadOnly) list = list.filter((n) => !n.readAt);
     return list.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
@@ -82,7 +82,7 @@ export async function createNotification(
     createdAt: new Date().toISOString(),
   };
 
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session, input.workspaceId)) {
     const list = loadLocalNotifications(input.userId);
     list.unshift(notification);
     saveLocalNotifications(input.userId, list);
@@ -119,7 +119,7 @@ export async function markNotificationRead(
 ): Promise<void> {
   const now = new Date().toISOString();
 
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session)) {
     const list = loadLocalNotifications(session.user.id).map((n) =>
       n.id === notificationId ? { ...n, readAt: now } : n,
     );
@@ -138,7 +138,7 @@ export async function markNotificationRead(
 export async function markAllNotificationsRead(session: SupabaseSession): Promise<void> {
   const now = new Date().toISOString();
 
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session)) {
     const list = loadLocalNotifications(session.user.id).map((n) => ({ ...n, readAt: n.readAt ?? now }));
     saveLocalNotifications(session.user.id, list);
     window.dispatchEvent(new Event("promosync:notifications-updated"));

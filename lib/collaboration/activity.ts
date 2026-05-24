@@ -6,7 +6,7 @@ import {
 import type { SupabaseSession } from "@/lib/types/artist";
 import type { ActivityEntity, ActivityLogEntry } from "@/lib/types/collaboration";
 
-import { getSupabaseConfig, isDemoSession } from "@/lib/supabase/browser";
+import { shouldUseLocalCollaboration } from "@/lib/collaboration/storage-mode";
 import { supabaseRest } from "@/lib/supabase/client-rest";
 
 type ActivityRow = {
@@ -44,7 +44,7 @@ export async function listActivity(
 ): Promise<ActivityLogEntry[]> {
   const limit = filters?.limit ?? 50;
 
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session, workspaceId)) {
     let entries = loadLocalActivity(workspaceId);
     if (filters?.eventId) entries = entries.filter((e) => e.eventId === filters.eventId);
     return entries
@@ -89,7 +89,7 @@ export async function logActivity(
     createdAt: new Date().toISOString(),
   };
 
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session, input.workspaceId)) {
     const entries = loadLocalActivity(input.workspaceId);
     entries.unshift(entry);
     saveLocalActivity(input.workspaceId, entries);

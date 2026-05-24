@@ -1,5 +1,6 @@
-import { loadManagedEvents, saveManagedEvents } from "@/lib/data/events";
 import { logActivity } from "@/lib/collaboration/activity";
+import { isPersistedWorkspaceId } from "@/lib/collaboration/storage-mode";
+import { loadManagedEvents, saveManagedEvents } from "@/lib/data/events";
 import { createWorkspaceEvent } from "@/lib/supabase/events";
 import type { SupabaseSession } from "@/lib/types/artist";
 
@@ -19,6 +20,7 @@ export async function migrateLocalEventsToWorkspace(
   session: SupabaseSession,
   workspaceId: string,
 ): Promise<number> {
+  if (!isPersistedWorkspaceId(workspaceId)) return 0;
   if (hasMigratedEvents(session.user.id)) return 0;
 
   const local = loadManagedEvents();

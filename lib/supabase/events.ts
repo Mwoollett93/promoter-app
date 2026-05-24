@@ -7,7 +7,7 @@ import type { ManagedEventRecord, ManagedEventStatus } from "@/lib/data/events";
 import type { SupabaseSession } from "@/lib/types/artist";
 import type { WorkspaceEvent } from "@/lib/types/collaboration";
 
-import { getSupabaseConfig, isDemoSession } from "./browser";
+import { shouldUseLocalCollaboration } from "@/lib/collaboration/storage-mode";
 import { isUuid, supabaseRest } from "./client-rest";
 
 type EventRow = {
@@ -117,7 +117,7 @@ export async function listWorkspaceEvents(
   session: SupabaseSession,
   workspaceId: string,
 ): Promise<WorkspaceEvent[]> {
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session, workspaceId)) {
     return loadLocalEvents(workspaceId).sort(
       (a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt),
     );
@@ -139,7 +139,7 @@ export async function getWorkspaceEvent(
   eventId: string,
   workspaceId?: string,
 ): Promise<WorkspaceEvent | null> {
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session, workspaceId)) {
     if (workspaceId) {
       return loadLocalEvents(workspaceId).find((e) => e.id === eventId) ?? null;
     }
@@ -171,7 +171,7 @@ export async function createWorkspaceEvent(
   const now = new Date().toISOString();
   const startsAt = buildStartsAt(payload.dateKey, payload.startTime);
 
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session, payload.workspaceId)) {
     const event: WorkspaceEvent = {
       id: newId(),
       workspaceId: payload.workspaceId,
@@ -241,7 +241,7 @@ export async function updateWorkspaceEvent(
 ): Promise<WorkspaceEvent> {
   const now = new Date().toISOString();
 
-  if (isDemoSession(session) || !getSupabaseConfig() || !isUuid(eventId)) {
+  if (shouldUseLocalCollaboration(session, patch.workspaceId) || !isUuid(eventId)) {
     const wsId = patch.workspaceId;
     if (!wsId) throw new Error("workspaceId required for local update");
     const events = loadLocalEvents(wsId);

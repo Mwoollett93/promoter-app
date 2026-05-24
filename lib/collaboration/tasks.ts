@@ -6,7 +6,7 @@ import {
 import type { SupabaseSession } from "@/lib/types/artist";
 import type { Task, TaskChecklistItem, TaskColumn } from "@/lib/types/collaboration";
 
-import { getSupabaseConfig, isDemoSession } from "@/lib/supabase/browser";
+import { shouldUseLocalCollaboration } from "@/lib/collaboration/storage-mode";
 import { supabaseRest } from "@/lib/supabase/client-rest";
 
 type TaskRow = {
@@ -58,7 +58,7 @@ export async function listTasks(
   workspaceId: string,
   filters?: { eventId?: string; assigneeId?: string },
 ): Promise<Task[]> {
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session, workspaceId)) {
     let tasks = loadLocalTasks(workspaceId);
     if (filters?.eventId) tasks = tasks.filter((t) => t.eventId === filters.eventId);
     if (filters?.assigneeId) tasks = tasks.filter((t) => t.assigneeId === filters.assigneeId);
@@ -119,7 +119,7 @@ export async function createTask(
     updatedAt: now,
   };
 
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session, input.workspaceId)) {
     const all = loadLocalTasks(input.workspaceId);
     all.push(task);
     saveLocalTasks(input.workspaceId, all);
@@ -162,7 +162,7 @@ export async function moveTask(
   column: TaskColumn,
   position: number,
 ): Promise<Task> {
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session)) {
     const allKeys = Object.keys(localStorage).filter((k) => k.startsWith("promosync:collab:tasks:"));
     for (const key of allKeys) {
       const wsId = key.split(":").pop()!;
@@ -201,7 +201,7 @@ export async function updateTask(
 ): Promise<Task> {
   const now = new Date().toISOString();
 
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session, workspaceId)) {
     const tasks = loadLocalTasks(workspaceId);
     const index = tasks.findIndex((t) => t.id === taskId);
     if (index === -1) throw new Error("Task not found");

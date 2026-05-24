@@ -6,7 +6,7 @@ import {
 import type { SupabaseSession } from "@/lib/types/artist";
 import type { Comment, CommentTarget } from "@/lib/types/collaboration";
 
-import { getSupabaseConfig, isDemoSession } from "@/lib/supabase/browser";
+import { shouldUseLocalCollaboration } from "@/lib/collaboration/storage-mode";
 import { supabaseRest } from "@/lib/supabase/client-rest";
 
 type CommentRow = {
@@ -43,7 +43,7 @@ export async function listComments(
   targetType: CommentTarget,
   targetId: string,
 ): Promise<Comment[]> {
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session, workspaceId)) {
     return loadLocalComments(workspaceId)
       .filter((c) => c.targetType === targetType && c.targetId === targetId)
       .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
@@ -89,7 +89,7 @@ export async function createComment(
     updatedAt: now,
   };
 
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session, input.workspaceId)) {
     const comments = loadLocalComments(input.workspaceId);
     comments.push(comment);
     saveLocalComments(input.workspaceId, comments);

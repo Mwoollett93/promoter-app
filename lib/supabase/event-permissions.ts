@@ -2,7 +2,7 @@ import { newId } from "@/lib/collaboration/local-store";
 import type { SupabaseSession } from "@/lib/types/artist";
 import type { EventMemberOverride } from "@/lib/types/collaboration";
 
-import { getSupabaseConfig, isDemoSession } from "./browser";
+import { shouldUseLocalCollaboration } from "@/lib/collaboration/storage-mode";
 import { supabaseRest } from "./client-rest";
 
 const LOCAL_KEY = "promosync:collab:event-overrides";
@@ -47,7 +47,7 @@ export async function listEventMemberOverrides(
   session: SupabaseSession,
   eventId: string,
 ): Promise<EventMemberOverride[]> {
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session)) {
     return loadLocalOverrides().filter((o) => o.eventId === eventId);
   }
 
@@ -76,7 +76,7 @@ export async function upsertEventMemberOverride(
     commentOnly: input.commentOnly,
   };
 
-  if (isDemoSession(session) || !getSupabaseConfig()) {
+  if (shouldUseLocalCollaboration(session)) {
     const all = loadLocalOverrides().filter(
       (o) => !(o.eventId === record.eventId && o.userId === record.userId),
     );
