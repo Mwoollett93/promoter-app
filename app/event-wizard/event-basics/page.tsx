@@ -14,7 +14,9 @@ import PromoSyncTextArea from "@/app/components/ui/TextArea";
 import Button from "@/app/components/ui/Button";
 import EventSummaryCard from "@/app/components/ui/EventSummaryCard";
 import TipCard from "@/app/components/ui/TipCard";
-import { saveWizardEventDraft } from "@/lib/data";
+import { loadWizardEventDraft, saveWizardEventDraft } from "@/lib/data";
+import { hasWizardProgress } from "@/lib/event-wizard/persist-wizard-draft";
+import { useWizardFlush } from "@/lib/event-wizard/use-wizard-flush";
 import { getStoredSession, getSupabaseConfig } from "@/lib/supabase/browser";
 import * as SupabaseBrowser from "@/lib/supabase/browser";
 import type { SupabaseSession } from "@/lib/types/artist";
@@ -178,6 +180,53 @@ export default function EventBasicsPage() {
 
   const selectedVenue = availableVenues.find((v) => v.id === draft.venueId) ?? availableVenues[0];
 
+  React.useEffect(() => {
+    const stored = loadWizardEventDraft();
+    if (!stored) return;
+
+    const [year, month, day] = stored.dateKey.split("-").map(Number);
+    const parsedDate =
+      Number.isFinite(year) && Number.isFinite(month) && Number.isFinite(day)
+        ? new Date(year, month - 1, day)
+        : undefined;
+
+    setDraft((current) => ({
+      ...current,
+      eventName: stored.eventName ?? current.eventName,
+      date: parsedDate ?? current.date,
+      startTime: stored.startTime || current.startTime,
+      venueId: stored.venueId ?? current.venueId,
+      description: stored.description ?? current.description,
+    }));
+  }, []);
+
+  const flushDraftToStorage = React.useCallback(() => {
+    if (!draft.date || !selectedVenue) return;
+    saveWizardEventDraft({
+      date: draft.date,
+      startTime: draft.startTime,
+      eventName: draft.eventName,
+      venueId: selectedVenue.id,
+      venueName: selectedVenue.name,
+      venueCapacity: selectedVenue.capacity,
+      description: draft.description,
+    });
+  }, [draft, selectedVenue]);
+
+  useWizardFlush(flushDraftToStorage);
+
+  function handleCancel() {
+    if (
+      hasWizardProgress() &&
+      !window.confirm(
+        "Leave the event wizard? Your progress stays in this browser until you finish or save a draft.",
+      )
+    ) {
+      return;
+    }
+    router.push("/events");
+  }
+
   return (
     <div className="w-full space-y-3">
       <div className="flex w-full justify-center">
@@ -264,7 +313,7 @@ export default function EventBasicsPage() {
           </div>
 
           <div className="mt-4 flex items-center gap-3">
-            <Button variant="ghost" size="md" type="button">
+            <Button variant="ghost" size="md" type="button" onClick={handleCancel}>
               Cancel
             </Button>
             <div className="ml-auto">

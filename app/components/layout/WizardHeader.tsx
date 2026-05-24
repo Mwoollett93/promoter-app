@@ -7,12 +7,14 @@ type WizardHeaderProps = {
   title?: string;
   onClose?: () => void;
   onSaveDraft?: () => void;
+  savingDraft?: boolean;
 };
 
 export default function WizardHeader({
   title = "Create New Event",
   onClose,
   onSaveDraft,
+  savingDraft = false,
 }: WizardHeaderProps) {
   return (
     <div className="flex items-center gap-3">
@@ -20,8 +22,14 @@ export default function WizardHeader({
         {title}
       </h1>
 
-      <Button variant="ghost" size="md" type="button" onClick={onSaveDraft}>
-        Save Draft
+      <Button
+        variant="ghost"
+        size="md"
+        type="button"
+        disabled={!onSaveDraft || savingDraft}
+        onClick={onSaveDraft}
+      >
+        {savingDraft ? "Saving…" : "Save Draft"}
       </Button>
 
       <button
