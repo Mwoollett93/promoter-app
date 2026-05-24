@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 
+import { getResendEnvDiagnostics } from "@/lib/email/resend-env";
 import { buildWorkspaceInviteEmail } from "@/lib/email/workspace-invite-template";
 import { sendTransactionalEmail } from "@/lib/email/send-transactional";
+
+export const runtime = "nodejs";
 import { supabaseRest } from "@/lib/supabase/client-rest";
 import { getBearerToken, getUserFromAccessToken } from "@/lib/supabase/server-user";
 import type { SupabaseSession } from "@/lib/types/artist";
@@ -11,6 +14,13 @@ function appOrigin(request: Request) {
   const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
   if (configured) return configured.replace(/\/$/, "");
   return new URL(request.url).origin;
+}
+
+export async function GET() {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  return NextResponse.json(getResendEnvDiagnostics());
 }
 
 export async function POST(request: Request) {

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 
 import { sendTransactionalEmail } from "@/lib/email/send-transactional";
 
+export const runtime = "nodejs";
+
 /**
  * Transactional email hook — uses Resend when RESEND_API_KEY is set.
  */
