@@ -1,4 +1,8 @@
-import { shouldUseLocalCollaboration } from "@/lib/collaboration/storage-mode";
+import {
+  clearLocalCollaborationMode,
+  markLocalCollaborationMode,
+  shouldUseLocalCollaboration,
+} from "@/lib/collaboration/storage-mode";
 import {
   clearLocalWorkspaceForUser,
   createLocalWorkspaceId,
@@ -100,25 +104,49 @@ function mapInvite(row: InviteRow): WorkspaceInvite {
   };
 }
 
+async function fetchActiveMembership(
+  session: SupabaseSession,
+  workspaceId: string,
+): Promise<WorkspaceMember | null> {
+  const rows = await supabaseRest<MemberRow[]>(
+    `workspace_members?workspace_id=eq.${workspaceId}&user_id=eq.${session.user.id}&status=eq.active&limit=1`,
+    session,
+  );
+  return rows[0] ? mapMember(rows[0]) : null;
+}
+
 async function ensureActiveMembership(
   session: SupabaseSession,
   workspaceId: string,
   options?: { displayName?: string },
 ): Promise<WorkspaceMember> {
+  const existing = await fetchActiveMembership(session, workspaceId);
+  if (existing) return existing;
+
   const now = new Date().toISOString();
-  const rows = await supabaseRest<MemberRow[]>("workspace_members", session, {
-    method: "POST",
-    body: {
-      workspace_id: workspaceId,
-      user_id: session.user.id,
-      role: "admin",
-      status: "active",
-      display_name: options?.displayName ?? session.user.email?.split("@")[0] ?? "You",
-      joined_at: now,
-    },
-    prefer: "return=representation",
-  });
-  return mapMember(rows[0]);
+  try {
+    const rows = await supabaseRest<MemberRow[]>("workspace_members", session, {
+      method: "POST",
+      body: {
+        workspace_id: workspaceId,
+        user_id: session.user.id,
+        role: "admin",
+        status: "active",
+        display_name: options?.displayName ?? session.user.email?.split("@")[0] ?? "You",
+        joined_at: now,
+      },
+      prefer: "return=representation",
+    });
+    if (rows?.[0]) return mapMember(rows[0]);
+  } catch {
+    const repaired = await fetchActiveMembership(session, workspaceId);
+    if (repaired) return repaired;
+    throw new Error("Could not create workspace membership.");
+  }
+
+  const repaired = await fetchActiveMembership(session, workspaceId);
+  if (repaired) return repaired;
+  throw new Error("Could not create workspace membership.");
 }
 
 export async function ensureWorkspaceForUser(
@@ -179,17 +207,15 @@ export async function ensureWorkspaceForUser(
     });
 
     saveLocalWorkspace(session.user.id, workspace);
+    clearLocalCollaborationMode(session.user.id);
     return { workspace, membership };
-  } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Unable to connect workspace to Supabase.";
-    throw new Error(
-      `${message} Run supabase/collaboration-rls-bootstrap.sql in the SQL editor, then sign out and back in.`,
-    );
+  } catch {
+    markLocalCollaborationMode(session.user.id);
+    return ensureLocalWorkspace(session, options);
   }
 }
 
-function ensureLocalWorkspace(
+export function ensureLocalWorkspace(
   session: SupabaseSession,
   options?: { companyName?: string; displayName?: string },
 ): { workspace: Workspace; membership: WorkspaceMember } {

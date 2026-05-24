@@ -102,7 +102,8 @@ function getManagedStatus(dateKey?: string): ManagedEventStatus {
 
 export default function ReviewCreatePage() {
   const router = useRouter();
-  const { session, workspace, refreshEvents } = useWorkspace();
+  const { session, workspace, refreshEvents, ready: workspaceReady, error: workspaceError } =
+    useWorkspace();
   const [reviewState, setReviewState] = React.useState<ReviewState | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [creating, setCreating] = React.useState(false);
@@ -229,8 +230,8 @@ export default function ReviewCreatePage() {
     ];
   }, [reviewState]);
 
-  async function handleCreateEvent() {
-    if (!reviewState || !canCreate || creating || !session || !workspace) return;
+  async function handleCreateEvent(options?: { asDraft?: boolean }) {
+    if (!reviewState || !canCreate || creating || !session || !workspace || !workspaceReady) return;
 
     setCreating(true);
     setError(null);
@@ -244,7 +245,7 @@ export default function ReviewCreatePage() {
       const created = await createWorkspaceEvent(session, {
         workspaceId: workspace.id,
         name: reviewState.eventDraft?.eventName?.trim() || "Untitled Event",
-        status: getManagedStatus(reviewState.eventDraft?.dateKey),
+        status: options?.asDraft ? "draft" : getManagedStatus(reviewState.eventDraft?.dateKey),
         venueId: reviewState.eventDraft?.venueId ?? null,
         venueName,
         description: reviewState.eventDraft?.description,
@@ -524,6 +525,12 @@ export default function ReviewCreatePage() {
           </>
         )}
 
+        {!workspaceReady ? (
+          <p className="mt-4 text-[13px] text-[#A1A1AA]">Loading workspace…</p>
+        ) : workspaceError && !workspace ? (
+          <p className="mt-4 text-[13px] text-[#FCA5A5]">{workspaceError}</p>
+        ) : null}
+
         <div className="mt-4 flex items-center gap-3 border-t border-[#181824] pt-4">
           <Button
             variant="ghost"
@@ -538,13 +545,28 @@ export default function ReviewCreatePage() {
             </span>
           </Button>
 
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="md"
+              type="button"
+              disabled={
+                !reviewState?.eventDraft?.eventName?.trim() ||
+                creating ||
+                loading ||
+                !workspaceReady ||
+                !workspace
+              }
+              onClick={() => void handleCreateEvent({ asDraft: true })}
+            >
+              {creating ? "Saving…" : "Save as draft"}
+            </Button>
             <Button
               variant="primary"
               size="md"
               type="button"
-              disabled={!canCreate || creating || loading}
-              onClick={handleCreateEvent}
+              disabled={!canCreate || creating || loading || !workspaceReady || !workspace}
+              onClick={() => void handleCreateEvent()}
             >
               <span className="inline-flex items-center gap-2">
                 {creating ? "Creating Event..." : "Create Event"}

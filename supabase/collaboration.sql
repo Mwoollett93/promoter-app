@@ -362,7 +362,13 @@ create policy workspaces_update on public.workspaces for update
 -- workspace_members
 drop policy if exists workspace_members_select on public.workspace_members;
 create policy workspace_members_select on public.workspace_members for select
-  using (workspace_id in (select public.user_workspace_ids()));
+  using (
+    workspace_id in (select public.user_workspace_ids())
+    or exists (
+      select 1 from public.workspaces w
+      where w.id = workspace_id and w.created_by = auth.uid()
+    )
+  );
 
 drop policy if exists workspace_members_insert on public.workspace_members;
 create policy workspace_members_insert on public.workspace_members for insert

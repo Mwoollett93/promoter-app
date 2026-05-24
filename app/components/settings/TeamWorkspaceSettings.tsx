@@ -25,7 +25,16 @@ const ROLES: WorkspaceRole[] = [
 ];
 
 export default function TeamWorkspaceSettings() {
-  const { session, workspace, members, membership, refreshMembers, refresh, role } = useWorkspace();
+  const {
+    session,
+    workspace,
+    members,
+    membership,
+    refreshMembers,
+    role,
+    error,
+    usingLocalFallback,
+  } = useWorkspace();
   const [email, setEmail] = React.useState("");
   const [inviteRole, setInviteRole] = React.useState<WorkspaceRole>("promoter");
   const [loading, setLoading] = React.useState(false);
@@ -40,12 +49,6 @@ export default function TeamWorkspaceSettings() {
   React.useEffect(() => {
     void refreshMembers();
   }, [refreshMembers]);
-
-  React.useEffect(() => {
-    if (!membership && workspace) {
-      void refresh();
-    }
-  }, [membership, workspace, refresh]);
 
   async function handleInvite() {
     if (!session || !workspace || !email.trim() || !canInvite) return;
@@ -80,6 +83,18 @@ export default function TeamWorkspaceSettings() {
     <section className="rounded-[16px] border border-[#232330] bg-[#11111A] p-6 shadow-[0px_10px_40px_0px_rgba(0,0,0,0.35)]">
       <h2 className="text-[18px] font-semibold text-[#F5F5F7]">Team Members</h2>
       <div className="mt-5">
+      {usingLocalFallback ? (
+        <p className="mb-4 rounded-lg border border-amber-900/50 bg-amber-950/30 px-3 py-2 text-[13px] text-amber-200/90">
+          Team sync is in offline mode on this device. Run{" "}
+          <code className="text-[#F5F5F7]">supabase/collaboration-rls-bootstrap.sql</code>{" "}
+          in the Supabase SQL editor, then sign out and back in to enable cloud collaboration.
+        </p>
+      ) : null}
+      {error && !usingLocalFallback ? (
+        <p className="mb-4 rounded-lg border border-[#232330] bg-[#0F0F17] px-3 py-2 text-[13px] text-[#FCA5A5]">
+          {error}
+        </p>
+      ) : null}
       {message ? (
         <p className="mb-4 rounded-lg border border-[#232330] bg-[#0F0F17] px-3 py-2 text-[13px] text-[#A1A1AA]">
           {message}
@@ -119,7 +134,11 @@ export default function TeamWorkspaceSettings() {
       ) : (
         <p className="mb-4 text-[13px] text-[#71717A]">
           Only admins can invite members. Your role:{" "}
-          {effectiveRole ? WORKSPACE_ROLE_LABELS[effectiveRole] : "— (reconnecting…)"}
+          {effectiveRole
+            ? WORKSPACE_ROLE_LABELS[effectiveRole]
+            : membership
+              ? WORKSPACE_ROLE_LABELS[membership.role]
+              : "—"}
         </p>
       )}
 

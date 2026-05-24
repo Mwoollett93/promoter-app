@@ -5,12 +5,31 @@ import KanbanBoard from "@/app/components/tasks/KanbanBoard";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 
 export default function TasksPageContent() {
-  const { workspace } = useWorkspace();
+  const { ready, workspace, error, refresh } = useWorkspace();
+
+  if (!ready) {
+    return (
+      <PageContent>
+        <p className="text-[#A1A1AA]">Loading workspace…</p>
+      </PageContent>
+    );
+  }
 
   if (!workspace) {
     return (
       <PageContent>
-        <p className="text-[#A1A1AA]">Loading workspace…</p>
+        <div className="space-y-3">
+          <p className="text-[#FCA5A5]">
+            {error ?? "Workspace could not be loaded."}
+          </p>
+          <button
+            type="button"
+            onClick={() => void refresh()}
+            className="rounded-lg border border-[#3F3F46] px-4 py-2 text-[13px] text-[#F5F5F7] hover:bg-[#18181F]"
+          >
+            Retry
+          </button>
+        </div>
       </PageContent>
     );
   }

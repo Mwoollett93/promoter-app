@@ -7,7 +7,10 @@ import type { ManagedEventRecord, ManagedEventStatus } from "@/lib/data/events";
 import type { SupabaseSession } from "@/lib/types/artist";
 import type { WorkspaceEvent } from "@/lib/types/collaboration";
 
-import { shouldUseLocalCollaboration } from "@/lib/collaboration/storage-mode";
+import {
+  markLocalCollaborationMode,
+  shouldUseLocalCollaboration,
+} from "@/lib/collaboration/storage-mode";
 import { isUuid, supabaseRest } from "./client-rest";
 
 type EventRow = {
@@ -225,13 +228,45 @@ export async function createWorkspaceEvent(
     finance_json: payload.financeJson ?? {},
   };
 
-  const rows = await supabaseRest<EventRow[]>("events", session, {
-    method: "POST",
-    body,
-    prefer: "return=representation",
-  });
-
-  return mapRow(rows[0]);
+  try {
+    const rows = await supabaseRest<EventRow[]>("events", session, {
+      method: "POST",
+      body,
+      prefer: "return=representation",
+    });
+    return mapRow(rows[0]);
+  } catch {
+    markLocalCollaborationMode(session.user.id);
+    const event: WorkspaceEvent = {
+      id: newId(),
+      workspaceId: payload.workspaceId,
+      createdBy: session.user.id,
+      name: payload.name,
+      status: payload.status,
+      venueId: payload.venueId ?? null,
+      venueName: payload.venueName,
+      description: payload.description ?? null,
+      dateKey: payload.dateKey ?? null,
+      startTime: payload.startTime ?? null,
+      startsAt,
+      artistCount: payload.artistCount,
+      slotCount: payload.slotCount,
+      b2bCount: payload.b2bCount,
+      ticketInventory: payload.ticketInventory,
+      expectedRevenue: payload.expectedRevenue,
+      totalCosts: payload.totalCosts,
+      projectedProfit: payload.projectedProfit,
+      scheduleJson: payload.scheduleJson ?? [],
+      financeJson: payload.financeJson ?? {},
+      planningJson: {},
+      createdAt: now,
+      updatedAt: now,
+    };
+    const events = loadLocalEvents(payload.workspaceId);
+    events.unshift(event);
+    saveLocalEvents(payload.workspaceId, events);
+    return event;
+  }
 }
 
 export async function updateWorkspaceEvent(

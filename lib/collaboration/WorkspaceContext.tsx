@@ -9,7 +9,9 @@ import {
   listWorkspaceEvents,
   workspaceEventToManaged,
 } from "@/lib/supabase/events";
+import { isLocalCollaborationMode } from "@/lib/collaboration/storage-mode";
 import {
+  ensureLocalWorkspace,
   ensureWorkspaceForUser,
   listWorkspaceMembers,
 } from "@/lib/supabase/workspace";
@@ -31,6 +33,8 @@ type WorkspaceContextValue = {
   events: ManagedEventRecord[];
   role: WorkspaceRole | null;
   capabilities: EventCapabilities;
+  error: string | null;
+  usingLocalFallback: boolean;
   refresh: () => Promise<void>;
   refreshMembers: () => Promise<void>;
   refreshEvents: () => Promise<void>;
@@ -45,6 +49,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [membership, setMembership] = React.useState<WorkspaceMember | null>(null);
   const [members, setMembers] = React.useState<WorkspaceMember[]>([]);
   const [events, setEvents] = React.useState<ManagedEventRecord[]>([]);
+  const [error, setError] = React.useState<string | null>(null);
+  const [usingLocalFallback, setUsingLocalFallback] = React.useState(false);
 
   const refreshMembers = React.useCallback(async () => {
     if (!session || !workspace) return;
@@ -68,37 +74,84 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       setMembership(null);
       setMembers([]);
       setEvents([]);
+      setError(null);
+      setUsingLocalFallback(false);
       setReady(true);
       return;
     }
 
     setSession(current);
-    const settings = loadSettings();
-    const { workspace: ws, membership: mem } = await ensureWorkspaceForUser(current, {
-      companyName: settings.profile.company,
-      displayName: settings.profile.fullName,
-    });
+    setError(null);
 
-    await migrateLocalEventsToWorkspace(current, ws.id);
+    try {
+      const settings = loadSettings();
+      let ws: Workspace;
+      let mem: WorkspaceMember;
 
-    const [memberList, eventList] = await Promise.all([
-      listWorkspaceMembers(current, ws.id),
-      listWorkspaceEvents(current, ws.id),
-    ]);
+      try {
+        const ensured = await ensureWorkspaceForUser(current, {
+          companyName: settings.profile.company,
+          displayName: settings.profile.fullName,
+        });
+        ws = ensured.workspace;
+        mem = ensured.membership;
+      } catch (err) {
+        const fallback = ensureLocalWorkspace(current, {
+          companyName: settings.profile.company,
+          displayName: settings.profile.fullName,
+        });
+        ws = fallback.workspace;
+        mem = fallback.membership;
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Workspace could not connect to Supabase. Using offline mode on this device.",
+        );
+      }
 
-    const resolvedMembership =
-      mem ??
-      memberList.find((m) => m.userId === current.user.id && m.status === "active") ??
-      memberList.find((m) => m.status === "active") ??
-      null;
+      const localFallback = isLocalCollaborationMode(current.user.id);
+      setUsingLocalFallback(localFallback);
 
-    setWorkspace(ws);
-    setMembership(resolvedMembership);
-    setMembers(memberList);
-    const mapped = eventList.map(workspaceEventToManaged);
-    setEvents(mapped);
-    cacheManagedEventsForSync(mapped);
-    setReady(true);
+      try {
+        await migrateLocalEventsToWorkspace(current, ws.id);
+      } catch {
+        // Migration is best-effort; do not block the shell.
+      }
+
+      const [memberList, eventList] = await Promise.all([
+        listWorkspaceMembers(current, ws.id),
+        listWorkspaceEvents(current, ws.id),
+      ]);
+
+      const resolvedMembership =
+        mem ??
+        memberList.find((m) => m.userId === current.user.id && m.status === "active") ??
+        memberList.find((m) => m.status === "active") ??
+        mem;
+
+      setWorkspace(ws);
+      setMembership(resolvedMembership);
+      setMembers(memberList.length > 0 ? memberList : [mem]);
+      const mapped = eventList.map(workspaceEventToManaged);
+      setEvents(mapped);
+      cacheManagedEventsForSync(mapped);
+    } catch (err) {
+      const settings = loadSettings();
+      const fallback = ensureLocalWorkspace(current, {
+        companyName: settings.profile.company,
+        displayName: settings.profile.fullName,
+      });
+      setWorkspace(fallback.workspace);
+      setMembership(fallback.membership);
+      setMembers([fallback.membership]);
+      setEvents([]);
+      setUsingLocalFallback(true);
+      setError(
+        err instanceof Error ? err.message : "Unable to load workspace. Using offline mode.",
+      );
+    } finally {
+      setReady(true);
+    }
   }, []);
 
   React.useEffect(() => {
@@ -127,6 +180,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     events,
     role,
     capabilities,
+    error,
+    usingLocalFallback,
     refresh,
     refreshMembers,
     refreshEvents,
