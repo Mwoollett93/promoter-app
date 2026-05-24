@@ -102,6 +102,8 @@ Run SQL migrations in the Supabase SQL editor (in order):
 1. `promoter-app/supabase/artist-management.sql`
 2. `promoter-app/supabase/collaboration.sql`
 
+3. If Team is empty or you see read-only role errors, also run `promoter-app/supabase/collaboration-rls-bootstrap.sql` (fixes first-admin RLS and backfills your membership).
+
 Enable **Realtime** for `activity_log`, `comments`, and `tasks` if you want live updates on event workspace pages.
 
 Optional email notifications: set `RESEND_API_KEY` and `RESEND_FROM` for `/api/notifications/email`.

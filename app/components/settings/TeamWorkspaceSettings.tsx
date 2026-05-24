@@ -25,13 +25,27 @@ const ROLES: WorkspaceRole[] = [
 ];
 
 export default function TeamWorkspaceSettings() {
-  const { session, workspace, members, membership, refreshMembers, role } = useWorkspace();
+  const { session, workspace, members, membership, refreshMembers, refresh, role } = useWorkspace();
   const [email, setEmail] = React.useState("");
   const [inviteRole, setInviteRole] = React.useState<WorkspaceRole>("promoter");
   const [loading, setLoading] = React.useState(false);
   const [message, setMessage] = React.useState<string | null>(null);
 
-  const canInvite = role ? canInviteMembers(role) : false;
+  const effectiveRole = role ?? membership?.role ?? null;
+  const canInvite = effectiveRole ? canInviteMembers(effectiveRole) : false;
+
+  const displayMembers =
+    members.length > 0 ? members : membership ? [membership] : [];
+
+  React.useEffect(() => {
+    void refreshMembers();
+  }, [refreshMembers]);
+
+  React.useEffect(() => {
+    if (!membership && workspace) {
+      void refresh();
+    }
+  }, [membership, workspace, refresh]);
 
   async function handleInvite() {
     if (!session || !workspace || !email.trim() || !canInvite) return;
@@ -104,7 +118,8 @@ export default function TeamWorkspaceSettings() {
         </div>
       ) : (
         <p className="mb-4 text-[13px] text-[#71717A]">
-          Only admins can invite members. Your role: {membership?.role ?? "—"}
+          Only admins can invite members. Your role:{" "}
+          {effectiveRole ? WORKSPACE_ROLE_LABELS[effectiveRole] : "— (reconnecting…)"}
         </p>
       )}
 
@@ -120,7 +135,7 @@ export default function TeamWorkspaceSettings() {
             </tr>
           </thead>
           <tbody className="text-[#F5F5F7]">
-            {members.map((member) => (
+            {displayMembers.map((member) => (
               <tr key={member.id} className="border-t border-[#232330]">
                 <td className="py-3 font-medium">{member.displayName ?? "—"}</td>
                 <td className="py-3 text-[#A1A1AA]">{member.invitedEmail ?? "—"}</td>

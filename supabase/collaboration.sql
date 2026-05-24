@@ -346,7 +346,10 @@ alter table public.event_templates enable row level security;
 -- workspaces
 drop policy if exists workspaces_select on public.workspaces;
 create policy workspaces_select on public.workspaces for select
-  using (id in (select public.user_workspace_ids()));
+  using (
+    id in (select public.user_workspace_ids())
+    or created_by = auth.uid()
+  );
 
 drop policy if exists workspaces_insert on public.workspaces;
 create policy workspaces_insert on public.workspaces for insert
@@ -363,7 +366,16 @@ create policy workspace_members_select on public.workspace_members for select
 
 drop policy if exists workspace_members_insert on public.workspace_members;
 create policy workspace_members_insert on public.workspace_members for insert
-  with check (public.has_workspace_role(workspace_id, array['admin']::public.workspace_role[]));
+  with check (
+    public.has_workspace_role(workspace_id, array['admin']::public.workspace_role[])
+    or (
+      user_id = auth.uid()
+      and exists (
+        select 1 from public.workspaces w
+        where w.id = workspace_id and w.created_by = auth.uid()
+      )
+    )
+  );
 
 drop policy if exists workspace_members_update on public.workspace_members;
 create policy workspace_members_update on public.workspace_members for update

@@ -79,9 +79,6 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       displayName: settings.profile.fullName,
     });
 
-    setWorkspace(ws);
-    setMembership(mem);
-
     await migrateLocalEventsToWorkspace(current, ws.id);
 
     const [memberList, eventList] = await Promise.all([
@@ -89,6 +86,14 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       listWorkspaceEvents(current, ws.id),
     ]);
 
+    const resolvedMembership =
+      mem ??
+      memberList.find((m) => m.userId === current.user.id && m.status === "active") ??
+      memberList.find((m) => m.status === "active") ??
+      null;
+
+    setWorkspace(ws);
+    setMembership(resolvedMembership);
     setMembers(memberList);
     const mapped = eventList.map(workspaceEventToManaged);
     setEvents(mapped);
@@ -109,7 +114,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   }, [refreshEvents]);
 
   const role = membership?.role ?? null;
-  const capabilities = resolveEventCapabilities(role ?? "read_only");
+  const capabilities = resolveEventCapabilities(
+    role ?? (workspace?.createdBy === session?.user.id ? "admin" : "read_only"),
+  );
 
   const value: WorkspaceContextValue = {
     ready,

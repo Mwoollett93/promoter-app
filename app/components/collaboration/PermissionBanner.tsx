@@ -3,7 +3,8 @@
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 
 export function FinancePermissionBanner() {
-  const { capabilities } = useWorkspace();
+  const { ready, capabilities, membership } = useWorkspace();
+  if (!ready || !membership) return null;
   if (capabilities.canEditFinance) return null;
   return (
     <div className="mb-4 rounded-lg border border-[#854D0E] bg-[#422006] px-4 py-3 text-[13px] text-[#FDE68A]">
@@ -13,7 +14,8 @@ export function FinancePermissionBanner() {
 }
 
 export function LineupPermissionBanner() {
-  const { capabilities } = useWorkspace();
+  const { ready, capabilities, membership } = useWorkspace();
+  if (!ready || !membership) return null;
   if (capabilities.canEditLineup) return null;
   return (
     <div className="mb-4 rounded-lg border border-[#854D0E] bg-[#422006] px-4 py-3 text-[13px] text-[#FDE68A]">

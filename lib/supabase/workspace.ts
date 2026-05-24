@@ -100,6 +100,27 @@ function mapInvite(row: InviteRow): WorkspaceInvite {
   };
 }
 
+async function ensureActiveMembership(
+  session: SupabaseSession,
+  workspaceId: string,
+  options?: { displayName?: string },
+): Promise<WorkspaceMember> {
+  const now = new Date().toISOString();
+  const rows = await supabaseRest<MemberRow[]>("workspace_members", session, {
+    method: "POST",
+    body: {
+      workspace_id: workspaceId,
+      user_id: session.user.id,
+      role: "admin",
+      status: "active",
+      display_name: options?.displayName ?? session.user.email?.split("@")[0] ?? "You",
+      joined_at: now,
+    },
+    prefer: "return=representation",
+  });
+  return mapMember(rows[0]);
+}
+
 export async function ensureWorkspaceForUser(
   session: SupabaseSession,
   options?: { companyName?: string; displayName?: string },
@@ -126,13 +147,25 @@ export async function ensureWorkspaceForUser(
         session,
       );
       if (workspaces.length > 0) {
+        saveLocalWorkspace(session.user.id, mapWorkspace(workspaces[0]));
         return { workspace: mapWorkspace(workspaces[0]), membership };
       }
     }
 
+    // Orphan workspace: created but membership insert failed under old RLS.
+    const owned = await supabaseRest<WorkspaceRow[]>(
+      `workspaces?created_by=eq.${session.user.id}&order=created_at.desc&limit=1`,
+      session,
+    );
+    if (owned.length > 0) {
+      const workspace = mapWorkspace(owned[0]);
+      const membership = await ensureActiveMembership(session, workspace.id, options);
+      saveLocalWorkspace(session.user.id, workspace);
+      return { workspace, membership };
+    }
+
     const name = options?.companyName?.trim() || `${options?.displayName || "My"} Collective`;
     const slug = `${slugify(name)}-${session.user.id.slice(0, 8)}`;
-    const now = new Date().toISOString();
 
     const workspaces = await supabaseRest<WorkspaceRow[]>("workspaces", session, {
       method: "POST",
@@ -141,27 +174,17 @@ export async function ensureWorkspaceForUser(
     });
 
     const workspace = mapWorkspace(workspaces[0]);
-
-    const members = await supabaseRest<MemberRow[]>("workspace_members", session, {
-      method: "POST",
-      body: {
-        workspace_id: workspace.id,
-        user_id: session.user.id,
-        role: "admin",
-        status: "active",
-        display_name: options?.displayName ?? null,
-        joined_at: now,
-      },
-      prefer: "return=representation",
+    const membership = await ensureActiveMembership(session, workspace.id, {
+      displayName: options?.displayName,
     });
 
     saveLocalWorkspace(session.user.id, workspace);
-    return { workspace, membership: mapMember(members[0]) };
+    return { workspace, membership };
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Unable to connect workspace to Supabase.";
     throw new Error(
-      `${message} Check that collaboration.sql has been applied and you are signed in.`,
+      `${message} Run supabase/collaboration-rls-bootstrap.sql in the SQL editor, then sign out and back in.`,
     );
   }
 }
