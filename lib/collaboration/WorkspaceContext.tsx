@@ -4,6 +4,10 @@ import * as React from "react";
 
 import { migrateLocalEventsToWorkspace } from "@/lib/data/events-migrate";
 import { publishManagedEvents, type ManagedEventRecord } from "@/lib/data/events";
+import {
+  normalizeWorkspaceMember,
+  normalizeWorkspaceMembers,
+} from "@/lib/collaboration/member-display";
 import { resolveEventCapabilities, type EventCapabilities } from "@/lib/collaboration/permissions";
 import {
   listWorkspaceEvents,
@@ -60,7 +64,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const refreshMembers = React.useCallback(async () => {
     if (!session || !workspace) return;
     const list = await listWorkspaceMembers(session, workspace.id);
-    setMembers(list);
+    setMembers(normalizeWorkspaceMembers(list));
   }, [session, workspace]);
 
   const refreshEvents = React.useCallback(async () => {
@@ -150,8 +154,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         mem;
 
       setWorkspace(ws);
-      setMembership(resolvedMembership);
-      setMembers(memberList.length > 0 ? memberList : [mem]);
+      setMembership(normalizeWorkspaceMember(resolvedMembership));
+      setMembers(
+        normalizeWorkspaceMembers(memberList.length > 0 ? memberList : [mem]),
+      );
       const mapped = eventList.map(workspaceEventToManaged);
       setEvents(mapped);
       publishManagedEvents(mapped);
@@ -162,7 +168,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         displayName: settings.profile.fullName,
       });
       setWorkspace(fallback.workspace);
-      setMembership(fallback.membership);
+      setMembership(normalizeWorkspaceMember(fallback.membership));
       setMembers([fallback.membership]);
       setEvents([]);
       setUsingLocalFallback(true);

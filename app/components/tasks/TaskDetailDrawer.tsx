@@ -5,6 +5,7 @@ import { Trash2, X } from "lucide-react";
 
 import CommentThread from "@/app/components/collaboration/CommentThread";
 import DateInput from "@/app/components/ui/DateInput";
+import { getWorkspaceMemberLabel } from "@/lib/collaboration/member-display";
 import { createTask, updateTask } from "@/lib/collaboration/tasks";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import { newId } from "@/lib/collaboration/local-store";
@@ -153,7 +154,7 @@ export default function TaskDetailDrawer({
                 .filter((m) => m.status === "active" && m.userId)
                 .map((m) => (
                   <option key={m.id} value={m.userId!}>
-                    {m.displayName ?? m.invitedEmail}
+                    {getWorkspaceMemberLabel(m)}
                   </option>
                 ))}
             </select>

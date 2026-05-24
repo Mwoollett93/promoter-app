@@ -21,7 +21,12 @@ begin
     set
       user_id = v_uid,
       status = 'active'::public.member_status,
-      joined_at = coalesce(wm.joined_at, now())
+      joined_at = coalesce(wm.joined_at, now()),
+      display_name = coalesce(
+        nullif(trim(wm.display_name), ''),
+        nullif(split_part(lower(trim(wm.invited_email)), '@', 1), ''),
+        'Member'
+      )
     where
       wm.status = 'invited'::public.member_status
       and wm.user_id is null
