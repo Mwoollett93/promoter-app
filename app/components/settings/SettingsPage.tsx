@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 
 import PageContent from "@/app/components/layout/PageContent";
+import TeamWorkspaceSettings from "@/app/components/settings/TeamWorkspaceSettings";
+import TemplatesSettings from "@/app/components/settings/TemplatesSettings";
 import Button from "@/app/components/ui/Button";
 import { GRID_CARD_GAP, PAGE_STACK_GAP } from "@/lib/layout/page-layout";
 import { useSettings } from "@/lib/settings/SettingsProvider";
@@ -228,17 +230,10 @@ export default function SettingsPage() {
         ) : null}
 
         {activeTab === "team" ? (
-          <TeamTab
-            members={settings.team}
-            onInvite={(member) => {
-              patchSettings({ team: [...settings.team, member] });
-              notify(`Invitation sent to ${member.email}.`);
-            }}
-            onRemove={(id) => {
-              patchSettings({ team: settings.team.filter((member) => member.id !== id) });
-              notify("Team member removed.");
-            }}
-          />
+          <div className="space-y-6">
+            <TeamWorkspaceSettings />
+            <TemplatesSettings />
+          </div>
         ) : null}
 
         {activeTab === "notifications" ? (

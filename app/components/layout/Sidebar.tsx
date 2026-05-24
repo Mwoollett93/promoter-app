@@ -22,7 +22,10 @@ import {
   User,
   UserCog,
   Users,
+  CheckSquare,
 } from "lucide-react";
+
+import NotificationPanel from "@/app/components/notifications/NotificationPanel";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useSettings } from "@/lib/settings/SettingsProvider";
@@ -43,6 +46,7 @@ type NavItem = {
 const mainNavItems: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { label: "Events", icon: CalendarPlus, href: "/events" },
+  { label: "Tasks", icon: CheckSquare, href: "/tasks" },
   { label: "Venues", icon: MapPin, href: "/venues" },
   { label: "Artists", icon: Mic2, href: "/artists" },
 ];
@@ -86,6 +90,8 @@ function isNavItemActive(label: string, pathname: string | null): boolean {
       return pathname.startsWith("/venues");
     case "Artists":
       return pathname.startsWith("/artists");
+    case "Tasks":
+      return pathname.startsWith("/tasks");
     case "Settings":
       return pathname.startsWith("/settings");
     default:
@@ -324,6 +330,9 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
           {mainNavItems.map(renderNavItem)}
 
           {renderNavItem(settingsNavItem)}
+          <div className={isOpen ? "px-1 pt-2" : "flex justify-center pt-2"}>
+            <NotificationPanel />
+          </div>
           {renderCollapseToggle()}
         </nav>
 

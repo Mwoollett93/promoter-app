@@ -105,10 +105,14 @@ function sortManagedEvents(events: ManagedEventRecord[]) {
   });
 }
 
+/** Sync read — prefers workspace cache when available via global hook. */
 export function loadManagedEvents(): ManagedEventRecord[] {
   if (typeof window === "undefined") {
     return [];
   }
+
+  const cached = (window as unknown as { __promosyncEvents?: ManagedEventRecord[] }).__promosyncEvents;
+  if (cached) return sortManagedEvents(cached);
 
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -129,6 +133,12 @@ export function loadManagedEvents(): ManagedEventRecord[] {
   } catch {
     return [];
   }
+}
+
+export function cacheManagedEventsForSync(events: ManagedEventRecord[]) {
+  if (typeof window === "undefined") return;
+  (window as unknown as { __promosyncEvents?: ManagedEventRecord[] }).__promosyncEvents =
+    sortManagedEvents(events);
 }
 
 export function saveManagedEvents(events: ManagedEventRecord[]) {

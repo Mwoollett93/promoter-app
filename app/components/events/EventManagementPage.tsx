@@ -28,6 +28,7 @@ import {
 } from "@/app/components/management/ManagementTable";
 import CurrencyText from "@/app/components/ui/CurrencyText";
 import { formatDateLabel, formatTimeLabel } from "@/lib/data/format";
+import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import {
   getManagedEventSeedCount,
   loadManagedEvents,
@@ -57,6 +58,7 @@ function getStatusLabel(status: ManagedEventStatus | "all") {
 }
 
 export default function EventManagementPage() {
+  const { events: workspaceEvents, refreshEvents: refreshWorkspaceEvents } = useWorkspace();
   const [events, setEvents] = React.useState<ManagedEventRecord[]>([]);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [query, setQuery] = React.useState("");
@@ -65,14 +67,22 @@ export default function EventManagementPage() {
   const [seeding, setSeeding] = React.useState(false);
 
   const refreshEvents = React.useCallback(() => {
-    const rows = loadManagedEvents();
+    const rows = workspaceEvents.length > 0 ? workspaceEvents : loadManagedEvents();
     setEvents(rows);
-    setSelectedId(rows[0]?.id ?? null);
-  }, []);
+    setSelectedId((prev) => (prev && rows.some((r) => r.id === prev) ? prev : rows[0]?.id ?? null));
+  }, [workspaceEvents]);
 
   React.useEffect(() => {
     refreshEvents();
-  }, [refreshEvents]);
+  }, [refreshEvents, workspaceEvents]);
+
+  React.useEffect(() => {
+    function onUpdated() {
+      void refreshWorkspaceEvents();
+    }
+    window.addEventListener("promosync:events-updated", onUpdated);
+    return () => window.removeEventListener("promosync:events-updated", onUpdated);
+  }, [refreshWorkspaceEvents]);
 
   function handleSeedEvents() {
     if (seeding) return;
@@ -285,7 +295,15 @@ export default function EventManagementPage() {
                     {selectedEvent.name}
                   </h2>
                 </div>
-                <EventStatusBadge status={selectedEvent.status} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <EventStatusBadge status={selectedEvent.status} />
+                  <Link
+                    href={`/events/${selectedEvent.id}/workspace`}
+                    className="rounded-lg border border-[#8B5CF6]/40 px-3 py-1 text-[12px] font-medium text-[#C4B5FD] hover:bg-[#2D2640]"
+                  >
+                    Team workspace
+                  </Link>
+                </div>
               </div>
 
               <p className="mt-3 text-[13px] leading-5 text-[#A1A1AA]">

@@ -1,0 +1,135 @@
+"use client";
+
+import * as React from "react";
+
+import { migrateLocalEventsToWorkspace } from "@/lib/data/events-migrate";
+import { cacheManagedEventsForSync, type ManagedEventRecord } from "@/lib/data/events";
+import { resolveEventCapabilities, type EventCapabilities } from "@/lib/collaboration/permissions";
+import {
+  listWorkspaceEvents,
+  workspaceEventToManaged,
+} from "@/lib/supabase/events";
+import {
+  ensureWorkspaceForUser,
+  listWorkspaceMembers,
+} from "@/lib/supabase/workspace";
+import { getStoredSession } from "@/lib/supabase/browser";
+import type { SupabaseSession } from "@/lib/types/artist";
+import type {
+  Workspace,
+  WorkspaceMember,
+  WorkspaceRole,
+} from "@/lib/types/collaboration";
+import { loadSettings } from "@/lib/settings/settings";
+
+type WorkspaceContextValue = {
+  ready: boolean;
+  session: SupabaseSession | null;
+  workspace: Workspace | null;
+  membership: WorkspaceMember | null;
+  members: WorkspaceMember[];
+  events: ManagedEventRecord[];
+  role: WorkspaceRole | null;
+  capabilities: EventCapabilities;
+  refresh: () => Promise<void>;
+  refreshMembers: () => Promise<void>;
+  refreshEvents: () => Promise<void>;
+};
+
+const WorkspaceContext = React.createContext<WorkspaceContextValue | null>(null);
+
+export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
+  const [ready, setReady] = React.useState(false);
+  const [session, setSession] = React.useState<SupabaseSession | null>(null);
+  const [workspace, setWorkspace] = React.useState<Workspace | null>(null);
+  const [membership, setMembership] = React.useState<WorkspaceMember | null>(null);
+  const [members, setMembers] = React.useState<WorkspaceMember[]>([]);
+  const [events, setEvents] = React.useState<ManagedEventRecord[]>([]);
+
+  const refreshMembers = React.useCallback(async () => {
+    if (!session || !workspace) return;
+    const list = await listWorkspaceMembers(session, workspace.id);
+    setMembers(list);
+  }, [session, workspace]);
+
+  const refreshEvents = React.useCallback(async () => {
+    if (!session || !workspace) return;
+    const list = await listWorkspaceEvents(session, workspace.id);
+    const mapped = list.map(workspaceEventToManaged);
+    setEvents(mapped);
+    cacheManagedEventsForSync(mapped);
+  }, [session, workspace]);
+
+  const refresh = React.useCallback(async () => {
+    const current = getStoredSession();
+    if (!current) {
+      setSession(null);
+      setWorkspace(null);
+      setMembership(null);
+      setMembers([]);
+      setEvents([]);
+      setReady(true);
+      return;
+    }
+
+    setSession(current);
+    const settings = loadSettings();
+    const { workspace: ws, membership: mem } = await ensureWorkspaceForUser(current, {
+      companyName: settings.profile.company,
+      displayName: settings.profile.fullName,
+    });
+
+    setWorkspace(ws);
+    setMembership(mem);
+
+    await migrateLocalEventsToWorkspace(current, ws.id);
+
+    const [memberList, eventList] = await Promise.all([
+      listWorkspaceMembers(current, ws.id),
+      listWorkspaceEvents(current, ws.id),
+    ]);
+
+    setMembers(memberList);
+    const mapped = eventList.map(workspaceEventToManaged);
+    setEvents(mapped);
+    cacheManagedEventsForSync(mapped);
+    setReady(true);
+  }, []);
+
+  React.useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  React.useEffect(() => {
+    function onEventsUpdated() {
+      void refreshEvents();
+    }
+    window.addEventListener("promosync:events-updated", onEventsUpdated);
+    return () => window.removeEventListener("promosync:events-updated", onEventsUpdated);
+  }, [refreshEvents]);
+
+  const role = membership?.role ?? null;
+  const capabilities = resolveEventCapabilities(role ?? "read_only");
+
+  const value: WorkspaceContextValue = {
+    ready,
+    session,
+    workspace,
+    membership,
+    members,
+    events,
+    role,
+    capabilities,
+    refresh,
+    refreshMembers,
+    refreshEvents,
+  };
+
+  return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
+}
+
+export function useWorkspace() {
+  const ctx = React.useContext(WorkspaceContext);
+  if (!ctx) throw new Error("useWorkspace must be used within WorkspaceProvider");
+  return ctx;
+}

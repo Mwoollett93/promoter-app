@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import { FinancePermissionBanner } from "@/app/components/collaboration/PermissionBanner";
 import Button from "@/app/components/ui/Button";
 import CurrencyText from "@/app/components/ui/CurrencyText";
 import Stepper from "@/app/components/ui/Stepper";
@@ -368,6 +369,7 @@ export default function FinanceForecastPage() {
       <div className="flex w-full justify-center">
         <Stepper state="Finance & Forecast" />
       </div>
+      <FinancePermissionBanner />
 
       <section className="rounded-[16px] border border-[#181824] bg-gradient-to-b from-[#11111A] to-[#0D0D14] p-5 shadow-[0px_10px_40px_0px_rgba(0,0,0,0.4)]">
         <h2 className="text-[24px] font-bold leading-[28px] text-[#F5F5F7]">

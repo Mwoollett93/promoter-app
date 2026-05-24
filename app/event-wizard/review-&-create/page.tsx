@@ -34,7 +34,15 @@ import {
   loadWizardFinanceDraft,
   type WizardFinanceDraftV1,
 } from "@/lib/data/wizard-finance-draft";
-import { upsertManagedEvent, type ManagedEventRecord, type ManagedEventStatus } from "@/lib/data/events";
+import type { ManagedEventStatus } from "@/lib/data/events";
+import { logActivity } from "@/lib/collaboration/activity";
+import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
+import {
+  runForecastNegativeAutomation,
+  runMarketingCountdownAutomation,
+  runVenueConfirmedAutomation,
+} from "@/lib/automations/runner";
+import { createWorkspaceEvent } from "@/lib/supabase/events";
 import { getVenueFee, loadVenueFinanceContext, type VenueFinanceContext } from "@/lib/data/venue-finance-context";
 import { buildScheduleSummary, calculateScheduleTimes, formatClock, formatDurationMinutes } from "@/lib/schedule";
 import { getStoredSession, getSupabaseConfig, listArtists } from "@/lib/supabase/browser";
@@ -94,6 +102,7 @@ function getManagedStatus(dateKey?: string): ManagedEventStatus {
 
 export default function ReviewCreatePage() {
   const router = useRouter();
+  const { session, workspace, refreshEvents } = useWorkspace();
   const [reviewState, setReviewState] = React.useState<ReviewState | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [creating, setCreating] = React.useState(false);
@@ -221,24 +230,26 @@ export default function ReviewCreatePage() {
   }, [reviewState]);
 
   async function handleCreateEvent() {
-    if (!reviewState || !canCreate || creating) return;
+    if (!reviewState || !canCreate || creating || !session || !workspace) return;
 
     setCreating(true);
     setError(null);
 
     try {
-      const now = new Date().toISOString();
-      const record: ManagedEventRecord = {
-        id: `event-${Date.now().toString(36)}`,
+      const venueName =
+        reviewState.eventDraft?.venueName ??
+        reviewState.venueContext.venueName ??
+        "Venue TBD";
+
+      const created = await createWorkspaceEvent(session, {
+        workspaceId: workspace.id,
         name: reviewState.eventDraft?.eventName?.trim() || "Untitled Event",
         status: getManagedStatus(reviewState.eventDraft?.dateKey),
+        venueId: reviewState.eventDraft?.venueId ?? null,
+        venueName,
+        description: reviewState.eventDraft?.description,
         dateKey: reviewState.eventDraft?.dateKey,
         startTime: reviewState.eventDraft?.startTime,
-        venueName:
-          reviewState.eventDraft?.venueName ??
-          reviewState.venueContext.venueName ??
-          "Venue TBD",
-        description: reviewState.eventDraft?.description,
         artistCount: reviewState.uniqueArtistCount,
         slotCount: reviewState.scheduleSlots.length,
         b2bCount: reviewState.b2bCount,
@@ -246,11 +257,27 @@ export default function ReviewCreatePage() {
         expectedRevenue: reviewState.financeSummary.expectedRevenue,
         totalCosts: reviewState.financeSummary.totalCosts,
         projectedProfit: reviewState.financeSummary.projectedProfit,
-        createdAt: now,
-        updatedAt: now,
-      };
+        scheduleJson: reviewState.scheduleSlots,
+        financeJson: reviewState.financeDraft as unknown as Record<string, unknown>,
+      });
 
-      upsertManagedEvent(record);
+      await logActivity(session, {
+        workspaceId: workspace.id,
+        eventId: created.id,
+        entityType: "event",
+        entityId: created.id,
+        verb: "created",
+        summary: `Created event "${created.name}"`,
+      });
+
+      if (reviewState.eventDraft?.venueId) {
+        await runVenueConfirmedAutomation(session, workspace.id, created.id, venueName);
+      }
+
+      await runMarketingCountdownAutomation(session, workspace.id, created);
+      await runForecastNegativeAutomation(session, workspace.id, created);
+
+      await refreshEvents();
       clearWizardEventDraft();
       clearWizardScheduleSlots();
       clearWizardFinanceDraft();

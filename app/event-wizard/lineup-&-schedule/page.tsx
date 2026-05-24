@@ -14,6 +14,7 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 
+import { LineupPermissionBanner } from "@/app/components/collaboration/PermissionBanner";
 import Button from "@/app/components/ui/Button";
 import ScheduleSummaryStrip from "@/app/components/ui/ScheduleSummaryStrip";
 import Stepper from "@/app/components/ui/Stepper";
@@ -437,6 +438,7 @@ export default function LineupSchedulePage() {
       <div className="flex w-full justify-center">
         <Stepper state="Lineup & Schedule" />
       </div>
+      <LineupPermissionBanner />
 
       <div className="flex w-full min-w-0 items-start">
         {/* Figma node `117:2835` â€” Lineup & Schedule card (full width of main column) */}

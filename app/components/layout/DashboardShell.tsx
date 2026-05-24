@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import Sidebar from "./Sidebar";
 import { SHELL_PADDING_X, SHELL_PADDING_Y } from "@/lib/layout/page-layout";
+import { WorkspaceProvider } from "@/lib/collaboration/WorkspaceContext";
 import { SettingsProvider } from "@/lib/settings/SettingsProvider";
 import { isAccountActive, loadSettings, reactivateAccount } from "@/lib/settings/settings";
 import { getStoredSession } from "@/lib/supabase/browser";
@@ -19,7 +20,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     const session = getStoredSession();
     if (!session) {
       const returnTo = pathname && pathname !== "/" ? `?returnTo=${encodeURIComponent(pathname)}` : "";
-      router.replace(`/${returnTo}`);
+      router.replace(`/login${returnTo}`);
       return;
     }
 
@@ -40,6 +41,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
   return (
     <SettingsProvider>
+      <WorkspaceProvider>
       <div className="h-screen overflow-hidden bg-[#0B0B10]">
       <div
         className="isolate grid h-full transition-[grid-template-columns] duration-300 ease-out"
@@ -54,6 +56,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         </section>
       </div>
     </div>
+      </WorkspaceProvider>
     </SettingsProvider>
   );
 }

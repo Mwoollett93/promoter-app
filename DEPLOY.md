@@ -95,8 +95,20 @@ Production deploy:
 vercel --prod
 ```
 
+## 7. Collaboration schema (team workspace)
+
+Run SQL migrations in the Supabase SQL editor (in order):
+
+1. `promoter-app/supabase/artist-management.sql`
+2. `promoter-app/supabase/collaboration.sql`
+
+Enable **Realtime** for `activity_log`, `comments`, and `tasks` if you want live updates on event workspace pages.
+
+Optional email notifications: set `RESEND_API_KEY` and `RESEND_FROM` for `/api/notifications/email`.
+
 ## Notes
 
 - **Demo login** is disabled in production unless `NEXT_PUBLIC_DEMO_AUTH=true`.
-- Events and preferences use **browser localStorage**; they are per-device, not synced to a server.
+- **Events, tasks, team, and activity** sync via Supabase when configured; local fallback is used for demo/offline.
+- On first login, events previously stored in `localStorage` are imported into your workspace automatically.
 - Artists and venues require Supabase to be configured.
