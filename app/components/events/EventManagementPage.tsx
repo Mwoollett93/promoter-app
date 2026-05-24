@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 import {
   CalendarDays,
@@ -62,6 +62,10 @@ function getStatusLabel(status: ManagedEventStatus | "all") {
 
 export default function EventManagementPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const venueIdFilter = searchParams.get("venueId")?.trim() || null;
+  const venueNameFilter = searchParams.get("venueName")?.trim() || null;
+  const artistQuery = searchParams.get("q")?.trim() || null;
   const {
     session,
     workspace,
@@ -139,17 +143,26 @@ export default function EventManagementPage() {
 
   const filteredEvents = React.useMemo(() => {
     const needle = query.trim().toLowerCase();
+    const artistNeedle = artistQuery?.toLowerCase() ?? null;
 
     return events.filter((event) => {
       const matchesStatus = status === "all" || event.status === status;
+      const matchesVenue =
+        !venueIdFilter ||
+        event.venueId === venueIdFilter ||
+        (venueNameFilter ? event.venueName === venueNameFilter : false);
       const haystack = [event.name, event.venueName, event.description ?? ""].join(" ").toLowerCase();
-      return matchesStatus && (!needle || haystack.includes(needle));
+      const matchesSearch = !needle || haystack.includes(needle);
+      const matchesArtist = !artistNeedle || haystack.includes(artistNeedle);
+      return matchesStatus && matchesVenue && matchesSearch && matchesArtist;
     });
-  }, [events, query, status]);
+  }, [events, query, status, venueIdFilter, venueNameFilter, artistQuery]);
 
   React.useEffect(() => {
     setPage(1);
-  }, [query, status]);
+  }, [query, status, venueIdFilter, venueNameFilter, artistQuery]);
+
+  const hasExternalFilter = Boolean(venueIdFilter || artistQuery);
 
   React.useEffect(() => {
     if (selectedId && filteredEvents.some((event) => event.id === selectedId)) return;
@@ -200,6 +213,21 @@ export default function EventManagementPage() {
         <StatusCard label="Canceled" count={counts.canceled} tone="canceled" />
         <StatusCard label="Completed" count={counts.completed} tone="completed" />
       </section>
+
+      {hasExternalFilter ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#8B5CF6]/30 bg-[#1A1630]/40 px-4 py-3 text-[13px] text-[#D4D4D8]">
+          <span>
+            {venueNameFilter
+              ? `Showing events at ${venueNameFilter}`
+              : artistQuery
+                ? `Showing events matching “${artistQuery}”`
+                : "Filtered event list"}
+          </span>
+          <Link href="/events" className="text-[#8B5CF6] hover:text-[#C4B5FD]">
+            Clear filter
+          </Link>
+        </div>
+      ) : null}
 
       <section className={`grid xl:grid-cols-[minmax(0,1fr)_340px] ${GRID_CARD_GAP}`}>
         <ManagementTableCard>

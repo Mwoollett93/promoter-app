@@ -256,30 +256,13 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
     const className = navItemClassName(active);
     const labels = labelClassName(isOpen);
 
-    if (item.href) {
-      return (
-        <Link key={item.label} href={item.href} className={className} title={item.label}>
-          <Icon size={18} className="shrink-0 opacity-95" strokeWidth={2} aria-hidden />
-          <span className={labels} aria-hidden={!isOpen}>
-            {item.label}
-          </span>
-        </Link>
-      );
-    }
-
     return (
-      <button
-        key={item.label}
-        type="button"
-        className={className}
-        title="Coming soon"
-        onClick={() => {}}
-      >
+      <Link key={item.label} href={item.href!} className={className} title={item.label}>
         <Icon size={18} className="shrink-0 opacity-95" strokeWidth={2} aria-hidden />
         <span className={labels} aria-hidden={!isOpen}>
           {item.label}
         </span>
-      </button>
+      </Link>
     );
   }
 

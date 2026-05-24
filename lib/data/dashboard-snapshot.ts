@@ -169,8 +169,21 @@ function buildUpcoming(
     }));
 }
 
-function buildFinancialRows(events: ManagedEventRecord[], prefs?: PreferencesState): FinancialRow[] {
-  const portfolio = events.filter((event) => event.status !== "canceled");
+export type DashboardFinanceScope = "portfolio" | "active";
+
+function eventsForFinanceScope(events: ManagedEventRecord[], scope: DashboardFinanceScope) {
+  if (scope === "active") {
+    return events.filter((event) => event.status === "active");
+  }
+  return events.filter((event) => event.status !== "canceled");
+}
+
+function buildFinancialRows(
+  events: ManagedEventRecord[],
+  prefs?: PreferencesState,
+  scope: DashboardFinanceScope = "portfolio",
+): FinancialRow[] {
+  const portfolio = eventsForFinanceScope(events, scope);
   const totalRevenue = portfolio.reduce((sum, event) => sum + event.expectedRevenue, 0);
   const totalCosts = portfolio.reduce((sum, event) => sum + event.totalCosts, 0);
   const projectedProfit = portfolio.reduce((sum, event) => sum + event.projectedProfit, 0);
@@ -298,16 +311,18 @@ export function buildDashboardSnapshot(input: {
   artists?: ArtistProfile[];
   venues?: VenueSummary[];
   preferences?: PreferencesState;
+  financeScope?: DashboardFinanceScope;
 }): DashboardSnapshot {
   const events = input.events;
   const artists = input.artists ?? [];
   const prefs = input.preferences;
+  const financeScope = input.financeScope ?? "portfolio";
   const venueLookup = buildVenueImageLookup(input.venues ?? []);
 
   return {
     stats: buildStats(events, prefs),
     upcomingEvents: buildUpcoming(events, venueLookup),
-    financialRows: buildFinancialRows(events, prefs),
+    financialRows: buildFinancialRows(events, prefs, financeScope),
     eventStatusDistribution: buildStatusDistribution(events),
     topVenues: buildTopVenues(events, venueLookup),
     topArtists: buildTopArtists(events, artists),

@@ -25,7 +25,6 @@ import {
   LANGUAGE_OPTIONS,
   TIMEZONE_OPTIONS,
   clearPromoSyncLocalData,
-  createTeamMember,
   deactivateAccount,
   downloadJson,
   exportAppData,
@@ -35,7 +34,20 @@ import {
   type SettingsTabId,
   validatePasswordChange,
 } from "@/lib/settings/settings";
-import { signOutOfSupabase } from "@/lib/supabase/browser";
+import { signOutOfSupabase, updateUserPassword } from "@/lib/supabase/browser";
+import { useAsyncAction } from "@/lib/ui/use-async-action";
+import ComingSoonButton from "@/app/components/ui/ComingSoonButton";
+import MfaSetupPanel from "@/app/components/settings/MfaSetupPanel";
+import Link from "next/link";
+import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
+import { fetchBillingStatus, openBillingPortal, startCheckout } from "@/lib/billing/client";
+import type { CheckoutPlanId } from "@/lib/billing/plans";
+import {
+  connectIntegration,
+  disconnectIntegration,
+  fetchIntegrationStatus,
+  type IntegrationStatusItem,
+} from "@/lib/integrations/client";
 
 type SettingsTab = {
   id: SettingsTabId;
@@ -72,6 +84,7 @@ export default function SettingsPage() {
     next: "",
     confirm: "",
   });
+  const passwordAction = useAsyncAction();
 
   const [apiKeyLabel, setApiKeyLabel] = React.useState("Production sync");
   const [generatedKey, setGeneratedKey] = React.useState<string | null>(null);
@@ -103,15 +116,21 @@ export default function SettingsPage() {
     notify("Profile saved.");
   }
 
-  function savePassword() {
+  async function savePassword() {
     const result = validatePasswordChange(passwords);
     if (!result.ok) {
       notify(result.message, true);
       return;
     }
 
-    setPasswords({ current: "", next: "", confirm: "" });
-    notify("Password updated.");
+    const ok = await passwordAction.run(async () => {
+      await updateUserPassword(passwords.next);
+      setPasswords({ current: "", next: "", confirm: "" });
+      return true;
+    });
+
+    if (ok) notify("Password updated.");
+    else if (passwordAction.error) notify(passwordAction.error, true);
   }
 
   async function handleDeactivate() {
@@ -208,7 +227,9 @@ export default function SettingsPage() {
             onAvatarChange={(avatarUrl) => patchSettings({ profile: { ...settings.profile, avatarUrl } })}
             onPasswordChange={setPasswords}
             onSaveProfile={saveProfile}
-            onSavePassword={savePassword}
+            onSavePassword={() => void savePassword()}
+            passwordSaving={passwordAction.loading}
+            passwordError={passwordAction.error}
             onDeactivate={handleDeactivate}
             onDeleteAccount={handleDeleteAccount}
             onGoToPreferences={() => setActiveTab("preferences")}
@@ -235,30 +256,9 @@ export default function SettingsPage() {
           />
         ) : null}
 
-        {activeTab === "billing" ? (
-          <BillingTab
-            billing={settings.billing}
-            onPlanChange={(plan) => {
-              patchSettings({
-                billing: { ...settings.billing, plan },
-                account: { ...settings.account, accountType: plan },
-              });
-              notify(`Plan updated to ${plan}.`);
-            }}
-          />
-        ) : null}
+        {activeTab === "billing" ? <BillingTab billing={settings.billing} /> : null}
 
-        {activeTab === "integrations" ? (
-          <IntegrationsTab
-            integrations={settings.integrations}
-            onToggle={(id, connected) => {
-              patchSettings({
-                integrations: { ...settings.integrations, [id]: connected },
-              });
-              notify(connected ? `${id} connected.` : `${id} disconnected.`);
-            }}
-          />
-        ) : null}
+        {activeTab === "integrations" ? <IntegrationsTab /> : null}
 
         {activeTab === "security" ? (
           <SecurityTab
@@ -266,11 +266,10 @@ export default function SettingsPage() {
             apiKeyLabel={apiKeyLabel}
             generatedKey={generatedKey}
             onApiKeyLabelChange={setApiKeyLabel}
-            onToggle2fa={(enabled) => {
+            onMfaEnabledChange={(enabled) => {
               patchSettings({
                 security: { ...settings.security, twoFactorEnabled: enabled },
               });
-              notify(enabled ? "Two-factor authentication enabled." : "Two-factor authentication disabled.");
             }}
             onRevokeSession={(id) => {
               patchSettings({
@@ -344,6 +343,8 @@ function ProfileTab({
   onPasswordChange,
   onSaveProfile,
   onSavePassword,
+  passwordSaving,
+  passwordError,
   onDeactivate,
   onDeleteAccount,
   onGoToPreferences,
@@ -365,6 +366,8 @@ function ProfileTab({
   onPasswordChange: React.Dispatch<React.SetStateAction<typeof passwords>>;
   onSaveProfile: () => void;
   onSavePassword: () => void;
+  passwordSaving: boolean;
+  passwordError: string | null;
   onDeactivate: () => void;
   onDeleteAccount: () => void;
   onGoToPreferences: () => void;
@@ -445,6 +448,9 @@ function ProfileTab({
         </SettingsCard>
 
         <SettingsCard title="Change Password">
+          {passwordError ? (
+            <p className="mb-3 text-[13px] text-red-300">{passwordError}</p>
+          ) : null}
           <div className="grid gap-4 lg:grid-cols-3">
             <PasswordInput
               label="Current Password"
@@ -463,8 +469,15 @@ function ProfileTab({
             />
           </div>
           <div className="mt-4 flex justify-end">
-            <Button variant="secondary" size="sm" type="button" onClick={onSavePassword} className="px-8">
-              Update Password
+            <Button
+              variant="secondary"
+              size="sm"
+              type="button"
+              onClick={onSavePassword}
+              disabled={passwordSaving}
+              className="px-8"
+            >
+              {passwordSaving ? "Updating…" : "Update Password"}
             </Button>
           </div>
         </SettingsCard>
@@ -579,89 +592,6 @@ function AccountTab({
   );
 }
 
-function TeamTab({
-  members,
-  onInvite,
-  onRemove,
-}: {
-  members: import("@/lib/settings/settings").TeamMember[];
-  onInvite: (member: import("@/lib/settings/settings").TeamMember) => void;
-  onRemove: (id: string) => void;
-}) {
-  function handleInvite() {
-    const name = window.prompt("Team member name");
-    if (!name?.trim()) return;
-
-    const email = window.prompt("Email address");
-    if (!email?.trim()) return;
-
-    const roleInput = window.prompt("Role (Admin, Promoter, or Viewer)", "Promoter");
-    const role =
-      roleInput === "Admin" || roleInput === "Viewer" ? roleInput : ("Promoter" as const);
-
-    onInvite(createTeamMember({ name, email, role }));
-  }
-
-  return (
-    <SettingsCard
-      title="Team Members"
-      action={
-        <Button variant="primary" size="sm" type="button" className="px-6" onClick={handleInvite}>
-          Invite Member
-        </Button>
-      }
-    >
-      <div className="overflow-x-auto">
-        <table className="min-w-[640px] w-full text-left text-[13px]">
-          <thead className="text-[11px] uppercase tracking-[0.08em] text-[#71717A]">
-            <tr>
-              <th className="pb-3 font-medium">Name</th>
-              <th className="pb-3 font-medium">Email</th>
-              <th className="pb-3 font-medium">Role</th>
-              <th className="pb-3 font-medium">Status</th>
-              <th className="pb-3 font-medium text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="text-[#F5F5F7]">
-            {members.map((member) => (
-              <tr key={member.id} className="border-t border-[#232330]">
-                <td className="py-3 font-medium">{member.name}</td>
-                <td className="py-3 text-[#A1A1AA]">{member.email}</td>
-                <td className="py-3">{member.role}</td>
-                <td className="py-3">
-                  <span
-                    className={[
-                      "rounded-full px-2 py-0.5 text-[11px] font-medium",
-                      member.status === "Active"
-                        ? "bg-[#14532D] text-[#86EFAC]"
-                        : "bg-[#27272F] text-[#A1A1AA]",
-                    ].join(" ")}
-                  >
-                    {member.status}
-                  </span>
-                </td>
-                <td className="py-3 text-right">
-                  {member.role !== "Admin" ? (
-                    <button
-                      type="button"
-                      onClick={() => onRemove(member.id)}
-                      className="text-[12px] text-[#FCA5A5] hover:text-red-300"
-                    >
-                      Remove
-                    </button>
-                  ) : (
-                    <span className="text-[12px] text-[#71717A]">—</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </SettingsCard>
-  );
-}
-
 function NotificationsTab({
   prefs,
   onChange,
@@ -714,104 +644,227 @@ function NotificationsTab({
   );
 }
 
-function BillingTab({
-  billing,
-  onPlanChange,
-}: {
-  billing: import("@/lib/settings/settings").BillingSettings;
-  onPlanChange: (plan: import("@/lib/settings/settings").AccountType) => void;
-}) {
+function BillingTab({ billing }: { billing: import("@/lib/settings/settings").BillingSettings }) {
+  const { workspace } = useWorkspace();
+  const [remote, setRemote] = React.useState<{
+    plan: string;
+    status: string;
+    stripeConfigured: boolean;
+    hasCustomer: boolean;
+  } | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(false);
+
   const planPrices: Record<string, string> = {
-    Starter: "$19 / month",
+    Starter: "Free",
     Professional: "$49 / month",
-    Enterprise: "Custom pricing",
+    Enterprise: "Custom",
   };
+
+  React.useEffect(() => {
+    if (!workspace?.id) return;
+    void fetchBillingStatus(workspace.id)
+      .then((data) => {
+        const b = data.billing as {
+          plan?: string;
+          status?: string;
+          hasCustomer?: boolean;
+        };
+        setRemote({
+          plan: b?.plan ?? billing.plan,
+          status: b?.status ?? "inactive",
+          stripeConfigured: Boolean(data.stripeConfigured),
+          hasCustomer: Boolean(b?.hasCustomer),
+        });
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : "Unable to load billing."));
+  }, [workspace?.id, billing.plan]);
+
+  const displayPlan = remote?.plan ?? billing.plan;
+
+  async function handleCheckout(planId: CheckoutPlanId) {
+    if (!workspace?.id) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await startCheckout(workspace.id, planId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Checkout failed.");
+      setLoading(false);
+    }
+  }
+
+  async function handlePortal() {
+    if (!workspace?.id) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await openBillingPortal(workspace.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to open portal.");
+      setLoading(false);
+    }
+  }
 
   return (
     <div className={`grid lg:grid-cols-2 ${GRID_CARD_GAP}`}>
+      {error ? (
+        <p className="lg:col-span-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[13px] text-red-200">
+          {error}
+        </p>
+      ) : null}
       <SettingsCard title="Current Plan">
-        <p className="text-[22px] font-bold text-[#F5F5F7]">{billing.plan}</p>
-        <p className="mt-1 text-[13px] text-[#A1A1AA]">{planPrices[billing.plan]} · billed annually</p>
-        <ul className="mt-4 space-y-2 text-[13px] text-[#D4D4D8]">
-          <li>Unlimited events & forecasts</li>
-          <li>Up to 10 team members</li>
-          <li>Venue & artist libraries</li>
-        </ul>
+        {!remote?.stripeConfigured ? (
+          <p className="rounded-lg border border-[#8B5CF6]/25 bg-[#1A1630]/30 px-3 py-2 text-[12px] text-[#C4B5FD]">
+            Add STRIPE_SECRET_KEY and price IDs on the server to enable checkout.
+          </p>
+        ) : null}
+        <p className="mt-4 text-[22px] font-bold text-[#F5F5F7]">{displayPlan}</p>
+        <p className="mt-1 text-[13px] text-[#A1A1AA]">
+          {planPrices[displayPlan] ?? displayPlan} · status: {remote?.status ?? "inactive"}
+        </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          {(["Starter", "Professional", "Enterprise"] as const).map((plan) => (
-            <Button
-              key={plan}
-              variant={billing.plan === plan ? "primary" : "secondary"}
-              size="sm"
-              type="button"
-              className="px-4"
-              onClick={() => onPlanChange(plan)}
-            >
-              {plan}
-            </Button>
-          ))}
+          <Button
+            variant="primary"
+            size="sm"
+            type="button"
+            disabled={loading || !remote?.stripeConfigured}
+            onClick={() => void handleCheckout("professional")}
+          >
+            Upgrade to Pro
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            type="button"
+            disabled={loading || !remote?.stripeConfigured}
+            onClick={() => void handleCheckout("enterprise")}
+          >
+            Enterprise
+          </Button>
+          <Link href="/pricing" className="inline-flex h-9 items-center px-3 text-[13px] text-[#8B5CF6]">
+            Compare plans
+          </Link>
         </div>
       </SettingsCard>
 
       <SettingsCard title="Payment Method">
-        <p className="text-[13px] text-[#A1A1AA]">{billing.paymentLabel}</p>
-        <p className="mt-1 text-[13px] text-[#71717A]">Expires {billing.paymentExpiry}</p>
-        <Button variant="ghost" size="sm" type="button" className="mt-4 px-6">
-          Update Card
+        <p className="text-[13px] text-[#A1A1AA]">
+          Manage cards and invoices in the Stripe customer portal.
+        </p>
+        <Button
+          variant="ghost"
+          size="sm"
+          type="button"
+          className="mt-4 px-6"
+          disabled={loading || !remote?.hasCustomer}
+          onClick={() => void handlePortal()}
+        >
+          {loading ? "Opening…" : "Update Card & Invoices"}
         </Button>
-      </SettingsCard>
-
-      <SettingsCard title="Billing History" className="lg:col-span-2">
-        <div className="space-y-2">
-          {["Apr 1, 2026 — $49.00", "Mar 1, 2026 — $49.00", "Feb 1, 2026 — $49.00"].map((row) => (
-            <div
-              key={row}
-              className="flex items-center justify-between rounded-lg border border-[#232330] bg-[#0B0B10] px-3 py-2.5 text-[13px]"
-            >
-              <span className="text-[#F5F5F7]">{row}</span>
-              <button type="button" className="text-[#8B5CF6] hover:text-[#A78BFA]">
-                Download
-              </button>
-            </div>
-          ))}
-        </div>
       </SettingsCard>
     </div>
   );
 }
 
-function IntegrationsTab({
-  integrations,
-  onToggle,
-}: {
-  integrations: import("@/lib/settings/settings").IntegrationSettings;
-  onToggle: (id: import("@/lib/settings/settings").IntegrationId, connected: boolean) => void;
-}) {
+function IntegrationsTab() {
+  const { workspace } = useWorkspace();
+  const [providers, setProviders] = React.useState<IntegrationStatusItem[]>([]);
+  const [error, setError] = React.useState<string | null>(null);
+  const [loadingId, setLoadingId] = React.useState<string | null>(null);
+
+  const refresh = React.useCallback(async () => {
+    if (!workspace?.id) return;
+    const list = await fetchIntegrationStatus(workspace.id);
+    setProviders(list);
+  }, [workspace?.id]);
+
+  React.useEffect(() => {
+    void refresh().catch((err) =>
+      setError(err instanceof Error ? err.message : "Unable to load integrations."),
+    );
+  }, [refresh]);
+
+  async function handleConnect(id: IntegrationStatusItem["id"]) {
+    if (!workspace?.id) return;
+    setLoadingId(id);
+    setError(null);
+    try {
+      await connectIntegration(workspace.id, id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Connect failed.");
+      setLoadingId(null);
+    }
+  }
+
+  async function handleDisconnect(id: IntegrationStatusItem["id"]) {
+    if (!workspace?.id) return;
+    setLoadingId(id);
+    setError(null);
+    try {
+      await disconnectIntegration(workspace.id, id);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Disconnect failed.");
+    } finally {
+      setLoadingId(null);
+    }
+  }
+
   return (
     <div className={`grid md:grid-cols-2 ${GRID_CARD_GAP}`}>
+      {error ? (
+        <p className="md:col-span-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[13px] text-red-200">
+          {error}
+        </p>
+      ) : null}
       {INTEGRATION_META.map((item) => {
-        const connected = integrations[item.id];
+        const status = providers.find((p) => p.id === item.id);
+        const connected = status?.connected ?? false;
+        const unavailable = status?.unavailable ?? item.id === "mailchimp";
+        const configured = status?.configured ?? false;
+
         return (
           <SettingsCard key={item.id} title={item.name}>
             <p className="text-[13px] leading-5 text-[#A1A1AA]">{item.description}</p>
-            <div className="mt-4 flex items-center justify-between">
+            <div className="mt-4 flex items-center justify-between gap-2">
               <span
                 className={[
                   "text-[12px] font-medium",
                   connected ? "text-[#86EFAC]" : "text-[#71717A]",
                 ].join(" ")}
               >
-                {connected ? "Connected" : "Not connected"}
+                {unavailable
+                  ? "Coming soon"
+                  : connected
+                    ? status?.accountLabel ?? "Connected"
+                    : configured
+                      ? "Not connected"
+                      : "Not configured on server"}
               </span>
-              <Button
-                variant={connected ? "ghost" : "secondary"}
-                size="sm"
-                type="button"
-                className="px-5"
-                onClick={() => onToggle(item.id, !connected)}
-              >
-                {connected ? "Disconnect" : "Connect"}
-              </Button>
+              {unavailable ? (
+                <ComingSoonButton size="sm">Connect</ComingSoonButton>
+              ) : connected ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  disabled={loadingId === item.id}
+                  onClick={() => void handleDisconnect(item.id)}
+                >
+                  Disconnect
+                </Button>
+              ) : (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  type="button"
+                  disabled={!configured || loadingId === item.id}
+                  onClick={() => void handleConnect(item.id)}
+                >
+                  Connect
+                </Button>
+              )}
             </div>
           </SettingsCard>
         );
@@ -825,7 +878,7 @@ function SecurityTab({
   apiKeyLabel,
   generatedKey,
   onApiKeyLabelChange,
-  onToggle2fa,
+  onMfaEnabledChange,
   onRevokeSession,
   onSignOutAll,
   onGenerateKey,
@@ -835,7 +888,7 @@ function SecurityTab({
   apiKeyLabel: string;
   generatedKey: string | null;
   onApiKeyLabelChange: (value: string) => void;
-  onToggle2fa: (enabled: boolean) => void;
+  onMfaEnabledChange: (enabled: boolean) => void;
   onRevokeSession: (id: string) => void;
   onSignOutAll: () => void;
   onGenerateKey: () => void;
@@ -845,17 +898,14 @@ function SecurityTab({
     <div className={`grid lg:grid-cols-2 ${GRID_CARD_GAP}`}>
       <SettingsCard title="Two-factor Authentication">
         <p className="text-[13px] leading-5 text-[#A1A1AA]">
-          Add an extra layer of security to your account using an authenticator app.
+          Add an extra layer of security to your account using an authenticator app (Supabase TOTP).
         </p>
-        <Button
-          variant="secondary"
-          size="sm"
-          type="button"
-          className="mt-4 px-6"
-          onClick={() => onToggle2fa(!security.twoFactorEnabled)}
-        >
-          {security.twoFactorEnabled ? "Disable 2FA" : "Enable 2FA"}
-        </Button>
+        <div className="mt-4">
+          <MfaSetupPanel onEnabledChange={onMfaEnabledChange} />
+        </div>
+        {security.twoFactorEnabled ? (
+          <p className="mt-2 text-[11px] text-[#71717A]">Local settings reflect MFA status.</p>
+        ) : null}
       </SettingsCard>
 
       <SettingsCard title="Active Sessions">

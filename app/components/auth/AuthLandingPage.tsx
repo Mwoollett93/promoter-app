@@ -679,11 +679,11 @@ function SignUpPanel({
         />
         <span>
           I agree to the{" "}
-          <Link href="#" className="text-[#8B5CF6] hover:text-[#A78BFA]">
+          <Link href="/terms" className="text-[#8B5CF6] hover:text-[#A78BFA]">
             Terms of Service
           </Link>{" "}
           and{" "}
-          <Link href="#" className="text-[#8B5CF6] hover:text-[#A78BFA]">
+          <Link href="/privacy" className="text-[#8B5CF6] hover:text-[#A78BFA]">
             Privacy Policy
           </Link>
         </span>

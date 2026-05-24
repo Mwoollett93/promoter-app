@@ -686,6 +686,8 @@ export default function AddVenuePage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [extractNotice, setExtractNotice] = useState<string | null>(null);
 
   const hasSupabaseConfig = Boolean(getSupabaseConfig());
   const currentIndex = steps.findIndex((item) => item.id === step);
@@ -711,6 +713,83 @@ export default function AddVenuePage() {
         });
     }
   }, [editingVenueId]);
+
+  async function handleAiExtract() {
+    if (pendingDocuments.length === 0 && draft.documents.length === 0) {
+      setExtractNotice("Upload a text document (.txt, .csv, .json) first.");
+      return;
+    }
+
+    setExtracting(true);
+    setExtractNotice(null);
+    setError(null);
+
+    try {
+      let body: { text?: string; filePath?: string };
+      if (pendingDocuments[0]?.file) {
+        const file = pendingDocuments[0].file;
+        const name = file.name.toLowerCase();
+        if (!name.endsWith(".txt") && !name.endsWith(".csv") && !name.endsWith(".json")) {
+          throw new Error("Use a .txt, .csv, or .json file for AI extraction in this release.");
+        }
+        body = { text: await file.text() };
+      } else if (draft.documents[0]?.filePath) {
+        body = { filePath: draft.documents[0].filePath };
+      } else {
+        throw new Error("No document available to extract.");
+      }
+
+      const session = getStoredSession();
+      if (!session?.accessToken) throw new Error("Sign in to use AI extraction.");
+
+      const response = await fetch("/api/venues/extract", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      const payload = (await response.json()) as {
+        error?: string;
+        fields?: Record<string, unknown>;
+      };
+      if (!response.ok) throw new Error(payload.error ?? "Extraction failed.");
+
+      const fields = payload.fields ?? {};
+      patchDraft({
+        maxCapacity: typeof fields.maxCapacity === "number" ? fields.maxCapacity : draft.maxCapacity,
+        indoorCapacity:
+          typeof fields.indoorCapacity === "number" ? fields.indoorCapacity : draft.indoorCapacity,
+        outdoorCapacity:
+          typeof fields.outdoorCapacity === "number" ? fields.outdoorCapacity : draft.outdoorCapacity,
+        curfewTime: typeof fields.curfewTime === "string" ? fields.curfewTime : draft.curfewTime,
+        noiseRestriction:
+          typeof fields.noiseRestriction === "string" ? fields.noiseRestriction : draft.noiseRestriction,
+        addressLine1: typeof fields.addressLine1 === "string" ? fields.addressLine1 : draft.addressLine1,
+        city: typeof fields.city === "string" ? fields.city : draft.city,
+        country: typeof fields.country === "string" ? fields.country : draft.country,
+        venueManagerName:
+          typeof fields.venueManagerName === "string" ? fields.venueManagerName : draft.venueManagerName,
+        venueManagerPhone:
+          typeof fields.venueManagerPhone === "string" ? fields.venueManagerPhone : draft.venueManagerPhone,
+        bookingContactEmail:
+          typeof fields.bookingContactEmail === "string"
+            ? fields.bookingContactEmail
+            : draft.bookingContactEmail,
+        description: typeof fields.description === "string" ? fields.description : draft.description,
+        facilities: Array.isArray(fields.facilities)
+          ? fields.facilities.filter((f): f is string => typeof f === "string")
+          : draft.facilities,
+      });
+      setExtractNotice("AI suggestions applied — review each field before saving.");
+    } catch (err) {
+      setExtractNotice(err instanceof Error ? err.message : "Extraction failed.");
+    } finally {
+      setExtracting(false);
+    }
+  }
 
   const completion = useMemo(() => {
     const checks = [
@@ -1016,6 +1095,9 @@ export default function AddVenuePage() {
                 fileInputRef.current?.click();
               }}
               onRemovePending={(id) => setPendingDocuments((current) => current.filter((doc) => doc.id !== id))}
+              onExtract={() => void handleAiExtract()}
+              extracting={extracting}
+              extractNotice={extractNotice}
             />
           ) : null}
           {step === "review" ? <ReviewStep draft={draft} pendingDocuments={pendingDocuments} onEditStep={setStep} /> : null}
@@ -1343,6 +1425,9 @@ function DocumentsStep({
   setSelectedUploadCategory,
   onBrowse,
   onRemovePending,
+  onExtract,
+  extracting,
+  extractNotice,
 }: {
   draft: VenueDraft;
   pendingDocuments: PendingDocument[];
@@ -1350,6 +1435,9 @@ function DocumentsStep({
   setSelectedUploadCategory: (value: string) => void;
   onBrowse: (category: string) => void;
   onRemovePending: (id: string) => void;
+  onExtract: () => void;
+  extracting: boolean;
+  extractNotice: string | null;
 }) {
   return (
     <div className="space-y-5">
@@ -1396,12 +1484,21 @@ function DocumentsStep({
           </div>
           <button
             type="button"
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#232330] bg-[#11111A] px-4 text-sm font-medium text-[#E4E4E7] hover:border-[#8B5CF6]/50 hover:text-white"
+            disabled={extracting || (pendingDocuments.length === 0 && draft.documents.length === 0)}
+            onClick={onExtract}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#8B5CF6]/45 bg-[#7C3AED] px-4 text-sm font-medium text-white hover:bg-[#8B5CF6] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Sparkles className="size-4" />
-            Enable AI Extraction
+            {extracting ? "Extracting…" : "Extract with AI"}
           </button>
         </div>
+        {extractNotice ? (
+          <p className="mt-3 text-[13px] text-[#C4B5FD]">{extractNotice}</p>
+        ) : (
+          <p className="mt-3 text-[12px] text-[#71717A]">
+            Upload a .txt, .csv, or .json spec first. PDF support is coming soon.
+          </p>
+        )}
 
         <div className="mt-4 flex flex-wrap gap-2">
           {["Capacity", "Curfew", "Noise Restrictions", "Contacts", "Address", "Equipment", "Licensing"].map((item) => (

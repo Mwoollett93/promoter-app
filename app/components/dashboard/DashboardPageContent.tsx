@@ -17,7 +17,11 @@ import EventStatusBadge from "@/app/components/ui/EventStatusBadge";
 import UpcomingEventRow from "@/app/components/dashboard/UpcomingEventRow";
 import StatMiniCard from "@/app/components/dashboard/StatMiniCard";
 import CurrencyText from "@/app/components/ui/CurrencyText";
-import { buildDashboardSnapshot, type DashboardSnapshot } from "@/lib/data/dashboard-snapshot";
+import {
+  buildDashboardSnapshot,
+  type DashboardFinanceScope,
+  type DashboardSnapshot,
+} from "@/lib/data/dashboard-snapshot";
 import { useSettings } from "@/lib/settings/SettingsProvider";
 import { getProfileFirstName } from "@/lib/settings/settings";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
@@ -131,6 +135,7 @@ const venuesCache: {
 export default function DashboardPageContent() {
   const { settings } = useSettings();
   const { events: workspaceEvents, ready: workspaceReady } = useWorkspace();
+  const [financeScope, setFinanceScope] = React.useState<DashboardFinanceScope>("portfolio");
   const [snapshot, setSnapshot] = React.useState<DashboardSnapshot>(EMPTY_SNAPSHOT);
   const icons = [CalendarDays, Users, DollarSign, TrendingUp];
 
@@ -173,9 +178,10 @@ export default function DashboardPageContent() {
         artists,
         venues,
         preferences: settings.preferences,
+        financeScope,
       }),
     );
-  }, [settings.preferences]);
+  }, [settings.preferences, financeScope]);
 
   React.useEffect(() => {
     if (workspaceReady) void refreshSnapshot();
@@ -297,8 +303,9 @@ export default function DashboardPageContent() {
             </label>
             <select
               id="fin-range"
+              value={financeScope}
+              onChange={(e) => setFinanceScope(e.target.value as DashboardFinanceScope)}
               className="rounded-md border border-[#3F3F46] bg-[#0B0B10] px-2 py-1.5 text-[12px] text-[#E4E4E7] outline-none focus:border-[#8B5CF6]"
-              defaultValue="portfolio"
             >
               <option value="portfolio">All Events</option>
               <option value="active">Active Only</option>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -9,7 +10,6 @@ import {
   CheckCircle2,
   Download,
   Edit3,
-  Filter,
   MoreHorizontal,
   Plus,
   Search,
@@ -19,7 +19,9 @@ import {
 } from "lucide-react";
 
 import PageContent from "@/app/components/layout/PageContent";
+import ActionComingSoonTile from "@/app/components/ui/ActionComingSoonTile";
 import CurrencyText from "@/app/components/ui/CurrencyText";
+import FilterPopover from "@/app/components/ui/FilterPopover";
 import {
   ManagementTableCard,
   ManagementTableCell,
@@ -454,6 +456,8 @@ export default function VenueManagementPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<VenueStatus | "all">("all");
+  const [venueTypeFilter, setVenueTypeFilter] = useState<string | "all">("all");
+  const [countryFilter, setCountryFilter] = useState<string | "all">("all");
   const [sortKey, setSortKey] = useState<SortKey>("addedDate");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
@@ -495,10 +499,25 @@ export default function VenueManagementPage() {
     [venues],
   );
 
+  const venueTypeOptions = useMemo(() => {
+    const types = [...new Set(venues.map((v) => v.venueType).filter(Boolean))].sort();
+    return types.map((t) => ({ value: t, label: t }));
+  }, [venues]);
+
+  const countryOptions = useMemo(() => {
+    const countries = [...new Set(venues.map((v) => v.country).filter(Boolean))].sort();
+    return countries.map((c) => ({ value: c, label: c }));
+  }, [venues]);
+
+  const advancedFilterCount =
+    (venueTypeFilter !== "all" ? 1 : 0) + (countryFilter !== "all" ? 1 : 0);
+
   const filteredVenues = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const next = venues.filter((venue) => {
       const matchesStatus = status === "all" || venue.status === status;
+      const matchesType = venueTypeFilter === "all" || venue.venueType === venueTypeFilter;
+      const matchesCountry = countryFilter === "all" || venue.country === countryFilter;
       const haystack = [
         venue.name,
         venue.venueType,
@@ -511,7 +530,7 @@ export default function VenueManagementPage() {
         .join(" ")
         .toLowerCase();
 
-      return matchesStatus && (!needle || haystack.includes(needle));
+      return matchesStatus && matchesType && matchesCountry && (!needle || haystack.includes(needle));
     });
 
     return [...next].sort((a, b) => {
@@ -520,7 +539,11 @@ export default function VenueManagementPage() {
       const comparison = aValue.localeCompare(bValue);
       return sortDirection === "asc" ? comparison : -comparison;
     });
-  }, [venues, query, sortKey, sortDirection, status]);
+  }, [venues, query, sortKey, sortDirection, status, venueTypeFilter, countryFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, status, venueTypeFilter, countryFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredVenues.length / pageSize));
   const paginatedVenues = filteredVenues.slice((page - 1) * pageSize, page * pageSize);
@@ -641,13 +664,48 @@ export default function VenueManagementPage() {
               className="w-full bg-transparent text-sm text-[#F5F5F7] outline-none placeholder:text-[#71717A]"
             />
           </div>
-          <button
-            type="button"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-[#232330] bg-[#11111A] px-4 text-sm font-medium text-[#E4E4E7] hover:border-[#8B5CF6]/50 hover:text-white"
+          <FilterPopover
+            label="Filters"
+            value="all"
+            onChange={() => {}}
+            options={[]}
+            activeCount={advancedFilterCount}
+            onClearAll={() => {
+              setVenueTypeFilter("all");
+              setCountryFilter("all");
+            }}
           >
-            <Filter className="size-4" aria-hidden />
-            Filters
-          </button>
+            <label className="block text-[12px] text-[#A1A1AA]">
+              Venue type
+              <select
+                value={venueTypeFilter}
+                onChange={(e) => setVenueTypeFilter(e.target.value)}
+                className="mt-1 w-full rounded-md border border-[#3F3F46] bg-[#0B0B10] px-2 py-1.5 text-[13px] text-[#F5F5F7]"
+              >
+                <option value="all">All types</option>
+                {venueTypeOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-[12px] text-[#A1A1AA]">
+              Country
+              <select
+                value={countryFilter}
+                onChange={(e) => setCountryFilter(e.target.value)}
+                className="mt-1 w-full rounded-md border border-[#3F3F46] bg-[#0B0B10] px-2 py-1.5 text-[13px] text-[#F5F5F7]"
+              >
+                <option value="all">All countries</option>
+                {countryOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </FilterPopover>
           {showSeedAction ? (
             <button
               type="button"
@@ -797,6 +855,7 @@ export default function VenueManagementPage() {
             venue={selectedVenue}
             onClose={() => setSelectedId(null)}
             onViewDetails={() => setProfileVenue(selectedVenue)}
+            onOpenActions={() => setActionVenue(selectedVenue)}
           />
         ) : null}
       </div>
@@ -824,11 +883,15 @@ function VenueSidePanel({
   venue,
   onClose,
   onViewDetails,
+  onOpenActions,
 }: {
   venue: VenueProfile;
   onClose: () => void;
   onViewDetails: () => void;
+  onOpenActions: () => void;
 }) {
+  const router = useRouter();
+
   return (
     <aside className="rounded-xl border border-[#232330] bg-[#11111A] p-5 shadow-[0px_10px_40px_0px_rgba(0,0,0,0.4)] xl:sticky xl:top-5 xl:max-h-[calc(100vh-40px)] xl:overflow-y-auto">
       <div className="flex items-start justify-between gap-3">
@@ -855,9 +918,21 @@ function VenueSidePanel({
       <div className="mt-5 grid grid-cols-5 gap-3 text-center text-[10px] text-[#A1A1AA]">
         <ActionTile icon={<Building2 className="size-4" />} label="View Details" onClick={onViewDetails} />
         <ActionLinkTile icon={<Edit3 className="size-4" />} label="Edit" href={`/venues/new?venueId=${venue.id}`} />
-        <ActionTile icon={<CalendarDays className="size-4" />} label="Events" onClick={() => {}} />
-        <ActionTile icon={<Ticket className="size-4" />} label="Bookings" onClick={() => {}} />
-        <ActionTile icon={<MoreHorizontal className="size-4" />} label="More" onClick={() => {}} />
+        <ActionTile
+          icon={<CalendarDays className="size-4" />}
+          label="Events"
+          onClick={() =>
+            router.push(
+              `/events?venueId=${encodeURIComponent(venue.id)}&venueName=${encodeURIComponent(venue.name)}`,
+            )
+          }
+        />
+        <ActionComingSoonTile
+          icon={<Ticket className="size-4" />}
+          label="Bookings"
+          title="Venue bookings — coming soon"
+        />
+        <ActionTile icon={<MoreHorizontal className="size-4" />} label="More" onClick={onOpenActions} />
       </div>
 
       <InfoCard title="About">

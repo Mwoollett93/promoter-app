@@ -1,16 +1,19 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 
 import Button from "@/app/components/ui/Button";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import {
+  applyEventTemplate,
   applyTaskTemplate,
   listEventTemplates,
   listTaskTemplates,
 } from "@/lib/collaboration/templates";
 
 export default function TemplatesSettings() {
+  const router = useRouter();
   const { session, workspace } = useWorkspace();
   const [message, setMessage] = React.useState<string | null>(null);
 
@@ -25,6 +28,14 @@ export default function TemplatesSettings() {
     if (!template) return;
     await applyTaskTemplate(session, workspace.id, template);
     setMessage(`Applied "${template.name}" — tasks added to your workspace board.`);
+  }
+
+  function useEventTemplate(templateId: string) {
+    const template = eventTemplates.find((t) => t.id === templateId);
+    if (!template) return;
+    applyEventTemplate(template);
+    setMessage(`Applied "${template.name}" — opening event wizard with template defaults.`);
+    router.push("/event-wizard/event-basics");
   }
 
   return (
@@ -68,12 +79,22 @@ export default function TemplatesSettings() {
             {eventTemplates.map((template) => (
               <li
                 key={template.id}
-                className="rounded-lg border border-[#232330] bg-[#0B0B10] px-3 py-2"
+                className="flex items-center justify-between rounded-lg border border-[#232330] bg-[#0B0B10] px-3 py-2"
               >
-                <p className="text-[13px] font-medium text-[#F5F5F7]">{template.name}</p>
-                {template.description ? (
-                  <p className="text-[11px] text-[#71717A]">{template.description}</p>
-                ) : null}
+                <div>
+                  <p className="text-[13px] font-medium text-[#F5F5F7]">{template.name}</p>
+                  {template.description ? (
+                    <p className="text-[11px] text-[#71717A]">{template.description}</p>
+                  ) : null}
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  type="button"
+                  onClick={() => useEventTemplate(template.id)}
+                >
+                  Use template
+                </Button>
               </li>
             ))}
           </ul>

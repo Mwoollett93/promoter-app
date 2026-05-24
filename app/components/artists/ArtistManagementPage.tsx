@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -8,7 +9,6 @@ import {
   Download,
   Edit3,
   ExternalLink,
-  Filter,
   Mail,
   MessageCircle,
   MoreHorizontal,
@@ -19,10 +19,11 @@ import {
   UserCircle,
   X,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-
 import PageContent from "@/app/components/layout/PageContent";
+import ActionComingSoonTile from "@/app/components/ui/ActionComingSoonTile";
+import ArtistImportDialog from "@/app/components/artists/ArtistImportDialog";
 import CurrencyText from "@/app/components/ui/CurrencyText";
+import FilterPopover from "@/app/components/ui/FilterPopover";
 import {
   ManagementTableCard,
   ManagementTableCell,
@@ -53,14 +54,6 @@ type SortKey = "name" | "artistType" | "genres" | "status" | "location" | "added
 const statusFilters: Array<ArtistStatus | "all"> = ["all", "active", "inactive", "archived"];
 const pageSize = MANAGEMENT_TABLE_PAGE_SIZE_ARTISTS;
 const showSeedAction = process.env.NODE_ENV !== "production";
-const quickActions: Array<{ label: string; icon: LucideIcon }> = [
-  { label: "View Profile", icon: UserCircle },
-  { label: "Edit", icon: Edit3 },
-  { label: "Events", icon: Music },
-  { label: "Message", icon: MessageCircle },
-  { label: "More", icon: MoreHorizontal },
-];
-
 const seedArtistTemplates = [
   ["Maya Thompson", "Vocalist", ["House", "Pop"], "Manchester", "England"],
   ["The Midnight Kids", "Live Band", ["Indie", "Rock"], "Glasgow", "Scotland"],
@@ -95,6 +88,8 @@ export default function ArtistManagementPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<ArtistStatus | "all">("all");
+  const [artistTypeFilter, setArtistTypeFilter] = useState<string | "all">("all");
+  const [reachFilter, setReachFilter] = useState<string | "all">("all");
   const [sortKey, setSortKey] = useState<SortKey>("addedDate");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
@@ -105,6 +100,7 @@ export default function ArtistManagementPage() {
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [rowDraft, setRowDraft] = useState<Pick<ArtistDraft, "name" | "genres" | "status"> | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const hasSupabaseConfig = Boolean(getSupabaseConfig());
 
@@ -138,10 +134,25 @@ export default function ArtistManagementPage() {
     };
   }, [artists]);
 
+  const artistTypeOptions = useMemo(() => {
+    const types = [...new Set(artists.map((a) => a.artistType).filter(Boolean))].sort();
+    return types.map((t) => ({ value: t, label: t }));
+  }, [artists]);
+
+  const reachOptions = useMemo(() => {
+    const reaches = [...new Set(artists.map((a) => a.reach).filter(Boolean))].sort();
+    return reaches.map((r) => ({ value: r, label: r }));
+  }, [artists]);
+
+  const advancedFilterCount =
+    (artistTypeFilter !== "all" ? 1 : 0) + (reachFilter !== "all" ? 1 : 0);
+
   const filteredArtists = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const next = artists.filter((artist) => {
       const matchesStatus = status === "all" || artist.status === status;
+      const matchesType = artistTypeFilter === "all" || artist.artistType === artistTypeFilter;
+      const matchesReach = reachFilter === "all" || artist.reach === reachFilter;
       const haystack = [
         artist.name,
         artist.artistType,
@@ -155,7 +166,7 @@ export default function ArtistManagementPage() {
         .join(" ")
         .toLowerCase();
 
-      return matchesStatus && (!needle || haystack.includes(needle));
+      return matchesStatus && matchesType && matchesReach && (!needle || haystack.includes(needle));
     });
 
     return [...next].sort((a, b) => {
@@ -164,7 +175,11 @@ export default function ArtistManagementPage() {
       const comparison = aValue.localeCompare(bValue);
       return sortDirection === "asc" ? comparison : -comparison;
     });
-  }, [artists, query, sortDirection, sortKey, status]);
+  }, [artists, query, sortDirection, sortKey, status, artistTypeFilter, reachFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, status, artistTypeFilter, reachFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredArtists.length / pageSize));
   const paginatedArtists = filteredArtists.slice((page - 1) * pageSize, page * pageSize);
@@ -345,16 +360,53 @@ export default function ArtistManagementPage() {
               className="w-full bg-transparent text-sm text-[#F5F5F7] outline-none placeholder:text-[#71717A]"
             />
           </div>
-          <button
-            type="button"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-[#232330] bg-[#11111A] px-4 text-sm font-medium text-[#E4E4E7] hover:border-[#8B5CF6]/50 hover:text-white"
+          <FilterPopover
+            label="Filters"
+            value="all"
+            onChange={() => {}}
+            options={[]}
+            activeCount={advancedFilterCount}
+            onClearAll={() => {
+              setArtistTypeFilter("all");
+              setReachFilter("all");
+            }}
           >
-            <Filter className="size-4" aria-hidden />
-            Filters
-          </button>
+            <label className="block text-[12px] text-[#A1A1AA]">
+              Artist type
+              <select
+                value={artistTypeFilter}
+                onChange={(e) => setArtistTypeFilter(e.target.value)}
+                className="mt-1 w-full rounded-md border border-[#3F3F46] bg-[#0B0B10] px-2 py-1.5 text-[13px] text-[#F5F5F7]"
+              >
+                <option value="all">All types</option>
+                {artistTypeOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-[12px] text-[#A1A1AA]">
+              Reach
+              <select
+                value={reachFilter}
+                onChange={(e) => setReachFilter(e.target.value)}
+                className="mt-1 w-full rounded-md border border-[#3F3F46] bg-[#0B0B10] px-2 py-1.5 text-[13px] text-[#F5F5F7]"
+              >
+                <option value="all">All reach</option>
+                {reachOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </FilterPopover>
           <button
             type="button"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-[#232330] bg-[#11111A] px-4 text-sm font-medium text-[#E4E4E7] hover:border-[#8B5CF6]/50 hover:text-white"
+            onClick={() => setImportOpen(true)}
+            disabled={!session}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-[#232330] bg-[#11111A] px-4 text-sm font-medium text-[#E4E4E7] hover:border-[#8B5CF6]/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Download className="size-4" aria-hidden />
             Import Artists
@@ -614,6 +666,7 @@ export default function ArtistManagementPage() {
             onClose={() => setSelectedId(null)}
             onDownload={handleDownload}
             onViewProfile={() => setProfileArtist(selectedArtist)}
+            onOpenActions={() => setActionMenuArtist(selectedArtist)}
           />
         ) : null}
       </div>
@@ -627,6 +680,19 @@ export default function ArtistManagementPage() {
           artist={actionMenuArtist}
           onClose={() => setActionMenuArtist(null)}
           onDelete={() => void handleDeleteArtist(actionMenuArtist)}
+        />
+      ) : null}
+
+      {session ? (
+        <ArtistImportDialog
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          session={session}
+          onImported={() => {
+            listArtists(session)
+              .then(setArtists)
+              .catch(() => undefined);
+          }}
         />
       ) : null}
     </PageContent>
@@ -657,12 +723,15 @@ function ArtistSidePanel({
   onClose,
   onDownload,
   onViewProfile,
+  onOpenActions,
 }: {
   artist: ArtistProfile;
   onClose: () => void;
   onDownload: (path: string) => void;
   onViewProfile: () => void;
+  onOpenActions: () => void;
 }) {
+  const router = useRouter();
   const [bioExpanded, setBioExpanded] = useState(false);
   const bio = artist.bio || "No bio has been added for this artist yet.";
   const canExpandBio = bio.length > 47;
@@ -709,16 +778,38 @@ function ArtistSidePanel({
           <Edit3 className="size-4" aria-hidden />
           Edit
         </Link>
-        {quickActions.slice(2).map(({ label, icon: Icon }) => (
-          <button
-            key={label}
-            type="button"
-            className="flex min-h-[62px] flex-col items-center justify-center gap-1.5 rounded-lg border border-[#232330] bg-[#0F0F17] px-2 py-2 hover:border-[#8B5CF6]/50 hover:text-white"
-          >
-            <Icon className="size-4" aria-hidden />
-            {label}
-          </button>
-        ))}
+        <button
+          type="button"
+          onClick={() =>
+            router.push(`/events?q=${encodeURIComponent(artist.name)}&artistId=${encodeURIComponent(artist.id)}`)
+          }
+          className="flex min-h-[62px] flex-col items-center justify-center gap-1.5 rounded-lg border border-[#232330] bg-[#0F0F17] px-2 py-2 hover:border-[#8B5CF6]/50 hover:text-white"
+        >
+          <Music className="size-4" aria-hidden />
+          Events
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (artist.email?.trim()) {
+              window.location.href = `mailto:${encodeURIComponent(artist.email.trim())}`;
+            }
+          }}
+          disabled={!artist.email?.trim()}
+          title={artist.email?.trim() ? `Email ${artist.name}` : "No contact email on file"}
+          className="flex min-h-[62px] flex-col items-center justify-center gap-1.5 rounded-lg border border-[#232330] bg-[#0F0F17] px-2 py-2 hover:border-[#8B5CF6]/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <MessageCircle className="size-4" aria-hidden />
+          Message
+        </button>
+        <button
+          type="button"
+          onClick={onOpenActions}
+          className="flex min-h-[62px] flex-col items-center justify-center gap-1.5 rounded-lg border border-[#232330] bg-[#0F0F17] px-2 py-2 hover:border-[#8B5CF6]/50 hover:text-white"
+        >
+          <MoreHorizontal className="size-4" aria-hidden />
+          More
+        </button>
       </div>
 
       <InfoCard title="About">

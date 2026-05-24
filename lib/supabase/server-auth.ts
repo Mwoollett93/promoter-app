@@ -225,3 +225,30 @@ export async function serverSendPasswordRecovery(input: {
     throw new Error(await parseGoTrueError(response, "Unable to send reset link"));
   }
 }
+
+export async function serverUpdatePassword(accessToken: string, password: string): Promise<void> {
+  const config = getSupabaseServerConfig();
+  if (!config) {
+    throw new Error("Supabase is not configured on the server.");
+  }
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${config.url}/auth/v1/user`, {
+      method: "PUT",
+      headers: {
+        ...supabaseHeaders(config),
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ password }),
+    });
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : "network error";
+    throw new Error(`Could not reach Supabase (${detail}).`);
+  }
+
+  if (!response.ok) {
+    throw new Error(await parseGoTrueError(response, "Unable to update password"));
+  }
+}

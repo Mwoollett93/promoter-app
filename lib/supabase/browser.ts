@@ -378,6 +378,27 @@ export async function sendPasswordResetEmail(email: string): Promise<void> {
   });
 }
 
+export async function updateUserPassword(newPassword: string): Promise<void> {
+  const session = getStoredSession();
+  if (!session?.accessToken) {
+    throw new Error("Sign in to change your password.");
+  }
+
+  const response = await fetch("/api/auth/password", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.accessToken}`,
+    },
+    body: JSON.stringify({ password: newPassword }),
+  });
+
+  const payload = (await response.json().catch(() => ({}))) as { error?: string };
+  if (!response.ok) {
+    throw new Error(payload.error ?? `Password update failed (${response.status}).`);
+  }
+}
+
 export async function completeSupabaseHashSession(hash: string): Promise<SupabaseSession> {
   const supabase = createBrowserAuthClient();
   const params = new URLSearchParams(hash.replace(/^#/, ""));

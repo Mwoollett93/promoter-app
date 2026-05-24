@@ -1,5 +1,6 @@
 import { newId } from "@/lib/collaboration/local-store";
 import { createTask } from "@/lib/collaboration/tasks";
+import { saveWizardEventDraft } from "@/lib/data/wizard-event-draft";
 import type { SupabaseSession } from "@/lib/types/artist";
 import type { TaskTemplate, EventTemplate } from "@/lib/types/collaboration";
 
@@ -86,6 +87,24 @@ export async function applyTaskTemplate(
       labels: [template.name],
     });
   }
+}
+
+export function applyEventTemplate(template: EventTemplate): void {
+  const json = (template.templateJson ?? {}) as Record<string, unknown>;
+  const defaultCapacity =
+    typeof json.defaultCapacity === "number" && Number.isFinite(json.defaultCapacity)
+      ? json.defaultCapacity
+      : undefined;
+
+  const eventName = template.name.replace(/\s+template$/i, "").trim() || template.name;
+
+  saveWizardEventDraft({
+    date: new Date(),
+    startTime: "22:00",
+    eventName,
+    description: template.description ?? undefined,
+    venueCapacity: defaultCapacity,
+  });
 }
 
 export function listEventTemplates(workspaceId: string): EventTemplate[] {

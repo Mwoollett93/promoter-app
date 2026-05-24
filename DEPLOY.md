@@ -118,6 +118,49 @@ Run SQL migrations in the Supabase SQL editor (in order):
 
 Enable **Realtime** for `activity_log`, `comments`, and `tasks` if you want live updates on event workspace pages.
 
+## 8. Sprint 2 (billing, import, integrations, MFA, AI)
+
+Run additional SQL in Supabase (after collaboration):
+
+1. `promoter-app/supabase/sprint2-artist-fees.sql`
+2. `promoter-app/supabase/sprint2-billing.sql`
+3. `promoter-app/supabase/sprint2-integrations.sql`
+
+### Vercel environment variables
+
+| Variable | Feature |
+|----------|---------|
+| `SUPABASE_SERVICE_ROLE_KEY` | Stripe webhooks, integration token storage, AI file download |
+| `STRIPE_SECRET_KEY` | Billing checkout & portal |
+| `STRIPE_WEBHOOK_SECRET` | `POST /api/billing/webhook` |
+| `STRIPE_PRICE_PROFESSIONAL` | Pro plan Price ID |
+| `STRIPE_PRICE_ENTERPRISE` | Enterprise plan Price ID |
+| `GOOGLE_INTEGRATION_CLIENT_ID` / `GOOGLE_INTEGRATION_CLIENT_SECRET` | Google Calendar connect |
+| `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` | Spotify connect |
+| `STRIPE_CONNECT_CLIENT_ID` | Stripe revenue sync (Connect OAuth) |
+| `OPENAI_API_KEY` | Venue document AI extraction |
+| `AI_EXTRACTION_MODEL` | Optional (default `gpt-4o-mini`) |
+
+### Stripe webhook
+
+In Stripe Dashboard → Developers → Webhooks, add endpoint:
+
+`https://YOUR_DOMAIN/api/billing/webhook`
+
+Events: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`.
+
+### Supabase MFA
+
+Enable **TOTP MFA** in Supabase Dashboard → Authentication → Providers → MFA, then use Settings → Security in the app.
+
+### OAuth redirect URLs (integrations)
+
+Add authorized redirect URI for each provider:
+
+`https://YOUR_DOMAIN/api/integrations/google/callback`  
+`https://YOUR_DOMAIN/api/integrations/spotify/callback`  
+`https://YOUR_DOMAIN/api/integrations/stripe/callback`
+
 ## Notes
 
 - **Demo login** is disabled in production unless `NEXT_PUBLIC_DEMO_AUTH=true`.
