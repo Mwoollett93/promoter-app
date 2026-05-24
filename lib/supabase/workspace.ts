@@ -6,6 +6,8 @@ import {
 import {
   clearLocalWorkspaceForUser,
   createLocalWorkspaceId,
+  findLocalMembershipForUser,
+  findLocalWorkspaceById,
   loadLocalInvites,
   loadLocalMembers,
   loadLocalWorkspace,
@@ -104,6 +106,58 @@ function mapInvite(row: InviteRow): WorkspaceInvite {
   };
 }
 
+function listLocalWorkspaceIdsFromStorage(): string[] {
+  if (typeof window === "undefined") return [];
+  const ids: string[] = [];
+  const prefix = "promosync:collab:members:";
+  for (let i = 0; i < window.localStorage.length; i++) {
+    const storageKey = window.localStorage.key(i);
+    if (!storageKey?.startsWith(prefix)) continue;
+    ids.push(storageKey.slice(prefix.length));
+  }
+  return ids;
+}
+
+function acceptLocalPendingInvites(session: SupabaseSession, email: string): WorkspaceMember | null {
+  const normalized = email.trim().toLowerCase();
+  const now = new Date().toISOString();
+  let accepted: WorkspaceMember | null = null;
+
+  for (const workspaceId of listLocalWorkspaceIdsFromStorage()) {
+    const members = loadLocalMembers(workspaceId);
+    let changed = false;
+    const nextMembers = members.map((member) => {
+      if (
+        member.status === "invited" &&
+        member.invitedEmail?.trim().toLowerCase() === normalized
+      ) {
+        changed = true;
+        const updated: WorkspaceMember = {
+          ...member,
+          userId: session.user.id,
+          status: "active",
+          joinedAt: now,
+        };
+        accepted = updated;
+        return updated;
+      }
+      return member;
+    });
+
+    if (changed) {
+      saveLocalMembers(workspaceId, nextMembers);
+      const invites = loadLocalInvites(workspaceId).map((invite) =>
+        invite.email.trim().toLowerCase() === normalized
+          ? { ...invite, acceptedAt: now }
+          : invite,
+      );
+      saveLocalInvites(workspaceId, invites);
+    }
+  }
+
+  return accepted;
+}
+
 async function fetchActiveMembership(
   session: SupabaseSession,
   workspaceId: string,
@@ -149,11 +203,101 @@ async function ensureActiveMembership(
   throw new Error("Could not create workspace membership.");
 }
 
+export async function acceptPendingWorkspaceInvites(
+  session: SupabaseSession,
+): Promise<void> {
+  const email = session.user.email?.trim().toLowerCase();
+  if (!email) return;
+
+  if (shouldUseLocalCollaboration(session)) {
+    acceptLocalPendingInvites(session, email);
+    return;
+  }
+
+  try {
+    const pending = await supabaseRest<MemberRow[]>(
+      `workspace_members?invited_email=eq.${encodeURIComponent(email)}&status=eq.invited&user_id=is.null`,
+      session,
+    );
+
+    const now = new Date().toISOString();
+    for (const row of pending) {
+      await supabaseRest(`workspace_members?id=eq.${row.id}`, session, {
+        method: "PATCH",
+        body: {
+          user_id: session.user.id,
+          status: "active",
+          joined_at: now,
+        },
+        prefer: "return=minimal",
+      });
+
+      const invites = await supabaseRest<InviteRow[]>(
+        `workspace_invites?workspace_id=eq.${row.workspace_id}&email=eq.${encodeURIComponent(email)}&accepted_at=is.null`,
+        session,
+      );
+
+      for (const invite of invites) {
+        await supabaseRest(`workspace_invites?id=eq.${invite.id}`, session, {
+          method: "PATCH",
+          body: { accepted_at: now },
+          prefer: "return=minimal",
+        });
+      }
+    }
+  } catch {
+    /* best-effort; user may still use their own workspace */
+  }
+}
+
+async function resolvePrimaryMembership(
+  session: SupabaseSession,
+): Promise<{ workspace: Workspace; membership: WorkspaceMember } | null> {
+  const rows = await supabaseRest<MemberRow[]>(
+    `workspace_members?user_id=eq.${session.user.id}&status=eq.active&order=joined_at.desc`,
+    session,
+  );
+  if (rows.length === 0) return null;
+
+  for (const row of rows) {
+    const workspaces = await supabaseRest<WorkspaceRow[]>(
+      `workspaces?id=eq.${row.workspace_id}&limit=1`,
+      session,
+    );
+    const workspace = workspaces[0];
+    if (workspace && workspace.created_by !== session.user.id) {
+      return { workspace: mapWorkspace(workspace), membership: mapMember(row) };
+    }
+  }
+
+  const first = rows[0];
+  const workspaces = await supabaseRest<WorkspaceRow[]>(
+    `workspaces?id=eq.${first.workspace_id}&limit=1`,
+    session,
+  );
+  if (!workspaces[0]) return null;
+  return { workspace: mapWorkspace(workspaces[0]), membership: mapMember(first) };
+}
+
 export async function ensureWorkspaceForUser(
   session: SupabaseSession,
   options?: { companyName?: string; displayName?: string },
 ): Promise<{ workspace: Workspace; membership: WorkspaceMember }> {
   if (shouldUseLocalCollaboration(session)) {
+    const email = session.user.email?.trim().toLowerCase();
+    if (email) acceptLocalPendingInvites(session, email);
+
+    const joined = findLocalMembershipForUser(session.user.id);
+    if (joined) {
+      const workspace =
+        findLocalWorkspaceById(joined.workspaceId) ??
+        loadLocalWorkspace(session.user.id);
+      if (workspace) {
+        saveLocalWorkspace(session.user.id, workspace);
+        return { workspace, membership: joined.membership };
+      }
+    }
+
     return ensureLocalWorkspace(session, options);
   }
 
@@ -163,21 +307,13 @@ export async function ensureWorkspaceForUser(
   }
 
   try {
-    const existing = await supabaseRest<MemberRow[]>(
-      `workspace_members?user_id=eq.${session.user.id}&status=eq.active&limit=1`,
-      session,
-    );
+    await acceptPendingWorkspaceInvites(session);
 
-    if (existing.length > 0) {
-      const membership = mapMember(existing[0]);
-      const workspaces = await supabaseRest<WorkspaceRow[]>(
-        `workspaces?id=eq.${membership.workspaceId}&limit=1`,
-        session,
-      );
-      if (workspaces.length > 0) {
-        saveLocalWorkspace(session.user.id, mapWorkspace(workspaces[0]));
-        return { workspace: mapWorkspace(workspaces[0]), membership };
-      }
+    const resolved = await resolvePrimaryMembership(session);
+    if (resolved) {
+      saveLocalWorkspace(session.user.id, resolved.workspace);
+      clearLocalCollaborationMode(session.user.id);
+      return resolved;
     }
 
     // Orphan workspace: created but membership insert failed under old RLS.

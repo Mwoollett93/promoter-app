@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 import {
   CalendarDays,
@@ -29,6 +30,8 @@ import {
 import CurrencyText from "@/app/components/ui/CurrencyText";
 import { formatDateLabel, formatTimeLabel } from "@/lib/data/format";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
+import { prepareEventForWizardEdit } from "@/lib/event-wizard/open-event-in-wizard";
+import { clearWizardEditingEventId } from "@/lib/event-wizard/wizard-editing-event";
 import {
   getManagedEventSeedCount,
   loadManagedEvents,
@@ -58,13 +61,20 @@ function getStatusLabel(status: ManagedEventStatus | "all") {
 }
 
 export default function EventManagementPage() {
-  const { events: workspaceEvents, refreshEvents: refreshWorkspaceEvents } = useWorkspace();
+  const router = useRouter();
+  const {
+    session,
+    workspace,
+    events: workspaceEvents,
+    refreshEvents: refreshWorkspaceEvents,
+  } = useWorkspace();
   const [events, setEvents] = React.useState<ManagedEventRecord[]>([]);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [query, setQuery] = React.useState("");
   const [status, setStatus] = React.useState<ManagedEventStatus | "all">("all");
   const [page, setPage] = React.useState(1);
   const [seeding, setSeeding] = React.useState(false);
+  const [openingDraftId, setOpeningDraftId] = React.useState<string | null>(null);
 
   const refreshEvents = React.useCallback(() => {
     const rows = workspaceEvents.length > 0 ? workspaceEvents : loadManagedEvents();
@@ -83,6 +93,27 @@ export default function EventManagementPage() {
     window.addEventListener("promosync:events-updated", onUpdated);
     return () => window.removeEventListener("promosync:events-updated", onUpdated);
   }, [refreshEvents]);
+
+  async function handleContinueEditing(event: ManagedEventRecord) {
+    if (!session || !workspace || openingDraftId) return;
+
+    setOpeningDraftId(event.id);
+    try {
+      const ready = await prepareEventForWizardEdit(session, workspace.id, event.id, {
+        name: event.name,
+        dateKey: event.dateKey,
+        startTime: event.startTime,
+        venueId: event.venueId,
+        venueName: event.venueName,
+        description: event.description,
+      });
+      if (ready) {
+        router.push("/event-wizard/event-basics");
+      }
+    } finally {
+      setOpeningDraftId(null);
+    }
+  }
 
   function handleSeedEvents() {
     if (seeding) return;
@@ -239,6 +270,9 @@ export default function EventManagementPage() {
                     <tr
                       key={event.id}
                       onClick={() => setSelectedId(event.id)}
+                      onDoubleClick={() => {
+                        if (event.status === "draft") void handleContinueEditing(event);
+                      }}
                       className={managementTableRowClass(isSelected)}
                     >
                       <ManagementTableCell>
@@ -358,9 +392,27 @@ export default function EventManagementPage() {
                 </p>
               </div>
 
+              {selectedEvent.status === "draft" ? (
+                <button
+                  type="button"
+                  disabled={openingDraftId === selectedEvent.id}
+                  onClick={() => void handleContinueEditing(selectedEvent)}
+                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-[10px] border border-[#8B5CF6]/45 bg-[#7C3AED] px-4 py-3 text-[14px] font-medium text-white transition-colors hover:border-[#A78BFA] hover:bg-[#8B5CF6] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <CalendarPlus className="size-4" strokeWidth={2} aria-hidden />
+                  {openingDraftId === selectedEvent.id ? "Opening…" : "Continue editing"}
+                </button>
+              ) : null}
+
               <Link
                 href="/event-wizard/event-basics"
-                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-[10px] border border-[#8B5CF6]/45 bg-[#7C3AED] px-4 py-3 text-[14px] font-medium text-white transition-colors hover:border-[#A78BFA] hover:bg-[#8B5CF6]"
+                onClick={() => clearWizardEditingEventId()}
+                className={[
+                  "inline-flex w-full items-center justify-center gap-2 rounded-[10px] border px-4 py-3 text-[14px] font-medium transition-colors",
+                  selectedEvent.status === "draft"
+                    ? "mt-3 border-[#3F3F46] bg-[#0F0F17] text-[#E4E4E7] hover:border-[#71717A] hover:text-white"
+                    : "mt-5 border-[#8B5CF6]/45 bg-[#7C3AED] text-white hover:border-[#A78BFA] hover:bg-[#8B5CF6]",
+                ].join(" ")}
               >
                 <CalendarPlus className="size-4" strokeWidth={2} aria-hidden />
                 Create Another Event

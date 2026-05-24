@@ -43,7 +43,15 @@ import {
   runVenueConfirmedAutomation,
 } from "@/lib/automations/runner";
 import { resolveManagedEventStatus, upsertManagedEvent } from "@/lib/data/events";
-import { createWorkspaceEvent, workspaceEventToManaged } from "@/lib/supabase/events";
+import {
+  createWorkspaceEvent,
+  updateWorkspaceEvent,
+  workspaceEventToManaged,
+} from "@/lib/supabase/events";
+import {
+  clearWizardEditingEventId,
+  getWizardEditingEventId,
+} from "@/lib/event-wizard/wizard-editing-event";
 import { getVenueFee, loadVenueFinanceContext, type VenueFinanceContext } from "@/lib/data/venue-finance-context";
 import { buildScheduleSummary, calculateScheduleTimes, formatClock, formatDurationMinutes } from "@/lib/schedule";
 import { getStoredSession, getSupabaseConfig, listArtists } from "@/lib/supabase/browser";
@@ -240,7 +248,7 @@ export default function ReviewCreatePage() {
         reviewState.venueContext.venueName ??
         "Venue TBD";
 
-      const created = await createWorkspaceEvent(session, {
+      const payload = {
         workspaceId: workspace.id,
         name: reviewState.eventDraft?.eventName?.trim() || "Untitled Event",
         status: getManagedStatus(reviewState.eventDraft?.dateKey, options?.asDraft),
@@ -258,7 +266,12 @@ export default function ReviewCreatePage() {
         projectedProfit: reviewState.financeSummary.projectedProfit,
         scheduleJson: reviewState.scheduleSlots,
         financeJson: reviewState.financeDraft as unknown as Record<string, unknown>,
-      });
+      };
+
+      const editingId = getWizardEditingEventId();
+      const created = editingId
+        ? await updateWorkspaceEvent(session, editingId, payload)
+        : await createWorkspaceEvent(session, payload);
 
       await logActivity(session, {
         workspaceId: workspace.id,
@@ -281,6 +294,7 @@ export default function ReviewCreatePage() {
       clearWizardEventDraft();
       clearWizardScheduleSlots();
       clearWizardFinanceDraft();
+      clearWizardEditingEventId();
       router.push("/events");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to create event.");

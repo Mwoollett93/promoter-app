@@ -12,7 +12,15 @@ import {
   clearWizardScheduleSlots,
   loadWizardScheduleSlots,
 } from "@/lib/data/wizard-schedule-persist";
-import { createWorkspaceEvent, workspaceEventToManaged } from "@/lib/supabase/events";
+import {
+  createWorkspaceEvent,
+  updateWorkspaceEvent,
+  workspaceEventToManaged,
+} from "@/lib/supabase/events";
+import {
+  clearWizardEditingEventId,
+  getWizardEditingEventId,
+} from "@/lib/event-wizard/wizard-editing-event";
 import type { SupabaseSession } from "@/lib/types/artist";
 import type { ScheduleSlot } from "@/lib/types/event-schedule";
 
@@ -69,37 +77,43 @@ export async function saveWizardProgressAsDraft(
   const artistFees = scheduleSlots.reduce((sum, slot) => sum + slot.feeCents, 0) / 100;
   const financeSummary = calculateFinanceSummary(financeDraft, { artistFees, venueFee: 0 });
 
+  const payload = {
+    workspaceId,
+    name: eventDraft.eventName.trim(),
+    status: "draft" as const,
+    venueId: eventDraft.venueId ?? null,
+    venueName: eventDraft.venueName ?? "Venue TBD",
+    description: eventDraft.description,
+    dateKey: eventDraft.dateKey,
+    startTime: eventDraft.startTime,
+    artistCount: countUniqueArtists(scheduleSlots),
+    slotCount: scheduleSlots.length,
+    b2bCount: countB2b(scheduleSlots),
+    ticketInventory: financeDraft.ticketInventory,
+    expectedRevenue: financeSummary.expectedRevenue,
+    totalCosts: financeSummary.totalCosts,
+    projectedProfit: financeSummary.projectedProfit,
+    scheduleJson: scheduleSlots,
+    financeJson: financeDraft as unknown as Record<string, unknown>,
+  };
+
   try {
-    const created = await createWorkspaceEvent(session, {
-      workspaceId,
-      name: eventDraft.eventName.trim(),
-      status: "draft",
-      venueId: eventDraft.venueId ?? null,
-      venueName: eventDraft.venueName ?? "Venue TBD",
-      description: eventDraft.description,
-      dateKey: eventDraft.dateKey,
-      startTime: eventDraft.startTime,
-      artistCount: countUniqueArtists(scheduleSlots),
-      slotCount: scheduleSlots.length,
-      b2bCount: countB2b(scheduleSlots),
-      ticketInventory: financeDraft.ticketInventory,
-      expectedRevenue: financeSummary.expectedRevenue,
-      totalCosts: financeSummary.totalCosts,
-      projectedProfit: financeSummary.projectedProfit,
-      scheduleJson: scheduleSlots,
-      financeJson: financeDraft as unknown as Record<string, unknown>,
-    });
+    const editingId = getWizardEditingEventId();
+    const saved = editingId
+      ? await updateWorkspaceEvent(session, editingId, payload)
+      : await createWorkspaceEvent(session, payload);
 
     clearWizardEventDraft();
     clearWizardScheduleSlots();
     clearWizardFinanceDraft();
-    upsertManagedEvent(workspaceEventToManaged(created));
+    clearWizardEditingEventId();
+    upsertManagedEvent(workspaceEventToManaged(saved));
 
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event("promosync:events-updated"));
     }
 
-    return { ok: true, name: created.name };
+    return { ok: true, name: saved.name };
   } catch (err) {
     return {
       ok: false,

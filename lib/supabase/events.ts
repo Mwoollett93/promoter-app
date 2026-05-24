@@ -293,7 +293,10 @@ export async function updateWorkspaceEvent(
       description: patch.description ?? current.description,
       dateKey: patch.dateKey ?? current.dateKey,
       startTime: patch.startTime ?? current.startTime,
-      startsAt: buildStartsAt(patch.dateKey ?? current.dateKey ?? undefined, patch.startTime ?? current.startTime ?? undefined),
+      startsAt: buildStartsAt(
+        patch.dateKey ?? current.dateKey ?? undefined,
+        patch.startTime ?? current.startTime ?? undefined,
+      ),
       artistCount: patch.artistCount ?? current.artistCount,
       slotCount: patch.slotCount ?? current.slotCount,
       b2bCount: patch.b2bCount ?? current.b2bCount,
@@ -313,7 +316,23 @@ export async function updateWorkspaceEvent(
   const body: Record<string, unknown> = { updated_at: now };
   if (patch.name !== undefined) body.name = patch.name;
   if (patch.status !== undefined) body.status = patch.status;
+  if (patch.venueId !== undefined) body.venue_id = patch.venueId;
   if (patch.venueName !== undefined) body.venue_name = patch.venueName;
+  if (patch.description !== undefined) body.description = patch.description;
+  if (patch.dateKey !== undefined) body.date_key = patch.dateKey;
+  if (patch.startTime !== undefined) body.start_time = patch.startTime;
+  if (patch.dateKey !== undefined || patch.startTime !== undefined) {
+    body.starts_at = buildStartsAt(
+      patch.dateKey ?? undefined,
+      patch.startTime ?? undefined,
+    );
+  }
+  if (patch.artistCount !== undefined) body.artist_count = patch.artistCount;
+  if (patch.slotCount !== undefined) body.slot_count = patch.slotCount;
+  if (patch.b2bCount !== undefined) body.b2b_count = patch.b2bCount;
+  if (patch.ticketInventory !== undefined) body.ticket_inventory = patch.ticketInventory;
+  if (patch.expectedRevenue !== undefined) body.expected_revenue = patch.expectedRevenue;
+  if (patch.totalCosts !== undefined) body.total_costs = patch.totalCosts;
   if (patch.projectedProfit !== undefined) body.projected_profit = patch.projectedProfit;
   if (patch.scheduleJson !== undefined) body.schedule_json = patch.scheduleJson;
   if (patch.financeJson !== undefined) body.finance_json = patch.financeJson;

@@ -57,7 +57,9 @@ export default function TeamWorkspaceSettings() {
     try {
       await inviteWorkspaceMember(session, workspace.id, { email, role: inviteRole });
       setEmail("");
-      setMessage("Invitation recorded. They can join when they sign up with that email.");
+      setMessage(
+        "Invitation saved. When they sign in with that email they'll be added to this workspace. (No email is sent yet.)",
+      );
       await refreshMembers();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Invite failed.");
@@ -157,7 +159,12 @@ export default function TeamWorkspaceSettings() {
             {displayMembers.map((member) => (
               <tr key={member.id} className="border-t border-[#232330]">
                 <td className="py-3 font-medium">{member.displayName ?? "—"}</td>
-                <td className="py-3 text-[#A1A1AA]">{member.invitedEmail ?? "—"}</td>
+                <td className="py-3 text-[#A1A1AA]">
+                  {member.invitedEmail ??
+                    (member.userId && member.userId === session?.user.id
+                      ? session.user.email
+                      : "—")}
+                </td>
                 <td className="py-3">
                   {member.userId === membership?.userId && member.role === "admin" ? (
                     WORKSPACE_ROLE_LABELS[member.role]

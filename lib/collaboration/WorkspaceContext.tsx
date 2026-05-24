@@ -11,6 +11,7 @@ import {
 } from "@/lib/supabase/events";
 import { isLocalCollaborationMode } from "@/lib/collaboration/storage-mode";
 import {
+  acceptPendingWorkspaceInvites,
   ensureLocalWorkspace,
   ensureWorkspaceForUser,
   listWorkspaceMembers,
@@ -84,6 +85,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
+      await acceptPendingWorkspaceInvites(current);
+
       const settings = loadSettings();
       let ws: Workspace;
       let mem: WorkspaceMember;

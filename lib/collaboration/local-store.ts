@@ -73,6 +73,35 @@ export function loadLocalWorkspace(userId: string): Workspace | null {
   return readJson<Workspace | null>(`${PREFIX}workspace:${userId}`, null);
 }
 
+export function findLocalWorkspaceById(workspaceId: string): Workspace | null {
+  if (typeof window === "undefined") return null;
+  for (let i = 0; i < window.localStorage.length; i++) {
+    const storageKey = window.localStorage.key(i);
+    if (!storageKey?.startsWith(`${PREFIX}workspace:`)) continue;
+    const workspace = readJson<Workspace | null>(storageKey, null);
+    if (workspace?.id === workspaceId) return workspace;
+  }
+  return null;
+}
+
+export function findLocalMembershipForUser(userId: string): {
+  workspaceId: string;
+  membership: WorkspaceMember;
+} | null {
+  if (typeof window === "undefined") return null;
+  const prefix = `${PREFIX}members:`;
+  for (let i = 0; i < window.localStorage.length; i++) {
+    const storageKey = window.localStorage.key(i);
+    if (!storageKey?.startsWith(prefix)) continue;
+    const workspaceId = storageKey.slice(prefix.length);
+    const membership = loadLocalMembers(workspaceId).find(
+      (member) => member.userId === userId && member.status === "active",
+    );
+    if (membership) return { workspaceId, membership };
+  }
+  return null;
+}
+
 export function saveLocalWorkspace(userId: string, workspace: Workspace) {
   writeJson(`${PREFIX}workspace:${userId}`, workspace);
 }
