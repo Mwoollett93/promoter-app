@@ -1,3 +1,5 @@
+import { getResendApiKey, getResendFromAddress } from "@/lib/email/resend-env";
+
 export type SendTransactionalEmailResult =
   | { ok: true; stub: false }
   | { ok: true; stub: true }
@@ -8,7 +10,7 @@ export async function sendTransactionalEmail(input: {
   subject: string;
   html: string;
 }): Promise<SendTransactionalEmailResult> {
-  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const apiKey = getResendApiKey();
   if (!apiKey) {
     if (process.env.NODE_ENV === "development") {
       console.info("[email stub]", input.to, input.subject);
@@ -17,7 +19,7 @@ export async function sendTransactionalEmail(input: {
     return {
       ok: false,
       error:
-        "Email is not configured. Add RESEND_API_KEY to your environment (see .env.example).",
+        "RESEND_API_KEY is not loaded. Add it to promoter-app/.env.local and restart npm run dev (from the promoter-app folder).",
     };
   }
 
@@ -28,7 +30,7 @@ export async function sendTransactionalEmail(input: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: process.env.RESEND_FROM?.trim() ?? "PromoSync <onboarding@resend.dev>",
+      from: getResendFromAddress(),
       to: input.to,
       subject: input.subject,
       html: input.html,
