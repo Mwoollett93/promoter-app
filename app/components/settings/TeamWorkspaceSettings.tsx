@@ -5,6 +5,7 @@ import * as React from "react";
 import Button from "@/app/components/ui/Button";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import { canInviteMembers } from "@/lib/collaboration/permissions";
+import { sendWorkspaceInviteEmail } from "@/lib/notifications/send-workspace-invite-email";
 import {
   inviteWorkspaceMember,
   removeWorkspaceMember,
@@ -55,11 +56,44 @@ export default function TeamWorkspaceSettings() {
     setLoading(true);
     setMessage(null);
     try {
-      await inviteWorkspaceMember(session, workspace.id, { email, role: inviteRole });
+      const normalizedEmail = email.trim().toLowerCase();
+      await inviteWorkspaceMember(session, workspace.id, {
+        email: normalizedEmail,
+        role: inviteRole,
+      });
       setEmail("");
-      setMessage(
-        "Invitation saved. When they sign in with that email they'll be added to this workspace. (No email is sent yet.)",
-      );
+
+      if (usingLocalFallback) {
+        setMessage(
+          "Invitation saved on this device (offline mode). Connect Supabase and set RESEND_API_KEY to email invites.",
+        );
+      } else {
+        try {
+          const inviterName =
+            membership?.displayName ??
+            session.user.email?.split("@")[0] ??
+            "Your team";
+          const { stub } = await sendWorkspaceInviteEmail(session, {
+            to: normalizedEmail,
+            workspaceId: workspace.id,
+            workspaceName: workspace.name,
+            role: inviteRole,
+            inviterName,
+          });
+          setMessage(
+            stub
+              ? `Invitation saved for ${normalizedEmail}. Add RESEND_API_KEY to .env.local to send invite emails (dev stub only).`
+              : `Invitation email sent to ${normalizedEmail}. They can sign in or sign up with that address.`,
+          );
+        } catch (emailErr) {
+          setMessage(
+            `Invitation saved for ${normalizedEmail}, but the email could not be sent: ${
+              emailErr instanceof Error ? emailErr.message : "unknown error"
+            }`,
+          );
+        }
+      }
+
       await refreshMembers();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Invite failed.");
