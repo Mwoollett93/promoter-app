@@ -4,8 +4,9 @@ import * as React from "react";
 import { format } from "date-fns";
 import { CalendarIcon, ChevronDown, ChevronUp } from "lucide-react";
 
-import { Calendar } from "@/components/ui/calendar";
+import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 type DateInputProps = {
   label?: string;
@@ -114,7 +115,7 @@ export default function DateInput({
               onChange?.(date);
               if (date) setOpen(false);
             }}
-            className="rounded-[12px] bg-[#11111A] p-3"
+            className="rounded-[12px] bg-[#11111A] p-3 [--cell-size:2rem]"
             classNames={{
               months: "flex flex-col",
               month: "relative space-y-3",
@@ -132,11 +133,26 @@ export default function DateInput({
                 "flex h-8 w-8 items-center justify-center text-[12px] font-normal leading-4 text-[#71717A]",
               weeks: "space-y-1",
               week: "grid grid-cols-7",
-              day: "h-8 w-8 rounded-md p-0 text-[13px] font-normal leading-5 text-[#F5F5F7] hover:bg-[#232330]",
-              selected: "bg-[#7C3AED] text-[#F5F5F7] hover:bg-[#7C3AED]",
-              today: "border border-[#8B5CF6] text-[#F5F5F7]",
-              outside: "text-[#3F3F46]",
-              disabled: "text-[#3F3F46]",
+              day: "h-8 w-8 rounded-md p-0 text-[13px] font-normal leading-5 text-[#F5F5F7]",
+              outside: "text-[#3F3F46] opacity-50",
+              disabled: "text-[#3F3F46] opacity-40",
+              today: "rounded-md",
+            }}
+            components={{
+              DayButton: ({ className, ...dayProps }) => (
+                <CalendarDayButton
+                  {...dayProps}
+                  className={cn(
+                    className,
+                    "rounded-md hover:bg-[#232330] hover:text-[#F5F5F7]",
+                    "group-data-[focused=true]/day:!ring-0 group-data-[focused=true]/day:!border-transparent",
+                    "data-[selected-single=true]:bg-[#7C3AED] data-[selected-single=true]:text-[#F5F5F7] data-[selected-single=true]:hover:bg-[#7C3AED]",
+                    dayProps.modifiers.today &&
+                      !dayProps.modifiers.selected &&
+                      "border border-[#52525B] bg-transparent",
+                  )}
+                />
+              ),
             }}
           />
         </PopoverContent>

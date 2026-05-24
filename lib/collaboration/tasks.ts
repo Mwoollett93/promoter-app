@@ -226,3 +226,25 @@ export async function updateTask(
   });
   return mapRow(rows[0]);
 }
+
+export async function deleteTask(
+  session: SupabaseSession,
+  workspaceId: string,
+  taskId: string,
+): Promise<void> {
+  if (shouldUseLocalCollaboration(session, workspaceId)) {
+    const tasks = loadLocalTasks(workspaceId).filter((t) => t.id !== taskId);
+    saveLocalTasks(workspaceId, tasks);
+    return;
+  }
+
+  try {
+    await supabaseRest(`tasks?id=eq.${taskId}`, session, {
+      method: "DELETE",
+      prefer: "return=minimal",
+    });
+  } catch {
+    const tasks = loadLocalTasks(workspaceId).filter((t) => t.id !== taskId);
+    saveLocalTasks(workspaceId, tasks);
+  }
+}

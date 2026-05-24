@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { X } from "lucide-react";
 import {
   DndContext,
   DragOverlay,
@@ -19,7 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 
 import TaskDetailDrawer from "@/app/components/tasks/TaskDetailDrawer";
 import { logActivity } from "@/lib/collaboration/activity";
-import { createTask, listTasks, moveTask } from "@/lib/collaboration/tasks";
+import { createTask, deleteTask, listTasks, moveTask } from "@/lib/collaboration/tasks";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import { notifyTaskAssigned } from "@/lib/notifications/rules";
 import type { Task, TaskColumn } from "@/lib/types/collaboration";
@@ -111,6 +112,25 @@ export default function KanbanBoard({ workspaceId, eventId }: KanbanBoardProps) 
     }
   }
 
+  async function handleDeleteTask(task: Task) {
+    if (!session) return;
+    setTasks((prev) => prev.filter((t) => t.id !== task.id));
+    if (selectedTask?.id === task.id) setSelectedTask(null);
+    try {
+      await deleteTask(session, workspaceId, task.id);
+      void logActivity(session, {
+        workspaceId,
+        eventId: eventId ?? task.eventId,
+        entityType: "task",
+        entityId: task.id,
+        verb: "deleted",
+        summary: `Deleted task "${task.title}"`,
+      });
+    } catch {
+      void refresh();
+    }
+  }
+
   async function handleQuickAdd(column: TaskColumn) {
     if (!session || !newTitle.trim()) return;
     const task = await createTask(session, {
@@ -158,6 +178,7 @@ export default function KanbanBoard({ workspaceId, eventId }: KanbanBoardProps) 
               column={column}
               tasks={tasksByColumn[column]}
               onSelect={setSelectedTask}
+              onDelete={handleDeleteTask}
             />
           ))}
         </div>
@@ -194,10 +215,12 @@ function KanbanColumn({
   column,
   tasks,
   onSelect,
+  onDelete,
 }: {
   column: TaskColumn;
   tasks: Task[];
   onSelect: (task: Task) => void;
+  onDelete: (task: Task) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column });
 
@@ -218,7 +241,12 @@ function KanbanColumn({
       <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
         <ul className="flex flex-1 flex-col gap-2 p-2">
           {tasks.map((task) => (
-            <SortableTaskCard key={task.id} task={task} onSelect={onSelect} />
+            <SortableTaskCard
+              key={task.id}
+              task={task}
+              onSelect={onSelect}
+              onDelete={onDelete}
+            />
           ))}
         </ul>
       </SortableContext>
@@ -229,10 +257,13 @@ function KanbanColumn({
 function SortableTaskCard({
   task,
   onSelect,
+  onDelete,
 }: {
   task: Task;
   onSelect: (task: Task) => void;
+  onDelete: (task: Task) => void;
 }) {
+  const isComplete = task.column === "complete";
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
   });
@@ -246,31 +277,69 @@ function SortableTaskCard({
   return (
     <li ref={setNodeRef} style={style} className="touch-none">
       <div
-        {...attributes}
-        {...listeners}
-        className="cursor-grab active:cursor-grabbing"
+        className={[
+          "relative rounded-lg border bg-[#11111A] transition-colors",
+          isComplete ? "border-[#27272F] opacity-80" : "border-[#3F3F46] hover:border-[#52525B]",
+        ].join(" ")}
       >
-        <button
-          type="button"
-          onClick={() => onSelect(task)}
-          className="w-full rounded-lg border border-[#3F3F46] bg-[#11111A] px-3 py-2 text-left transition-colors hover:border-[#52525B]"
-        >
-          <p className="text-[13px] font-medium text-[#F5F5F7]">{task.title}</p>
-          {task.dueAt ? (
-            <p className="mt-1 text-[11px] text-[#71717A]">
-              Due {new Date(task.dueAt).toLocaleDateString()}
+        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing pr-7">
+          <button
+            type="button"
+            onClick={() => onSelect(task)}
+            className="w-full px-3 py-2 text-left"
+          >
+            <p
+              className={[
+                "text-[13px] font-medium",
+                isComplete ? "text-[#71717A] line-through" : "text-[#F5F5F7]",
+              ].join(" ")}
+            >
+              {task.title}
             </p>
-          ) : null}
-        </button>
+            {task.dueAt ? (
+              <p
+                className={[
+                  "mt-1 text-[11px]",
+                  isComplete ? "text-[#52525B] line-through" : "text-[#71717A]",
+                ].join(" ")}
+              >
+                Due {new Date(task.dueAt).toLocaleDateString()}
+              </p>
+            ) : null}
+          </button>
+        </div>
+
+        {!isComplete ? (
+          <button
+            type="button"
+            aria-label={`Delete ${task.title}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(task);
+            }}
+            className="absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-md text-[#71717A] transition-colors hover:bg-[#27272F] hover:text-[#FCA5A5]"
+          >
+            <X className="size-3.5" strokeWidth={2} />
+          </button>
+        ) : null}
       </div>
     </li>
   );
 }
 
 function TaskCardPreview({ task }: { task: Task }) {
+  const isComplete = task.column === "complete";
   return (
     <div className="rounded-lg border border-[#8B5CF6]/40 bg-[#11111A] px-3 py-2 shadow-lg">
-      <p className="text-[13px] font-medium text-[#F5F5F7]">{task.title}</p>
+      <p
+        className={[
+          "text-[13px] font-medium",
+          isComplete ? "text-[#71717A] line-through" : "text-[#F5F5F7]",
+        ].join(" ")}
+      >
+        {task.title}
+      </p>
     </div>
   );
 }
