@@ -57,9 +57,8 @@ create table if not exists public.artist_documents (
 
 create index if not exists artists_owner_created_idx on public.artists(owner_id, created_at desc);
 create index if not exists artists_owner_status_idx on public.artists(owner_id, status);
-create index if not exists artists_search_idx on public.artists using gin (
-  to_tsvector('english', coalesce(name, '') || ' ' || coalesce(artist_type, '') || ' ' || array_to_string(genres, ' ') || ' ' || array_to_string(tags, ' '))
-);
+-- Btree on lower(name) — GIN to_tsvector() indexes require IMMUTABLE expressions (not valid here).
+create index if not exists artists_owner_name_lower_idx on public.artists (owner_id, (lower(name)));
 create index if not exists artist_social_links_artist_idx on public.artist_social_links(artist_id);
 create index if not exists artist_documents_artist_idx on public.artist_documents(artist_id);
 

@@ -16,7 +16,7 @@ type TaskRow = {
   artist_id: string | null;
   venue_id: string | null;
   booking_id: string | null;
-  column: TaskColumn;
+  board_column: TaskColumn;
   position: number;
   title: string;
   description: string | null;
@@ -38,7 +38,7 @@ function mapRow(row: TaskRow): Task {
     artistId: row.artist_id,
     venueId: row.venue_id,
     bookingId: row.booking_id,
-    column: row.column,
+    column: row.board_column,
     position: row.position,
     title: row.title,
     description: row.description,
@@ -134,7 +134,7 @@ export async function createTask(
         event_id: input.eventId ?? null,
         artist_id: input.artistId ?? null,
         venue_id: input.venueId ?? null,
-        column: task.column,
+        board_column: task.column,
         position: task.position,
         title: task.title,
         description: task.description,
@@ -186,7 +186,7 @@ export async function moveTask(
   } catch {
     const rows = await supabaseRest<TaskRow[]>(`tasks?id=eq.${taskId}`, session, {
       method: "PATCH",
-      body: { column, position, updated_at: new Date().toISOString() },
+      body: { board_column: column, position, updated_at: new Date().toISOString() },
       prefer: "return=representation",
     });
     return mapRow(rows[0]);
