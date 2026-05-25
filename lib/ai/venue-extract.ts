@@ -1,3 +1,5 @@
+import { facilityOptionsForPrompt } from "@/lib/venues/facility-options";
+
 export type VenueExtractionResult = {
   name?: string | null;
   venueType?: string | null;
@@ -29,6 +31,13 @@ export type VenueExtractionResult = {
   parkingDetails?: string | null;
   loadInDetails?: string | null;
   loadOutDetails?: string | null;
+  /** Dollar amounts from the document (e.g. 2500 for $2,500). */
+  hireFee?: number | null;
+  depositAmount?: number | null;
+  minimumSpend?: number | null;
+  barSplitPercent?: number | null;
+  depositRequired?: boolean | null;
+  paymentTerms?: string | null;
 };
 
 const VENUE_TYPE_HINTS = [
@@ -41,6 +50,8 @@ const VENUE_TYPE_HINTS = [
   "Outdoor Space",
   "Multi-Room Venue",
 ].join(", ");
+
+const FACILITY_LIST = facilityOptionsForPrompt();
 
 const EXTRACTION_SCHEMA = `{
   "name": string | null,
@@ -72,7 +83,13 @@ const EXTRACTION_SCHEMA = `{
   "lateLicense": boolean | null,
   "parkingDetails": string | null,
   "loadInDetails": string | null,
-  "loadOutDetails": string | null
+  "loadOutDetails": string | null,
+  "hireFee": number | null,
+  "depositAmount": number | null,
+  "minimumSpend": number | null,
+  "barSplitPercent": number | null,
+  "depositRequired": boolean | null,
+  "paymentTerms": string | null
 }`;
 
 function parseAiJsonContent(content: string): VenueExtractionResult {
@@ -89,8 +106,7 @@ export async function extractVenueFieldsFromText(documentText: string): Promise<
   }
 
   const rawModel = process.env.AI_EXTRACTION_MODEL?.trim() ?? "";
-  const model =
-    rawModel.replace(/^optional:\s*/i, "").trim() || "gpt-4o-mini";
+  const model = rawModel.replace(/^optional:\s*/i, "").trim() || "gpt-4o-mini";
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -109,14 +125,20 @@ export async function extractVenueFieldsFromText(documentText: string): Promise<
             "You extract structured venue data from specification sheets for event promoters.",
             "Return JSON only matching the schema. Use null for unknown fields.",
             `For venueType, pick the closest match from: ${VENUE_TYPE_HINTS}.`,
-            "Split addresses into addressLine1, city, stateRegion, postalCode, country (default country Australia if Melbourne/VIC).",
-            "Put audio, stage, lighting, and production gear summaries in description.",
-            "Put backstage, security, loading, smoking, and policy notes in operationsNotes.",
-            "Map venue amenities (green room, catering, loading dock, courtyard, etc.) to facilities array using short labels.",
-            "Set securityRequired true if security/guards are mentioned.",
-            "Set equipmentProvided true if PA, DJ, or production equipment is listed.",
-            "Set lateLicense true if hours extend past midnight or curfew is after midnight.",
-            "Set smokingAllowed true if a smoking area is mentioned.",
+            "Split addresses into addressLine1, city, stateRegion, postalCode, country (default Australia if Melbourne/VIC).",
+            `For facilities, return ONLY exact labels from this list (select every item that applies): ${FACILITY_LIST}.`,
+            "Do NOT put checklist facilities in description — use the facilities array only.",
+            "Use otherFacilities only for amenities not in the checklist (max 200 chars).",
+            "description: brief venue summary only (1-2 sentences), not a list of gear.",
+            "operationsNotes: commercial terms, staffing, bonds, revenue split notes, license details.",
+            "Money fields are in dollars as numbers without symbols: hireFee 2500 for $2,500, depositAmount 1000 for bond, minimumSpend 8000 for bar minimum.",
+            "depositRequired true if security bond or deposit is mentioned.",
+            "barSplitPercent: venue/promoter bar share 0-100 if stated (promoter retains 100% => 0 for venue).",
+            "venueManagerName/Phone and bookingContactName/Email from primary contact lines.",
+            "loadInDetails: bump in / load in access times.",
+            "Set securityRequired if security bond or guards mentioned.",
+            "Set equipmentProvided true if in-house PA/DJ/production is listed.",
+            "Set lateLicense true if hours extend past midnight.",
           ].join(" "),
         },
         {
@@ -131,10 +153,20 @@ export async function extractVenueFieldsFromText(documentText: string): Promise<
     const errText = await response.text();
     let message = errText || `AI extraction failed (${response.status}).`;
     try {
-      const errJson = JSON.parse(errText) as { error?: { message?: string } };
+      const errJson = JSON.parse(errText) as { error?: { message?: string; code?: string } };
       if (errJson.error?.message) message = errJson.error.message;
-    } catch {
-      /* keep raw */
+      const lower = message.toLowerCase();
+      if (
+        errJson.error?.code === "insufficient_quota" ||
+        lower.includes("quota") ||
+        lower.includes("billing")
+      ) {
+        throw new Error(
+          "OpenAI billing has no available credits. In platform.openai.com go to Billing → add a payment method or prepaid credits, then retry. Usage stays at $0 until a request succeeds.",
+        );
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("OpenAI billing")) throw err;
     }
     throw new Error(message);
   }

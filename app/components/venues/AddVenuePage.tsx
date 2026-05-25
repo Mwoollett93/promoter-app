@@ -25,6 +25,7 @@ import {
 import * as SupabaseBrowser from "@/lib/supabase/browser";
 import type { SupabaseSession } from "@/lib/types/artist";
 import { applyVenueExtraction } from "@/lib/ai/apply-venue-extraction";
+import { VENUE_FACILITY_OPTIONS } from "@/lib/venues/facility-options";
 import { extractPdfTextInBrowser } from "@/lib/ai/extract-pdf-text-browser";
 import type { VenueExtractionResult } from "@/lib/ai/venue-extract";
 import { readJsonResponse } from "@/lib/api/read-json-response";
@@ -519,29 +520,7 @@ const venueNoiseOptions = ["Strict", "Moderate", "Flexible"];
 const venueAgeRestrictionOptions = ["18+", "21+", "All Ages"];
 const venueContactMethodOptions = ["Email", "Phone", "WhatsApp"];
 
-const venueFacilityOptions = [
-  "Main Room",
-  "Second Room",
-  "Outdoor Area",
-  "VIP Area",
-  "Bar",
-  "Cloakroom",
-  "Green Room",
-  "Kitchen",
-  "Toilets",
-  "Loading Dock",
-  "LED Wall",
-  "Stage",
-  "Sound System",
-  "Lighting Rig",
-  "Smoke Machine",
-  "Projector",
-  "DJ Booth",
-  "Rigging Points",
-  "Backline",
-  "Merch Space",
-  "Wi-Fi",
-];
+const venueFacilityOptions = [...VENUE_FACILITY_OPTIONS];
 
 const venueDocumentCategories = [
   "Venue Specs",
@@ -734,6 +713,7 @@ export default function AddVenuePage() {
 
       const pendingFile = pendingDocuments[0]?.file;
       let response: Response;
+      let documentText = "";
 
       if (pendingFile) {
         const name = pendingFile.name.toLowerCase();
@@ -747,7 +727,7 @@ export default function AddVenuePage() {
         }
 
         if (name.endsWith(".pdf")) {
-          const documentText = await extractPdfTextInBrowser(pendingFile);
+          documentText = await extractPdfTextInBrowser(pendingFile);
           response = await fetch("/api/venues/extract", {
             method: "POST",
             headers: {
@@ -757,13 +737,14 @@ export default function AddVenuePage() {
             body: JSON.stringify({ text: documentText }),
           });
         } else {
+          documentText = await pendingFile.text();
           response = await fetch("/api/venues/extract", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${session.accessToken}`,
             },
-            body: JSON.stringify({ text: await pendingFile.text() }),
+            body: JSON.stringify({ text: documentText }),
           });
         }
       } else if (draft.documents[0]?.filePath) {
@@ -792,7 +773,7 @@ export default function AddVenuePage() {
       if (!response.ok) throw new Error(payload.error ?? "Extraction failed.");
 
       const fields = (payload.fields ?? {}) as VenueExtractionResult;
-      patchDraft(applyVenueExtraction(draft, fields));
+      patchDraft(applyVenueExtraction(draft, fields, documentText));
       setExtractNotice(
         "Venue details filled from your document — review Basics, Capacity, and Operations before saving.",
       );

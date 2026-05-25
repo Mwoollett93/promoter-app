@@ -1,4 +1,9 @@
 import type { VenueExtractionResult } from "@/lib/ai/venue-extract";
+import {
+  normalizeExtractedFacilities,
+  VENUE_FACILITY_OPTIONS,
+  type VenueFacilityOption,
+} from "@/lib/venues/facility-options";
 
 export type VenueDraftLike = {
   name: string;
@@ -31,6 +36,12 @@ export type VenueDraftLike = {
   parkingDetails: string;
   loadInDetails: string;
   loadOutDetails: string;
+  depositRequired: boolean;
+  depositAmountCents: number;
+  hireFeeCents: number;
+  minimumSpendCents: number;
+  barSplitPercent: number;
+  paymentTerms: string;
 };
 
 const VENUE_TYPE_OPTIONS = [
@@ -69,6 +80,28 @@ function num(value: unknown, fallback: number): number {
   return fallback;
 }
 
+function dollarsToCents(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return value >= 10_000 ? Math.round(value) : Math.round(value * 100);
+  }
+  if (typeof value === "string") {
+    const cleaned = value.replace(/,/g, "").trim();
+    const parsed = Number.parseFloat(cleaned.replace(/[^0-9.]/g, ""));
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed >= 10_000 ? Math.round(parsed) : Math.round(parsed * 100);
+    }
+  }
+  return null;
+}
+
+function percent(value: unknown, fallback: number): number {
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100) {
+    return Math.round(value);
+  }
+  return fallback;
+}
+
 function bool(value: unknown, fallback: boolean): boolean {
   if (typeof value === "boolean") return value;
   return fallback;
@@ -84,7 +117,18 @@ function strList(value: unknown, fallback: string[]): string[] {
 export function applyVenueExtraction<T extends VenueDraftLike>(
   draft: T,
   fields: VenueExtractionResult,
+  documentText = "",
 ): T {
+  const facilities = normalizeExtractedFacilities(fields.facilities, documentText);
+
+  const hireFeeCents = dollarsToCents(fields.hireFee) ?? draft.hireFeeCents;
+  const depositAmountCents = dollarsToCents(fields.depositAmount) ?? draft.depositAmountCents;
+  const minimumSpendCents = dollarsToCents(fields.minimumSpend) ?? draft.minimumSpendCents;
+  const depositRequired =
+    fields.depositRequired === true ||
+    (depositAmountCents > 0 && fields.depositRequired !== false) ||
+    draft.depositRequired;
+
   return {
     ...draft,
     name: str(fields.name, draft.name),
@@ -105,7 +149,7 @@ export function applyVenueExtraction<T extends VenueDraftLike>(
     ageRestriction: str(fields.ageRestriction, draft.ageRestriction),
     wheelchairAccessible: bool(fields.wheelchairAccessible, draft.wheelchairAccessible),
     parkingAvailable: bool(fields.parkingAvailable, draft.parkingAvailable),
-    facilities: strList(fields.facilities, draft.facilities),
+    facilities: facilities.length > 0 ? facilities : strList(fields.facilities, draft.facilities),
     otherFacilities: str(fields.otherFacilities, draft.otherFacilities),
     venueManagerName: str(fields.venueManagerName, draft.venueManagerName),
     venueManagerPhone: str(fields.venueManagerPhone, draft.venueManagerPhone),
@@ -119,5 +163,13 @@ export function applyVenueExtraction<T extends VenueDraftLike>(
     parkingDetails: str(fields.parkingDetails, draft.parkingDetails),
     loadInDetails: str(fields.loadInDetails, draft.loadInDetails),
     loadOutDetails: str(fields.loadOutDetails, draft.loadOutDetails),
+    hireFeeCents: hireFeeCents > 0 ? hireFeeCents : draft.hireFeeCents,
+    depositAmountCents: depositAmountCents > 0 ? depositAmountCents : draft.depositAmountCents,
+    minimumSpendCents: minimumSpendCents > 0 ? minimumSpendCents : draft.minimumSpendCents,
+    depositRequired,
+    barSplitPercent: percent(fields.barSplitPercent, draft.barSplitPercent),
+    paymentTerms: str(fields.paymentTerms, draft.paymentTerms),
   };
 }
+
+export { VENUE_FACILITY_OPTIONS, type VenueFacilityOption };
