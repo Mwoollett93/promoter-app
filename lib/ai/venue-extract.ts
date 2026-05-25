@@ -88,7 +88,9 @@ export async function extractVenueFieldsFromText(documentText: string): Promise<
     throw new Error("OPENAI_API_KEY is not configured on the server.");
   }
 
-  const model = process.env.AI_EXTRACTION_MODEL?.trim() || "gpt-4o-mini";
+  const rawModel = process.env.AI_EXTRACTION_MODEL?.trim() ?? "";
+  const model =
+    rawModel.replace(/^optional:\s*/i, "").trim() || "gpt-4o-mini";
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
