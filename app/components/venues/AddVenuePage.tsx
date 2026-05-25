@@ -24,6 +24,9 @@ import {
 } from "@/lib/supabase/browser";
 import * as SupabaseBrowser from "@/lib/supabase/browser";
 import type { SupabaseSession } from "@/lib/types/artist";
+import { applyVenueExtraction } from "@/lib/ai/apply-venue-extraction";
+import type { VenueExtractionResult } from "@/lib/ai/venue-extract";
+import { readJsonResponse } from "@/lib/api/read-json-response";
 import CurrencyText from "@/app/components/ui/CurrencyText";
 
 type VenueStatus = "active" | "inactive";
@@ -725,10 +728,14 @@ export default function AddVenuePage() {
     setError(null);
 
     try {
-      let body: { text?: string; filePath?: string; fileBase64?: string; fileName?: string };
-      if (pendingDocuments[0]?.file) {
-        const file = pendingDocuments[0].file;
-        const name = file.name.toLowerCase();
+      const session = getStoredSession();
+      if (!session?.accessToken) throw new Error("Sign in to use AI extraction.");
+
+      const pendingFile = pendingDocuments[0]?.file;
+      let response: Response;
+
+      if (pendingFile) {
+        const name = pendingFile.name.toLowerCase();
         const supported =
           name.endsWith(".pdf") ||
           name.endsWith(".txt") ||
@@ -737,69 +744,48 @@ export default function AddVenuePage() {
         if (!supported) {
           throw new Error("Use a .pdf, .txt, .csv, or .json file for AI extraction.");
         }
+
         if (name.endsWith(".pdf")) {
-          const bytes = await file.arrayBuffer();
-          const uint8 = new Uint8Array(bytes);
-          let binary = "";
-          const chunkSize = 0x8000;
-          for (let i = 0; i < uint8.length; i += chunkSize) {
-            binary += String.fromCharCode(...uint8.subarray(i, i + chunkSize));
-          }
-          body = { fileBase64: btoa(binary), fileName: file.name };
+          const form = new FormData();
+          form.append("file", pendingFile);
+          response = await fetch("/api/venues/extract", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${session.accessToken}` },
+            body: form,
+          });
         } else {
-          body = { text: await file.text() };
+          response = await fetch("/api/venues/extract", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.accessToken}`,
+            },
+            body: JSON.stringify({ text: await pendingFile.text() }),
+          });
         }
       } else if (draft.documents[0]?.filePath) {
-        body = { filePath: draft.documents[0].filePath };
+        response = await fetch("/api/venues/extract", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+          body: JSON.stringify({ filePath: draft.documents[0].filePath }),
+        });
       } else {
         throw new Error("No document available to extract.");
       }
 
-      const session = getStoredSession();
-      if (!session?.accessToken) throw new Error("Sign in to use AI extraction.");
-
-      const response = await fetch("/api/venues/extract", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.accessToken}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      const payload = (await response.json()) as {
-        error?: string;
-        fields?: Record<string, unknown>;
-      };
+      const payload = await readJsonResponse<{ error?: string; fields?: Record<string, unknown> }>(
+        response,
+      );
       if (!response.ok) throw new Error(payload.error ?? "Extraction failed.");
 
-      const fields = payload.fields ?? {};
-      patchDraft({
-        maxCapacity: typeof fields.maxCapacity === "number" ? fields.maxCapacity : draft.maxCapacity,
-        indoorCapacity:
-          typeof fields.indoorCapacity === "number" ? fields.indoorCapacity : draft.indoorCapacity,
-        outdoorCapacity:
-          typeof fields.outdoorCapacity === "number" ? fields.outdoorCapacity : draft.outdoorCapacity,
-        curfewTime: typeof fields.curfewTime === "string" ? fields.curfewTime : draft.curfewTime,
-        noiseRestriction:
-          typeof fields.noiseRestriction === "string" ? fields.noiseRestriction : draft.noiseRestriction,
-        addressLine1: typeof fields.addressLine1 === "string" ? fields.addressLine1 : draft.addressLine1,
-        city: typeof fields.city === "string" ? fields.city : draft.city,
-        country: typeof fields.country === "string" ? fields.country : draft.country,
-        venueManagerName:
-          typeof fields.venueManagerName === "string" ? fields.venueManagerName : draft.venueManagerName,
-        venueManagerPhone:
-          typeof fields.venueManagerPhone === "string" ? fields.venueManagerPhone : draft.venueManagerPhone,
-        bookingContactEmail:
-          typeof fields.bookingContactEmail === "string"
-            ? fields.bookingContactEmail
-            : draft.bookingContactEmail,
-        description: typeof fields.description === "string" ? fields.description : draft.description,
-        facilities: Array.isArray(fields.facilities)
-          ? fields.facilities.filter((f): f is string => typeof f === "string")
-          : draft.facilities,
-      });
-      setExtractNotice("AI suggestions applied — review each field before saving.");
+      const fields = (payload.fields ?? {}) as VenueExtractionResult;
+      patchDraft(applyVenueExtraction(draft, fields));
+      setExtractNotice(
+        "Venue details filled from your document — review Basics, Capacity, and Operations before saving.",
+      );
     } catch (err) {
       setExtractNotice(err instanceof Error ? err.message : "Extraction failed.");
     } finally {

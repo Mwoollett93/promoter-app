@@ -32,7 +32,7 @@ for select using (
     select 1 from public.workspace_members wm
     where wm.workspace_id = integration_connections.workspace_id
       and wm.user_id = auth.uid()
-      and wm.role in ('owner', 'admin')
+      and wm.role = 'admin'::public.workspace_role
   )
 );
 

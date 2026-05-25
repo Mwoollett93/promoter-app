@@ -123,8 +123,10 @@ Enable **Realtime** for `activity_log`, `comments`, and `tasks` if you want live
 Run additional SQL in Supabase (after collaboration):
 
 1. `promoter-app/supabase/sprint2-artist-fees.sql`
-2. `promoter-app/supabase/sprint2-billing.sql`
+2. `promoter-app/supabase/sprint2-billing.sql` (uses `admin` role, not `owner`)
 3. `promoter-app/supabase/sprint2-integrations.sql`
+
+If billing SQL failed with `invalid input value for enum workspace_role: "owner"`, run `promoter-app/supabase/sprint2-billing-fix-rls.sql` (or re-run the updated `sprint2-billing.sql`).
 
 ### Vercel environment variables
 

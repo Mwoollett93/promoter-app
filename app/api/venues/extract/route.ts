@@ -6,6 +6,7 @@ import { getBearerToken, getUserFromAccessToken } from "@/lib/supabase/server-us
 import { getSupabaseServiceConfig } from "@/lib/supabase/service";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 async function downloadStorageDocument(filePath: string): Promise<{ buffer: Buffer; contentType: string }> {
   const config = getSupabaseServiceConfig();
@@ -43,6 +44,11 @@ async function downloadStorageDocument(filePath: string): Promise<{ buffer: Buff
   return { buffer: Buffer.from(arrayBuffer), contentType };
 }
 
+async function documentTextFromUpload(file: File): Promise<string> {
+  const buffer = Buffer.from(await file.arrayBuffer());
+  return extractDocumentText(buffer, file.name, file.type);
+}
+
 export async function POST(request: Request) {
   try {
     const accessToken = getBearerToken(request);
@@ -51,32 +57,44 @@ export async function POST(request: Request) {
     const user = await getUserFromAccessToken(accessToken);
     if (!user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const body = (await request.json()) as {
-      filePath?: string;
-      text?: string;
-      fileBase64?: string;
-      fileName?: string;
-    };
-    const filePath = body.filePath?.trim();
-    const inlineText = body.text?.trim();
-    const fileBase64 = body.fileBase64?.trim();
-    const fileName = body.fileName?.trim() ?? filePath ?? "document";
+    const contentType = request.headers.get("content-type") ?? "";
+    let documentText = "";
 
-    let documentText = inlineText ?? "";
+    if (contentType.includes("multipart/form-data")) {
+      const form = await request.formData();
+      const file = form.get("file");
+      if (!(file instanceof File) || file.size === 0) {
+        return NextResponse.json({ error: "Upload a document file to extract." }, { status: 400 });
+      }
+      documentText = await documentTextFromUpload(file);
+    } else {
+      const body = (await request.json()) as {
+        filePath?: string;
+        text?: string;
+        fileBase64?: string;
+        fileName?: string;
+      };
+      const filePath = body.filePath?.trim();
+      const inlineText = body.text?.trim();
+      const fileBase64 = body.fileBase64?.trim();
+      const fileName = body.fileName?.trim() ?? filePath ?? "document";
 
-    if (!documentText && fileBase64) {
-      const buffer = Buffer.from(fileBase64, "base64");
-      documentText = await extractDocumentText(buffer, fileName);
+      documentText = inlineText ?? "";
+
+      if (!documentText && fileBase64) {
+        const buffer = Buffer.from(fileBase64, "base64");
+        documentText = await extractDocumentText(buffer, fileName);
+      }
+
+      if (!documentText && filePath) {
+        const downloaded = await downloadStorageDocument(filePath);
+        documentText = await extractDocumentText(downloaded.buffer, filePath, downloaded.contentType);
+      }
     }
 
-    if (!documentText && filePath) {
-      const { buffer, contentType } = await downloadStorageDocument(filePath);
-      documentText = await extractDocumentText(buffer, filePath, contentType);
-    }
-
-    if (!documentText) {
+    if (!documentText.trim()) {
       return NextResponse.json(
-        { error: "Provide filePath (uploaded document), fileBase64, or text to extract." },
+        { error: "No text found in the document. Use a text-based PDF or a .txt copy." },
         { status: 400 },
       );
     }
