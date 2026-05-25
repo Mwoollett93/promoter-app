@@ -1,3 +1,4 @@
+import { formatServiceError } from "@/lib/supabase/postgrest-error";
 import { getSupabaseServerConfig } from "@/lib/supabase/server-auth";
 
 type ServiceConfig = {
@@ -38,7 +39,7 @@ export async function serviceRest<T>(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `Service request failed (${response.status}).`);
+    throw new Error(formatServiceError(text, response.status));
   }
 
   if (response.status === 204) return undefined as T;

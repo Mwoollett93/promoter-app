@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { navLinks, site } from "@/lib/marketing/content";
+import { siteLinks } from "@/lib/marketing/site-links";
 
 export default function MarketingFooter() {
   return (
@@ -62,9 +63,18 @@ export default function MarketingFooter() {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col gap-2 border-t border-[#232330] pt-8 text-[13px] text-[#71717A] sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-12 flex flex-col gap-4 border-t border-[#232330] pt-8 text-[13px] text-[#71717A] sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} {site.name}. Built by promoters, for promoters.</p>
-          <p>Melbourne · Underground · Independent</p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Link href={siteLinks.terms} className="text-[#A1A1AA] transition-colors hover:text-[#F5F5F7]">
+              Terms of Service
+            </Link>
+            <Link href={siteLinks.privacy} className="text-[#A1A1AA] transition-colors hover:text-[#F5F5F7]">
+              Privacy Policy
+            </Link>
+            <span className="hidden text-[#3F3F46] sm:inline">·</span>
+            <span>Melbourne · Underground · Independent</span>
+          </div>
         </div>
       </div>
     </footer>

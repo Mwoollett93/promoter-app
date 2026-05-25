@@ -681,6 +681,7 @@ function BillingTab({ billing }: { billing: import("@/lib/settings/settings").Bi
   }, [workspace?.id, billing.plan]);
 
   const displayPlan = remote?.plan ?? billing.plan;
+  const billingDbMissing = Boolean(error?.includes("sprint2-billing.sql"));
 
   async function handleCheckout(planId: CheckoutPlanId) {
     if (!workspace?.id) return;
@@ -714,9 +715,9 @@ function BillingTab({ billing }: { billing: import("@/lib/settings/settings").Bi
         </p>
       ) : null}
       <SettingsCard title="Current Plan">
-        {!remote?.stripeConfigured ? (
+        {!billingDbMissing && !remote?.stripeConfigured ? (
           <p className="rounded-lg border border-[#8B5CF6]/25 bg-[#1A1630]/30 px-3 py-2 text-[12px] text-[#C4B5FD]">
-            Add STRIPE_SECRET_KEY and price IDs on the server to enable checkout.
+            Add STRIPE_SECRET_KEY and price IDs in Vercel, then redeploy, to enable checkout.
           </p>
         ) : null}
         <p className="mt-4 text-[22px] font-bold text-[#F5F5F7]">{displayPlan}</p>

@@ -716,7 +716,7 @@ export default function AddVenuePage() {
 
   async function handleAiExtract() {
     if (pendingDocuments.length === 0 && draft.documents.length === 0) {
-      setExtractNotice("Upload a text document (.txt, .csv, .json) first.");
+      setExtractNotice("Upload a document (.pdf, .txt, .csv, or .json) first.");
       return;
     }
 
@@ -725,14 +725,30 @@ export default function AddVenuePage() {
     setError(null);
 
     try {
-      let body: { text?: string; filePath?: string };
+      let body: { text?: string; filePath?: string; fileBase64?: string; fileName?: string };
       if (pendingDocuments[0]?.file) {
         const file = pendingDocuments[0].file;
         const name = file.name.toLowerCase();
-        if (!name.endsWith(".txt") && !name.endsWith(".csv") && !name.endsWith(".json")) {
-          throw new Error("Use a .txt, .csv, or .json file for AI extraction in this release.");
+        const supported =
+          name.endsWith(".pdf") ||
+          name.endsWith(".txt") ||
+          name.endsWith(".csv") ||
+          name.endsWith(".json");
+        if (!supported) {
+          throw new Error("Use a .pdf, .txt, .csv, or .json file for AI extraction.");
         }
-        body = { text: await file.text() };
+        if (name.endsWith(".pdf")) {
+          const bytes = await file.arrayBuffer();
+          const uint8 = new Uint8Array(bytes);
+          let binary = "";
+          const chunkSize = 0x8000;
+          for (let i = 0; i < uint8.length; i += chunkSize) {
+            binary += String.fromCharCode(...uint8.subarray(i, i + chunkSize));
+          }
+          body = { fileBase64: btoa(binary), fileName: file.name };
+        } else {
+          body = { text: await file.text() };
+        }
       } else if (draft.documents[0]?.filePath) {
         body = { filePath: draft.documents[0].filePath };
       } else {
@@ -1496,7 +1512,7 @@ function DocumentsStep({
           <p className="mt-3 text-[13px] text-[#C4B5FD]">{extractNotice}</p>
         ) : (
           <p className="mt-3 text-[12px] text-[#71717A]">
-            Upload a .txt, .csv, or .json spec first. PDF support is coming soon.
+            Upload a venue spec (.pdf, .txt, .csv, or .json), then extract.
           </p>
         )}
 

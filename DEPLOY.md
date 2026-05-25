@@ -138,7 +138,7 @@ Run additional SQL in Supabase (after collaboration):
 | `GOOGLE_INTEGRATION_CLIENT_ID` / `GOOGLE_INTEGRATION_CLIENT_SECRET` | Google Calendar connect |
 | `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` | Spotify connect |
 | `STRIPE_CONNECT_CLIENT_ID` | Stripe revenue sync (Connect OAuth) |
-| `OPENAI_API_KEY` | Venue document AI extraction |
+| `OPENAI_API_KEY` | Venue document AI extraction (.pdf, .txt, .csv, .json) |
 | `AI_EXTRACTION_MODEL` | Optional (default `gpt-4o-mini`) |
 
 ### Stripe webhook
