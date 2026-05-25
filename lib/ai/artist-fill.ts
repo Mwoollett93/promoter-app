@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import { parseArtistFillResponse, type ArtistFillResponse } from "@/lib/ai/artistSchema";
 
 const MATCH_SCHEMA = `{
@@ -100,8 +102,17 @@ export async function fetchArtistMatches(artistName: string): Promise<ArtistFill
   if (!content) throw new Error("AI returned an empty response.");
 
   try {
-    return parseArtistFillResponse(parseAiJsonContent(content));
-  } catch {
-    throw new Error("AI returned invalid artist data. Try again.");
+    const raw = parseAiJsonContent(content);
+    return parseArtistFillResponse(raw, artistName.trim());
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      throw new Error(
+        "AI returned an unexpected format. Try again with a more specific artist name.",
+      );
+    }
+    if (err instanceof SyntaxError) {
+      throw new Error("AI returned malformed JSON. Try again.");
+    }
+    throw err instanceof Error ? err : new Error("Artist lookup failed.");
   }
 }
