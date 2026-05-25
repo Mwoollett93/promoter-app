@@ -38,6 +38,7 @@ import {
   updateArtistPromoImage,
 } from "@/lib/supabase/browser";
 import ArtistAiFillButton from "@/app/components/artists/ArtistAiFillButton";
+import ArtistAvatar from "@/app/components/artists/ArtistAvatar";
 import { countWords, MAX_ARTIST_BIO_WORDS, trimToMaxWords } from "@/lib/ai/artist-text";
 import type {
   ArtistDocument,
@@ -659,7 +660,10 @@ function BasicInfoStep({
               <ArtistAiFillButton
                 artistName={draft.name}
                 draft={draft}
-                onApply={(next) => patchDraft(next)}
+                onApply={(next) => {
+                  patchDraft(next);
+                  if (next.promoImageUrl) setPromoImageFile(null);
+                }}
                 onError={onAiError}
                 onSuccess={onAiSuccess}
               />
@@ -709,13 +713,10 @@ function BasicInfoStep({
             <label className="mb-1.5 block text-sm font-medium text-[#F5F5F7]">Promo Image</label>
             {draft.promoImageUrl && !promoImageFile ? (
               <div className="mb-3 flex items-center gap-3 rounded-xl border border-[#232330] bg-[#0F0F17] p-3">
-                <img
-                  src={draft.promoImageUrl}
-                  alt=""
-                  className="size-16 rounded-lg border border-[#232330] object-cover"
-                />
+                <ArtistAvatar name={draft.name || "Artist"} imageUrl={draft.promoImageUrl} size={64} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] text-[#E4E4E7]">AI-suggested image</p>
+                  <p className="text-[13px] font-medium text-[#E4E4E7]">Profile image</p>
+                  <p className="truncate text-[12px] text-[#71717A]">{draft.promoImageUrl}</p>
                   <button
                     type="button"
                     onClick={() => patchDraft({ promoImageUrl: "" })}

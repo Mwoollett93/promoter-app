@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { normalizeArtistClassification } from "@/lib/ai/artist-classification";
+import { sanitizeArtistImageUrl } from "@/lib/ai/artist-image";
 import { trimToMaxWords } from "@/lib/ai/artist-text";
 
 export const artistConfidenceSchema = z.enum(["low", "medium", "high"]);
@@ -15,6 +17,12 @@ export const artistMatchSchema = z.object({
   soundcloud: z.string().optional(),
   spotify: z.string().optional(),
   bookingEmail: z.string().optional(),
+  classification: z.enum(["Emerging", "Established", "Headliner", "Legacy"]).optional(),
+  agencyName: z.string().optional(),
+  managementCompany: z.string().optional(),
+  contactName: z.string().optional(),
+  contactRole: z.string().optional(),
+  contactPhone: z.string().optional(),
   confidence: artistConfidenceSchema,
   sources: z.array(z.string()).optional(),
 });
@@ -93,7 +101,17 @@ function coerceMatchEntry(raw: unknown, fallbackName: string): Record<string, un
     instagram: coerceOptionalString(entry.instagram),
     soundcloud: coerceOptionalString(entry.soundcloud),
     spotify: coerceOptionalString(entry.spotify),
-    bookingEmail: coerceOptionalString(entry.bookingEmail ?? entry.email),
+    bookingEmail: coerceOptionalString(entry.bookingEmail ?? entry.booking_email),
+    classification: normalizeArtistClassification(entry.classification) ?? undefined,
+    agencyName: coerceOptionalString(entry.agencyName ?? entry.agency ?? entry.agency_name),
+    managementCompany: coerceOptionalString(
+      entry.managementCompany ?? entry.management ?? entry.management_company,
+    ),
+    contactName: coerceOptionalString(
+      entry.contactName ?? entry.agentName ?? entry.bookingContact ?? entry.agent_name,
+    ),
+    contactRole: coerceOptionalString(entry.contactRole ?? entry.agentRole ?? entry.agent_role),
+    contactPhone: coerceOptionalString(entry.contactPhone ?? entry.phone ?? entry.agentPhone),
     confidence: coerceConfidence(entry.confidence),
     sources: coerceStringArray(entry.sources),
   };
@@ -142,12 +160,18 @@ export function parseArtistFillResponse(raw: unknown, queryName = ""): ArtistFil
       description: trimToMaxWords(match.description),
       genres: match.genres.map((g) => g.trim()).filter(Boolean),
       location: emptyToUndefined(match.location),
-      imageUrl: emptyToUndefined(match.imageUrl),
+      imageUrl: sanitizeArtistImageUrl(match.imageUrl),
       website: emptyToUndefined(match.website),
       instagram: emptyToUndefined(match.instagram),
       soundcloud: emptyToUndefined(match.soundcloud),
       spotify: emptyToUndefined(match.spotify),
       bookingEmail: emptyToUndefined(match.bookingEmail),
+      classification: match.classification,
+      agencyName: emptyToUndefined(match.agencyName),
+      managementCompany: emptyToUndefined(match.managementCompany),
+      contactName: emptyToUndefined(match.contactName),
+      contactRole: emptyToUndefined(match.contactRole),
+      contactPhone: emptyToUndefined(match.contactPhone),
       sources: match.sources?.map((s) => s.trim()).filter(Boolean),
     })),
   };

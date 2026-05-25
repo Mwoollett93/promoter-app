@@ -3,6 +3,7 @@
 import * as React from "react";
 import { ExternalLink, Sparkles, X } from "lucide-react";
 
+import ArtistAvatar from "@/app/components/artists/ArtistAvatar";
 import Button from "@/app/components/ui/Button";
 import type { ArtistMatch } from "@/lib/ai/artistSchema";
 
@@ -116,17 +117,7 @@ export default function ArtistMatchReviewModal({
                     ].join(" ")}
                   >
                     <div className="flex shrink-0 items-start sm:w-[88px]">
-                      {match.imageUrl ? (
-                        <img
-                          src={match.imageUrl}
-                          alt=""
-                          className="size-[72px] rounded-lg border border-[#232330] object-cover"
-                        />
-                      ) : (
-                        <div className="flex size-[72px] items-center justify-center rounded-lg border border-dashed border-[#3F3F46] bg-[#0B0B10] text-[11px] text-[#71717A]">
-                          No image
-                        </div>
-                      )}
+                      <ArtistAvatar name={match.artistName} imageUrl={match.imageUrl} size={72} />
                     </div>
 
                     <div className="min-w-0 flex-1">
@@ -143,6 +134,15 @@ export default function ArtistMatchReviewModal({
                       </div>
                       {match.location ? (
                         <p className="mt-1 text-[13px] text-[#A1A1AA]">{match.location}</p>
+                      ) : null}
+                      {match.classification ? (
+                        <p className="mt-1 text-[12px] text-[#8B5CF6]">{match.classification}</p>
+                      ) : null}
+                      {match.agencyName || match.managementCompany ? (
+                        <p className="mt-1 text-[12px] text-[#71717A]">
+                          {[match.agencyName, match.managementCompany].filter(Boolean).join(" · ")}
+                          {match.contactName ? ` · ${match.contactName}` : ""}
+                        </p>
                       ) : null}
                       {match.genres.length > 0 ? (
                         <div className="mt-2 flex flex-wrap gap-1.5">

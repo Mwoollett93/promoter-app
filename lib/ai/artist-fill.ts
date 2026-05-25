@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { enrichArtistMatchImages } from "@/lib/ai/artist-image";
 import { parseArtistFillResponse, type ArtistFillResponse } from "@/lib/ai/artistSchema";
 
 const MATCH_SCHEMA = `{
@@ -15,6 +16,12 @@ const MATCH_SCHEMA = `{
       "soundcloud": string | null,
       "spotify": string | null,
       "bookingEmail": string | null,
+      "classification": "Emerging" | "Established" | "Headliner" | "Legacy" | null,
+      "agencyName": string | null,
+      "managementCompany": string | null,
+      "contactName": string | null,
+      "contactRole": string | null,
+      "contactPhone": string | null,
       "confidence": "low" | "medium" | "high",
       "sources": string[] | null
     }
@@ -55,9 +62,13 @@ export async function fetchArtistMatches(artistName: string): Promise<ArtistFill
             "Given an artist name, return 1 to 3 possible real-world artist matches (different artists with similar names only if genuinely ambiguous).",
             "Return valid JSON only matching the schema.",
             "Bio/description must stay under 500 words. Use null or omit fields you are not reasonably confident about.",
-            "Do not invent booking emails, fees, or agency details.",
+            "Do not invent booking emails or phone numbers.",
+            "Never use example.com or placeholder image URLs. Omit imageUrl unless you have a real public CDN URL; Spotify links are preferred for photos.",
+            "classification: Emerging, Established, Headliner, or Legacy based on career profile.",
+            "agencyName / managementCompany / contactName / contactRole (Agent, Manager, etc.) / contactPhone when a booking agency is known.",
             "Genres should be standard electronic music genres when applicable (House, Techno, Drum & Bass, etc.).",
             "location: city and country when known, e.g. Melbourne, Australia.",
+            "spotify: full open.spotify.com/artist/... URL when known (helps load profile image).",
             "URLs must be full https links when provided.",
             "confidence: high = well-known artist with strong public info; medium = plausible match; low = uncertain.",
             "sources: short list of public profile types used (e.g. Spotify, Instagram, press).",
@@ -103,7 +114,9 @@ export async function fetchArtistMatches(artistName: string): Promise<ArtistFill
 
   try {
     const raw = parseAiJsonContent(content);
-    return parseArtistFillResponse(raw, artistName.trim());
+    const parsed = parseArtistFillResponse(raw, artistName.trim());
+    const matches = await enrichArtistMatchImages(parsed.matches);
+    return { matches };
   } catch (err) {
     if (err instanceof z.ZodError) {
       throw new Error(

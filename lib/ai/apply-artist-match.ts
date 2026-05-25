@@ -8,8 +8,22 @@ export type ArtistFieldConflict = {
   suggested: string;
 };
 
+const CONTACT_ROLES = ["Artist", "Agent", "Manager", "Tour Manager"];
+
 function hasText(value: string | undefined): boolean {
   return Boolean(value?.trim());
+}
+
+function normalizeContactRole(value: string | undefined): string {
+  if (!value?.trim()) return "Agent";
+  const lower = value.trim().toLowerCase();
+  for (const role of CONTACT_ROLES) {
+    if (lower === role.toLowerCase() || lower.includes(role.toLowerCase())) return role;
+  }
+  if (lower.includes("manager")) return "Manager";
+  if (lower.includes("agent")) return "Agent";
+  if (lower.includes("tour")) return "Tour Manager";
+  return "Agent";
 }
 
 function setSocialUrl(links: ArtistSocialLink[], platform: ArtistSocialLink["platform"], url: string): ArtistSocialLink[] {
@@ -26,8 +40,13 @@ export function listArtistFieldConflicts(draft: ArtistDraft, match: ArtistMatch)
     { field: "Bio", current: draft.bio, suggested: match.description },
     { field: "City", current: draft.city, suggested: city },
     { field: "Country", current: draft.country, suggested: country },
+    { field: "Classification", current: draft.classification, suggested: match.classification ?? "" },
     { field: "Email", current: draft.email, suggested: match.bookingEmail ?? "" },
     { field: "Promo image URL", current: draft.promoImageUrl, suggested: match.imageUrl ?? "" },
+    { field: "Agency", current: draft.agencyName, suggested: match.agencyName ?? "" },
+    { field: "Management company", current: draft.managementCompany, suggested: match.managementCompany ?? "" },
+    { field: "Contact name", current: draft.contactName, suggested: match.contactName ?? "" },
+    { field: "Contact phone", current: draft.phone, suggested: match.contactPhone ?? "" },
     {
       field: "Instagram",
       current: draft.socialLinks.find((l) => l.platform === "instagram")?.url ?? "",
@@ -88,12 +107,37 @@ export function applyArtistMatch(
   if (city && (!hasText(draft.city) || overwrite)) next.city = city;
   if (country && (!hasText(draft.country) || overwrite)) next.country = country;
 
+  if (match.classification && (!hasText(draft.classification) || overwrite)) {
+    next.classification = match.classification;
+  }
+
   if (match.bookingEmail && (!hasText(draft.email) || overwrite)) {
     next.email = match.bookingEmail;
   }
 
   if (match.imageUrl && (!hasText(draft.promoImageUrl) || overwrite)) {
     next.promoImageUrl = match.imageUrl;
+  }
+
+  if (match.agencyName && (!hasText(draft.agencyName) || overwrite)) {
+    next.agencyName = match.agencyName;
+  }
+
+  if (match.managementCompany && (!hasText(draft.managementCompany) || overwrite)) {
+    next.managementCompany = match.managementCompany;
+  }
+
+  if (match.contactName && (!hasText(draft.contactName) || overwrite)) {
+    next.contactName = match.contactName;
+    if (!hasText(draft.contactRole) || overwrite) {
+      next.contactRole = normalizeContactRole(match.contactRole);
+    }
+  } else if (match.contactRole && (!hasText(draft.contactRole) || overwrite)) {
+    next.contactRole = normalizeContactRole(match.contactRole);
+  }
+
+  if (match.contactPhone && (!hasText(draft.phone) || overwrite)) {
+    next.phone = match.contactPhone;
   }
 
   if (match.website && (!hasText(draft.internalNotes) || overwrite)) {
