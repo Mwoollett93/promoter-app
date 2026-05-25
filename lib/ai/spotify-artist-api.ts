@@ -66,17 +66,50 @@ export type SpotifyArtistMatch = {
   externalUrl?: string;
 };
 
-/** Search + fetch full artist object; use artist.images only (not oEmbed/album art). */
+/** Public oEmbed — no API keys; only works when a full artist profile URL is known. */
+async function fetchSpotifyOEmbedPortrait(
+  artistUrl: string,
+  artistName: string,
+): Promise<SpotifyArtistMatch | null> {
+  const idMatch = artistUrl.match(/spotify\.com\/artist\/([a-zA-Z0-9]+)/i);
+  if (!idMatch?.[1]) return null;
+
+  try {
+    const res = await fetch(
+      `https://open.spotify.com/oembed?url=${encodeURIComponent(artistUrl)}`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as { thumbnail_url?: string };
+    if (!data.thumbnail_url) return null;
+
+    return {
+      id: idMatch[1],
+      name: artistName,
+      imageUrl: data.thumbnail_url,
+      externalUrl: artistUrl,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Search + fetch full artist object; use artist.images only. Falls back to oEmbed when API keys are not set. */
 export async function fetchSpotifyArtistPortrait(
   artistName: string,
   knownSpotifyUrl?: string,
 ): Promise<SpotifyArtistMatch | null> {
+  const urlMatch = knownSpotifyUrl?.match(/spotify\.com\/artist\/([a-zA-Z0-9]+)/i);
+
   const token = await getSpotifyAccessToken();
-  if (!token) return null;
+  if (!token) {
+    if (knownSpotifyUrl) {
+      return fetchSpotifyOEmbedPortrait(knownSpotifyUrl, artistName);
+    }
+    return null;
+  }
 
   let artistId: string | null = null;
-
-  const urlMatch = knownSpotifyUrl?.match(/spotify\.com\/artist\/([a-zA-Z0-9]+)/i);
   if (urlMatch?.[1]) artistId = urlMatch[1];
 
   if (!artistId) {

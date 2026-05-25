@@ -416,7 +416,9 @@ export async function resolveArtistPortraitImage(input: {
         "No confident artist portrait found. Upload a press photo manually.",
         ...(process.env.SPOTIFY_CLIENT_ID
           ? []
-          : ["Tip: add SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET for better results."]),
+          : [
+              "Spotify API keys not configured — using Wikimedia and official sites. Add SPOTIFY_CLIENT_ID/SECRET for best results.",
+            ]),
       ],
     };
   }
