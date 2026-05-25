@@ -24,6 +24,17 @@ const CATALOGUE_HOST_RE =
 
 const FILENAME_ALBUM_RE = /cover|artwork|album|release|single|track/i;
 
+/** CDNs that serve artist portraits but often reject HEAD or return non-image types. */
+const TRUSTED_PORTRAIT_HOSTS = [
+  "i.scdn.co",
+  "mosaic.scdn.co",
+  "image-cdn-ak.spotifycdn.com",
+  "upload.wikimedia.org",
+  "commons.wikimedia.org",
+  "cdninstagram.com",
+  "fbcdn.net",
+];
+
 const PRESS_PATHS = ["/press", "/media", "/epk", "/photos", "/bio", "/about", "/"];
 
 type ImageCandidate = {
@@ -80,6 +91,20 @@ function urlLooksLikeAlbumArt(url: string, source: ArtistImageSource): boolean {
   return false;
 }
 
+function isTrustedPortraitHost(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return TRUSTED_PORTRAIT_HOSTS.some((trusted) => host === trusted || host.endsWith(`.${trusted}`));
+  } catch {
+    return false;
+  }
+}
+
+function contentTypeIsImage(type: string): boolean {
+  const lower = type.toLowerCase();
+  return lower.startsWith("image/") || lower.includes("octet-stream");
+}
+
 async function validateImageUrl(url: string): Promise<{ ok: boolean; warning?: string }> {
   const normalized = normalizeUrl(url);
   if (!normalized) return { ok: false, warning: "Invalid URL" };
@@ -87,18 +112,32 @@ async function validateImageUrl(url: string): Promise<{ ok: boolean; warning?: s
     return { ok: false, warning: "URL looks like album/release artwork" };
   }
 
+  if (isTrustedPortraitHost(normalized)) {
+    return { ok: true };
+  }
+
   try {
-    const response = await fetch(normalized, {
+    const head = await fetch(normalized, {
       method: "HEAD",
       redirect: "follow",
       cache: "no-store",
     });
-    const type = response.headers.get("content-type") ?? "";
-    if (!response.ok) return { ok: false, warning: `HTTP ${response.status}` };
-    if (!type.startsWith("image/")) {
-      return { ok: false, warning: `Not an image (${type || "unknown"})` };
-    }
-    return { ok: true };
+    const headType = head.headers.get("content-type") ?? "";
+    if (head.ok && contentTypeIsImage(headType)) return { ok: true };
+  } catch {
+    /* fall through to GET probe */
+  }
+
+  try {
+    const probe = await fetch(normalized, {
+      method: "GET",
+      headers: { Range: "bytes=0-1023" },
+      redirect: "follow",
+      cache: "no-store",
+    });
+    const type = probe.headers.get("content-type") ?? "";
+    if (probe.ok && contentTypeIsImage(type)) return { ok: true };
+    return { ok: false, warning: `Not an image (${type || `HTTP ${probe.status}`})` };
   } catch {
     return { ok: false, warning: "Could not verify image" };
   }
@@ -171,6 +210,20 @@ async function musicBrainzIdentity(artistName: string): Promise<MbIdentity | nul
   return { name: detail.name, wikidataId, website };
 }
 
+async function wikimediaCommonsImageUrl(filename: string): Promise<string | undefined> {
+  const fileTitle = `File:${filename.replace(/ /g, "_")}`;
+  const api = `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(fileTitle)}&prop=imageinfo&iiprop=url&iiurlwidth=800&format=json`;
+
+  const data = await fetchJson<{
+    query?: {
+      pages?: Record<string, { imageinfo?: Array<{ thumburl?: string; url?: string }> }>;
+    };
+  }>(api, { headers: { "User-Agent": MUSICBRAINZ_UA } });
+
+  const page = data?.query?.pages ? Object.values(data.query.pages)[0] : undefined;
+  return page?.imageinfo?.[0]?.thumburl ?? page?.imageinfo?.[0]?.url;
+}
+
 async function wikidataPortrait(wikidataId: string): Promise<{ url?: string; attribution?: string }> {
   const entity = await fetchJson<{
     entities?: Record<
@@ -189,8 +242,11 @@ async function wikidataPortrait(wikidataId: string): Promise<{ url?: string; att
   const filename = claims?.[0]?.mainsnak?.datavalue?.value;
   if (!filename || typeof filename !== "string") return {};
 
-  const encoded = encodeURIComponent(filename.replace(/ /g, "_"));
-  const url = `https://commons.wikimedia.org/wiki/Special:FilePath/${encoded}?width=800`;
+  const directUrl = await wikimediaCommonsImageUrl(filename);
+  const url =
+    directUrl ??
+    `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(filename.replace(/ /g, "_"))}?width=800`;
+
   return {
     url,
     attribution: `Wikimedia Commons — ${filename} (CC; verify on apply)`,
