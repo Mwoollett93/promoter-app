@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 
-import { extractDocumentText } from "@/lib/ai/document-text";
 import { extractVenueFieldsFromText } from "@/lib/ai/venue-extract";
 import { getBearerToken, getUserFromAccessToken } from "@/lib/supabase/server-user";
 import { getSupabaseServiceConfig } from "@/lib/supabase/service";
@@ -8,7 +7,14 @@ import { getSupabaseServiceConfig } from "@/lib/supabase/service";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-async function downloadStorageDocument(filePath: string): Promise<{ buffer: Buffer; contentType: string }> {
+const TEXT_EXTENSIONS = [".txt", ".csv", ".json"];
+
+function isTextFile(path: string): boolean {
+  const lower = path.toLowerCase();
+  return TEXT_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+async function downloadStorageText(filePath: string): Promise<string> {
   const config = getSupabaseServiceConfig();
   if (!config) throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for document extraction.");
 
@@ -39,14 +45,7 @@ async function downloadStorageDocument(filePath: string): Promise<{ buffer: Buff
   const fileRes = await fetch(fileUrl);
   if (!fileRes.ok) throw new Error("Unable to download document for extraction.");
 
-  const contentType = fileRes.headers.get("content-type") ?? "";
-  const arrayBuffer = await fileRes.arrayBuffer();
-  return { buffer: Buffer.from(arrayBuffer), contentType };
-}
-
-async function documentTextFromUpload(file: File): Promise<string> {
-  const buffer = Buffer.from(await file.arrayBuffer());
-  return extractDocumentText(buffer, file.name, file.type);
+  return fileRes.text();
 }
 
 export async function POST(request: Request) {
@@ -58,43 +57,59 @@ export async function POST(request: Request) {
     if (!user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const contentType = request.headers.get("content-type") ?? "";
-    let documentText = "";
 
     if (contentType.includes("multipart/form-data")) {
-      const form = await request.formData();
-      const file = form.get("file");
-      if (!(file instanceof File) || file.size === 0) {
-        return NextResponse.json({ error: "Upload a document file to extract." }, { status: 400 });
-      }
-      documentText = await documentTextFromUpload(file);
-    } else {
-      const body = (await request.json()) as {
-        filePath?: string;
-        text?: string;
-        fileBase64?: string;
-        fileName?: string;
-      };
-      const filePath = body.filePath?.trim();
-      const inlineText = body.text?.trim();
-      const fileBase64 = body.fileBase64?.trim();
-      const fileName = body.fileName?.trim() ?? filePath ?? "document";
-
-      documentText = inlineText ?? "";
-
-      if (!documentText && fileBase64) {
-        const buffer = Buffer.from(fileBase64, "base64");
-        documentText = await extractDocumentText(buffer, fileName);
-      }
-
-      if (!documentText && filePath) {
-        const downloaded = await downloadStorageDocument(filePath);
-        documentText = await extractDocumentText(downloaded.buffer, filePath, downloaded.contentType);
-      }
+      return NextResponse.json(
+        {
+          error:
+            "PDF upload to the server is not supported. Extract text in the browser first (re-upload the PDF on Add Venue, then Extract with AI).",
+        },
+        { status: 400 },
+      );
     }
 
-    if (!documentText.trim()) {
+    const body = (await request.json()) as {
+      filePath?: string;
+      text?: string;
+      fileBase64?: string;
+      fileName?: string;
+    };
+
+    let documentText = body.text?.trim() ?? "";
+
+    if (!documentText && body.fileBase64) {
       return NextResponse.json(
-        { error: "No text found in the document. Use a text-based PDF or a .txt copy." },
+        {
+          error:
+            "Send extracted document text instead of raw PDF data. Re-upload the PDF and use Extract with AI again.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const filePath = body.filePath?.trim();
+    if (!documentText && filePath) {
+      if (filePath.toLowerCase().endsWith(".pdf")) {
+        return NextResponse.json(
+          {
+            error:
+              "For PDFs, upload the file on this page (pending uploads) and extract before saving. Stored PDFs cannot be parsed on the server.",
+          },
+          { status: 400 },
+        );
+      }
+      if (!isTextFile(filePath)) {
+        return NextResponse.json(
+          { error: "Only .txt, .csv, and .json files can be read from storage on the server." },
+          { status: 400 },
+        );
+      }
+      documentText = (await downloadStorageText(filePath)).trim();
+    }
+
+    if (!documentText) {
+      return NextResponse.json(
+        { error: "Provide document text to extract (upload a PDF and click Extract with AI)." },
         { status: 400 },
       );
     }

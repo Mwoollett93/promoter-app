@@ -702,6 +702,8 @@ function BillingTab({ billing }: { billing: import("@/lib/settings/settings").Bi
   const displayPlan = remote?.plan ?? billing.plan;
   const billingDbMissing = Boolean(error?.includes("sprint2-billing.sql"));
   const billingLoading = remote === null && !error;
+  const stripeReady = remote === null || Boolean(remote.stripeConfigured);
+  const hasBillingCustomer = Boolean(remote?.hasCustomer);
 
   async function handleCheckout(planId: CheckoutPlanId) {
     if (!workspace?.id) return;
@@ -749,7 +751,7 @@ function BillingTab({ billing }: { billing: import("@/lib/settings/settings").Bi
             variant="primary"
             size="sm"
             type="button"
-            disabled={loading || !remote?.stripeConfigured}
+            disabled={loading || !stripeReady}
             onClick={() => void handleCheckout("professional")}
           >
             {CHECKOUT_PLAN_DISPLAY.professional.label} ({CHECKOUT_PLAN_DISPLAY.professional.priceHint})
@@ -758,7 +760,7 @@ function BillingTab({ billing }: { billing: import("@/lib/settings/settings").Bi
             variant="secondary"
             size="sm"
             type="button"
-            disabled={loading || !remote?.stripeConfigured}
+            disabled={loading || !stripeReady}
             onClick={() => void handleCheckout("enterprise")}
           >
             {CHECKOUT_PLAN_DISPLAY.enterprise.label} ({CHECKOUT_PLAN_DISPLAY.enterprise.priceHint})
@@ -778,7 +780,7 @@ function BillingTab({ billing }: { billing: import("@/lib/settings/settings").Bi
           size="sm"
           type="button"
           className="mt-4 px-6"
-          disabled={loading || !remote?.hasCustomer}
+          disabled={loading || (remote !== null && !hasBillingCustomer)}
           onClick={() => void handlePortal()}
         >
           {loading ? "Opening…" : "Update Card & Invoices"}

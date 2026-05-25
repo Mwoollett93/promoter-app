@@ -767,13 +767,20 @@ export default function AddVenuePage() {
           });
         }
       } else if (draft.documents[0]?.filePath) {
+        const stored = draft.documents[0];
+        const storedName = stored.fileName?.toLowerCase() ?? stored.filePath.toLowerCase();
+        if (storedName.endsWith(".pdf")) {
+          throw new Error(
+            "Re-upload the PDF with Browse Files (pending upload), then Extract with AI before saving.",
+          );
+        }
         response = await fetch("/api/venues/extract", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.accessToken}`,
           },
-          body: JSON.stringify({ filePath: draft.documents[0].filePath }),
+          body: JSON.stringify({ filePath: stored.filePath }),
         });
       } else {
         throw new Error("No document available to extract.");
