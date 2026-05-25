@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { enrichArtistMatchImages } from "@/lib/ai/artist-image";
+import { enrichArtistMatches } from "@/lib/ai/artist-agency-enrich";
 import { parseArtistFillResponse, type ArtistFillResponse } from "@/lib/ai/artistSchema";
 
 const MATCH_SCHEMA = `{
@@ -63,12 +63,14 @@ export async function fetchArtistMatches(artistName: string): Promise<ArtistFill
             "Return valid JSON only matching the schema.",
             "Bio/description must stay under 500 words. Use null or omit fields you are not reasonably confident about.",
             "Do not invent booking emails or phone numbers.",
-            "Never use example.com or placeholder image URLs. Omit imageUrl unless you have a real public CDN URL; Spotify links are preferred for photos.",
+            "Never use example.com or placeholder image URLs — leave imageUrl null (photos are resolved server-side).",
             "classification: Emerging, Established, Headliner, or Legacy based on career profile.",
-            "agencyName / managementCompany / contactName / contactRole (Agent, Manager, etc.) / contactPhone when a booking agency is known.",
+            "agencyName / managementCompany: include when known from booking agency rosters or Instagram bio (e.g. Coda Agency, Parade Artists, Foundations).",
+            "contactName / contactRole (Agent, Manager) / contactPhone when publicly listed.",
+            "instagram: full profile URL when the handle is well known (often shows agency in bio).",
             "Genres should be standard electronic music genres when applicable (House, Techno, Drum & Bass, etc.).",
             "location: city and country when known, e.g. Melbourne, Australia.",
-            "spotify: full open.spotify.com/artist/... URL when known (helps load profile image).",
+            "spotify: open.spotify.com/artist/... URL when it exists (optional — photos also come from Deezer/iTunes).",
             "URLs must be full https links when provided.",
             "confidence: high = well-known artist with strong public info; medium = plausible match; low = uncertain.",
             "sources: short list of public profile types used (e.g. Spotify, Instagram, press).",
@@ -115,7 +117,7 @@ export async function fetchArtistMatches(artistName: string): Promise<ArtistFill
   try {
     const raw = parseAiJsonContent(content);
     const parsed = parseArtistFillResponse(raw, artistName.trim());
-    const matches = await enrichArtistMatchImages(parsed.matches);
+    const matches = await enrichArtistMatches(parsed.matches);
     return { matches };
   } catch (err) {
     if (err instanceof z.ZodError) {
