@@ -37,6 +37,8 @@ import {
   uploadArtistMedia,
   updateArtistPromoImage,
 } from "@/lib/supabase/browser";
+import ArtistAiFillButton from "@/app/components/artists/ArtistAiFillButton";
+import { countWords, MAX_ARTIST_BIO_WORDS, trimToMaxWords } from "@/lib/ai/artist-text";
 import type {
   ArtistDocument,
   ArtistDraft,
@@ -510,6 +512,14 @@ export default function AddArtistPage() {
                 patchDraft={patchDraft}
                 promoImageFile={promoImageFile}
                 setPromoImageFile={setPromoImageFile}
+                onAiError={(msg) => {
+                  setError(msg);
+                  setMessage(null);
+                }}
+                onAiSuccess={(msg) => {
+                  setMessage(msg);
+                  setError(null);
+                }}
               />
             ) : step === "contact" ? (
               <ContactStep draft={draft} patchDraft={patchDraft} />
@@ -626,18 +636,45 @@ function BasicInfoStep({
   patchDraft,
   promoImageFile,
   setPromoImageFile,
+  onAiError,
+  onAiSuccess,
 }: {
   draft: ArtistDraft;
   patchDraft: (patch: Partial<ArtistDraft>) => void;
   promoImageFile: File | null;
   setPromoImageFile: (file: File | null) => void;
+  onAiError: (message: string) => void;
+  onAiSuccess: (message: string) => void;
 }) {
   return (
     <section>
       <h2 className="text-lg font-bold text-[#F5F5F7]">Basic Information</h2>
       <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
         <div className="space-y-3">
-          <Field label="Artist Name" required value={draft.name} onChange={(name) => patchDraft({ name })} placeholder="Enter artist name" />
+          <label className="block">
+            <span className="mb-1.5 flex items-center justify-between gap-2">
+              <span className="text-sm font-medium text-[#F5F5F7]">
+                Artist Name <span className="text-red-400">*</span>
+              </span>
+              <ArtistAiFillButton
+                artistName={draft.name}
+                draft={draft}
+                onApply={(next) => patchDraft(next)}
+                onError={onAiError}
+                onSuccess={onAiSuccess}
+              />
+            </span>
+            <input
+              type="text"
+              value={draft.name}
+              onChange={(event) => patchDraft({ name: event.target.value })}
+              placeholder="Enter artist name"
+              className="h-11 w-full rounded-lg border border-[#3F3F46] bg-[#0F0F17] px-3 text-sm text-[#F5F5F7] outline-none transition-colors placeholder:text-[#71717A] focus:border-[#8B5CF6]"
+            />
+            <span className="mt-1 block text-[12px] text-[#71717A]">
+              Type the artist name, then use Find Artist to preview matches before filling the form.
+            </span>
+          </label>
           <SelectField
             label="Artist Type"
             required
@@ -670,6 +707,25 @@ function BasicInfoStep({
         <div className="space-y-3">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-[#F5F5F7]">Promo Image</label>
+            {draft.promoImageUrl && !promoImageFile ? (
+              <div className="mb-3 flex items-center gap-3 rounded-xl border border-[#232330] bg-[#0F0F17] p-3">
+                <img
+                  src={draft.promoImageUrl}
+                  alt=""
+                  className="size-16 rounded-lg border border-[#232330] object-cover"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] text-[#E4E4E7]">AI-suggested image</p>
+                  <button
+                    type="button"
+                    onClick={() => patchDraft({ promoImageUrl: "" })}
+                    className="mt-1 text-[12px] text-[#8B5CF6] hover:text-[#A78BFA]"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ) : null}
             <div className="flex min-h-[170px] flex-col items-center justify-center rounded-xl border border-dashed border-[#3F3F46] bg-[#0B0B10] p-5 text-center">
               <Image className="size-8 text-[#A1A1AA]" aria-hidden />
               <p className="mt-3 text-sm font-semibold text-[#F5F5F7]">
@@ -695,7 +751,7 @@ function BasicInfoStep({
               />
             </div>
           </div>
-          <TextArea label="Bio" value={draft.bio} onChange={(bio) => patchDraft({ bio })} placeholder="Write a short bio about the artist..." maxLength={500} />
+          <BioTextArea value={draft.bio} onChange={(bio) => patchDraft({ bio })} />
         </div>
       </div>
     </section>
@@ -1288,6 +1344,38 @@ function SelectField({
           </option>
         ))}
       </select>
+    </label>
+  );
+}
+
+function BioTextArea({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const words = countWords(value);
+  const overLimit = words > MAX_ARTIST_BIO_WORDS;
+
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-medium text-[#F5F5F7]">Bio</span>
+      <textarea
+        value={value}
+        onChange={(event) => {
+          const next = event.target.value;
+          if (countWords(next) <= MAX_ARTIST_BIO_WORDS) {
+            onChange(next);
+            return;
+          }
+          onChange(trimToMaxWords(next, MAX_ARTIST_BIO_WORDS));
+        }}
+        placeholder="Write a short bio about the artist..."
+        className="min-h-[126px] w-full resize-none rounded-lg border border-[#3F3F46] bg-[#0F0F17] px-3 py-3 text-sm text-[#F5F5F7] outline-none placeholder:text-[#71717A] focus:border-[#8B5CF6]"
+      />
+      <span
+        className={[
+          "mt-1 block text-right text-xs",
+          overLimit ? "text-red-300" : "text-[#71717A]",
+        ].join(" ")}
+      >
+        {words}/{MAX_ARTIST_BIO_WORDS} words
+      </span>
     </label>
   );
 }
