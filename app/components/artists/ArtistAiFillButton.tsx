@@ -3,10 +3,12 @@
 import * as React from "react";
 import { Sparkles } from "lucide-react";
 
+import ArtistContactConfirmModal from "@/app/components/artists/ArtistContactConfirmModal";
 import ArtistMatchReviewModal from "@/app/components/artists/ArtistMatchReviewModal";
 import ArtistOverwriteConfirmDialog from "@/app/components/artists/ArtistOverwriteConfirmDialog";
 import Button from "@/app/components/ui/Button";
-import { applyArtistMatch, listArtistFieldConflicts } from "@/lib/ai/apply-artist-match";
+import { buildAppliedArtistDraft, listArtistFieldConflicts } from "@/lib/ai/apply-artist-match";
+import type { ArtistContactCandidate } from "@/lib/ai/artist-contact-types";
 import type { ArtistMatch } from "@/lib/ai/artistSchema";
 import { readJsonResponse } from "@/lib/api/read-json-response";
 import { getStoredSession } from "@/lib/supabase/browser";
@@ -29,9 +31,11 @@ export default function ArtistAiFillButton({
 }: ArtistAiFillButtonProps) {
   const [loading, setLoading] = React.useState(false);
   const [reviewOpen, setReviewOpen] = React.useState(false);
+  const [contactOpen, setContactOpen] = React.useState(false);
   const [matches, setMatches] = React.useState<ArtistMatch[]>([]);
   const [reviewError, setReviewError] = React.useState<string | null>(null);
   const [pendingMatch, setPendingMatch] = React.useState<ArtistMatch | null>(null);
+  const [pendingContact, setPendingContact] = React.useState<ArtistContactCandidate | null>(null);
   const [overwriteOpen, setOverwriteOpen] = React.useState(false);
   const [conflicts, setConflicts] = React.useState<ReturnType<typeof listArtistFieldConflicts>>([]);
 
@@ -84,24 +88,52 @@ export default function ArtistAiFillButton({
   }
 
   function handleSelectMatch(match: ArtistMatch) {
-    const fieldConflicts = listArtistFieldConflicts(draft, match);
+    setPendingMatch(match);
+    setPendingContact(null);
+    setReviewOpen(false);
+    setContactOpen(true);
+  }
+
+  function tryApplyMatch(match: ArtistMatch, contact: ArtistContactCandidate | null) {
+    const proposed = buildAppliedArtistDraft(draft, match, contact, { overwrite: false });
+    const fieldConflicts = listArtistFieldConflicts(draft, proposed);
+
     if (fieldConflicts.length > 0) {
-      setPendingMatch(match);
+      setPendingContact(contact);
       setConflicts(fieldConflicts);
       setOverwriteOpen(true);
       return;
     }
-    finishApply(match, false);
+
+    finishApply(match, contact, false);
   }
 
-  function finishApply(match: ArtistMatch, overwrite: boolean) {
-    const next = applyArtistMatch(draft, match, { overwrite });
+  function handleSelectContact(candidate: ArtistContactCandidate) {
+    if (!pendingMatch) return;
+    setContactOpen(false);
+    tryApplyMatch(pendingMatch, candidate);
+  }
+
+  function handleSkipContact() {
+    if (!pendingMatch) return;
+    setContactOpen(false);
+    tryApplyMatch(pendingMatch, null);
+  }
+
+  function finishApply(match: ArtistMatch, contact: ArtistContactCandidate | null, overwrite: boolean) {
+    const next = buildAppliedArtistDraft(draft, match, contact, { overwrite });
     onApply(next);
     setReviewOpen(false);
+    setContactOpen(false);
     setOverwriteOpen(false);
     setPendingMatch(null);
+    setPendingContact(null);
     setConflicts([]);
-    onSuccess(`Applied profile for ${match.artistName}. Review each step before saving.`);
+
+    const contactNote = contact
+      ? ` Applied ${contact.contactType} contact.`
+      : "";
+    onSuccess(`Applied profile for ${match.artistName}.${contactNote} Review each step before saving.`);
   }
 
   return (
@@ -134,17 +166,29 @@ export default function ArtistAiFillButton({
         onSelect={handleSelectMatch}
       />
 
+      <ArtistContactConfirmModal
+        open={contactOpen}
+        artistName={pendingMatch?.artistName ?? ""}
+        discovery={pendingMatch?.contactDiscovery}
+        onClose={() => {
+          setContactOpen(false);
+          setPendingMatch(null);
+          setReviewOpen(true);
+        }}
+        onSkip={handleSkipContact}
+        onSelect={handleSelectContact}
+      />
+
       <ArtistOverwriteConfirmDialog
         open={overwriteOpen}
         artistName={pendingMatch?.artistName ?? ""}
         conflicts={conflicts}
         onCancel={() => {
-          if (pendingMatch) finishApply(pendingMatch, false);
+          if (pendingMatch) finishApply(pendingMatch, pendingContact, false);
           setOverwriteOpen(false);
-          setPendingMatch(null);
         }}
         onConfirm={() => {
-          if (pendingMatch) finishApply(pendingMatch, true);
+          if (pendingMatch) finishApply(pendingMatch, pendingContact, true);
         }}
       />
     </>

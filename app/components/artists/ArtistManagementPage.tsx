@@ -276,10 +276,16 @@ export default function ArtistManagementPage() {
           contactName: existing.contactName ?? "",
           contactRole: existing.contactRole ?? "",
           email: existing.email ?? "",
+          bookingEmail: existing.bookingEmail ?? "",
+          managementEmail: existing.managementEmail ?? "",
+          pressEmail: existing.pressEmail ?? "",
           phone: existing.phone ?? "",
           preferredContactMethod: existing.preferredContactMethod ?? "",
           agencyName: existing.agencyName ?? "",
           managementCompany: existing.managementCompany ?? "",
+          contactPage: existing.contactPage ?? "",
+          sourceUrls: existing.sourceUrls ?? [],
+          contactConfidence: existing.contactConfidence ?? "",
           territory: existing.territory ?? "",
           representedArtists: existing.representedArtists,
           internalNotes: existing.internalNotes ?? "",
@@ -1039,7 +1045,11 @@ function ArtistProfileModal({ artist, onClose }: { artist: ArtistProfile; onClos
                 <dl className="grid gap-4 md:grid-cols-2">
                   <ProfileDetail label="Contact Name" value={artist.contactName} />
                   <ProfileDetail label="Role" value={artist.contactRole} />
-                  <ProfileDetail label="Email" value={artist.email} />
+                  <ProfileDetail label="Primary email" value={artist.email} />
+                  <ProfileDetail label="Booking email" value={artist.bookingEmail} />
+                  <ProfileDetail label="Management email" value={artist.managementEmail} />
+                  <ProfileDetail label="Press email" value={artist.pressEmail} />
+                  <ProfileDetail label="Contact page" value={artist.contactPage} />
                   <ProfileDetail label="Phone" value={artist.phone} />
                   <ProfileDetail label="Preferred Method" value={artist.preferredContactMethod} />
                 </dl>
@@ -1049,6 +1059,7 @@ function ArtistProfileModal({ artist, onClose }: { artist: ArtistProfile; onClos
                 <dl className="grid gap-4 md:grid-cols-2">
                   <ProfileDetail label="Agency" value={artist.agencyName} />
                   <ProfileDetail label="Management Company" value={artist.managementCompany} />
+                  <ProfileDetail label="Contact confidence" value={artist.contactConfidence} />
                   <ProfileDetail label="Territory" value={artist.territory} />
                 </dl>
                 <div className="mt-5">
@@ -1335,10 +1346,16 @@ function buildSeedArtistDrafts(): ArtistDraft[] {
       contactName: `${name.split(" ")[0]} Agent`,
       contactRole: "Agent",
       email: `${slug}@example.com`,
+      bookingEmail: index % 3 === 0 ? `bookings.${slug}@example.com` : "",
+      managementEmail: "",
+      pressEmail: "",
       phone: `+44 7700 90${String(index + 10).padStart(2, "0")}`,
       preferredContactMethod: index % 2 === 0 ? "Email" : "WhatsApp",
       agencyName: index % 3 === 0 ? "Northstar Artists" : "",
       managementCompany: index % 4 === 0 ? "Pulse Management" : "",
+      contactPage: "",
+      sourceUrls: [],
+      contactConfidence: "",
       territory: "",
       representedArtists: [],
       internalNotes: index % 4 === 0 ? "Seed profile for testing richer artist notes." : "",

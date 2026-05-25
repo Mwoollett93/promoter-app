@@ -213,10 +213,16 @@ const emptyDraft: ArtistDraft = {
   contactName: "",
   contactRole: "",
   email: "",
+  bookingEmail: "",
+  managementEmail: "",
+  pressEmail: "",
   phone: "",
   preferredContactMethod: "",
   agencyName: "",
   managementCompany: "",
+  contactPage: "",
+  sourceUrls: [],
+  contactConfidence: "",
   territory: "",
   representedArtists: [],
   internalNotes: "",
@@ -246,10 +252,16 @@ function artistProfileToDraft(artist: ArtistProfile): ArtistDraft {
     contactName: artist.contactName ?? "",
     contactRole: artist.contactRole ?? "",
     email: artist.email ?? "",
+    bookingEmail: artist.bookingEmail ?? "",
+    managementEmail: artist.managementEmail ?? "",
+    pressEmail: artist.pressEmail ?? "",
     phone: artist.phone ?? "",
     preferredContactMethod: artist.preferredContactMethod ?? "",
     agencyName: artist.agencyName ?? "",
     managementCompany: artist.managementCompany ?? "",
+    contactPage: artist.contactPage ?? "",
+    sourceUrls: artist.sourceUrls ?? [],
+    contactConfidence: artist.contactConfidence ?? "",
     territory: artist.territory ?? "",
     representedArtists: artist.representedArtists,
     internalNotes: artist.internalNotes ?? "",
@@ -777,7 +789,11 @@ function ContactStep({
               <SelectField label="Role" value={draft.contactRole} onChange={(contactRole) => patchDraft({ contactRole })} options={["Artist", "Agent", "Manager", "Tour Manager"]} />
             </div>
             <div className="mt-3 space-y-3">
-              <Field label="Email" required value={draft.email} onChange={(email) => patchDraft({ email })} placeholder="Enter email address" type="email" />
+              <Field label="Primary email" required value={draft.email} onChange={(email) => patchDraft({ email })} placeholder="Enter email address" type="email" />
+              <Field label="Booking email" value={draft.bookingEmail} onChange={(bookingEmail) => patchDraft({ bookingEmail })} placeholder="bookings@…" type="email" />
+              <Field label="Management email" value={draft.managementEmail} onChange={(managementEmail) => patchDraft({ managementEmail })} placeholder="management@…" type="email" />
+              <Field label="Press email" value={draft.pressEmail} onChange={(pressEmail) => patchDraft({ pressEmail })} placeholder="press@…" type="email" />
+              <Field label="Contact page URL" value={draft.contactPage} onChange={(contactPage) => patchDraft({ contactPage })} placeholder="https://…/contact" />
               <Field label="Phone" value={draft.phone} onChange={(phone) => patchDraft({ phone })} placeholder="Enter phone number" />
               <SelectField label="Preferred Contact Method" value={draft.preferredContactMethod} onChange={(preferredContactMethod) => patchDraft({ preferredContactMethod })} options={["Email", "Phone", "WhatsApp", "Instagram DM"]} />
             </div>

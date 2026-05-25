@@ -34,10 +34,16 @@ type ArtistRow = {
   contact_name: string | null;
   contact_role: string | null;
   email: string | null;
+  booking_email: string | null;
+  management_email: string | null;
+  press_email: string | null;
   phone: string | null;
   preferred_contact_method: string | null;
   agency_name: string | null;
   management_company: string | null;
+  contact_page: string | null;
+  contact_source_urls: string[] | null;
+  contact_confidence: string | null;
   territory: string | null;
   represented_artists: string[] | null;
   internal_notes: string | null;
@@ -730,10 +736,16 @@ function artistDraftToRow(draft: ArtistDraft) {
     contact_name: draft.contactName || null,
     contact_role: draft.contactRole || null,
     email: draft.email || null,
+    booking_email: draft.bookingEmail || null,
+    management_email: draft.managementEmail || null,
+    press_email: draft.pressEmail || null,
     phone: draft.phone || null,
     preferred_contact_method: draft.preferredContactMethod || null,
     agency_name: draft.agencyName || null,
     management_company: draft.managementCompany || null,
+    contact_page: draft.contactPage || null,
+    contact_source_urls: draft.sourceUrls.length > 0 ? draft.sourceUrls : [],
+    contact_confidence: draft.contactConfidence || null,
     territory: draft.territory || null,
     represented_artists: draft.representedArtists,
     internal_notes: draft.internalNotes || null,
@@ -762,10 +774,16 @@ function mapArtistRow(row: ArtistRow): ArtistProfile {
     contactName: row.contact_name ?? undefined,
     contactRole: row.contact_role ?? undefined,
     email: row.email ?? undefined,
+    bookingEmail: row.booking_email ?? undefined,
+    managementEmail: row.management_email ?? undefined,
+    pressEmail: row.press_email ?? undefined,
     phone: row.phone ?? undefined,
     preferredContactMethod: row.preferred_contact_method ?? undefined,
     agencyName: row.agency_name ?? undefined,
     managementCompany: row.management_company ?? undefined,
+    contactPage: row.contact_page ?? undefined,
+    sourceUrls: row.contact_source_urls ?? [],
+    contactConfidence: (row.contact_confidence as ArtistProfile["contactConfidence"]) ?? undefined,
     territory: row.territory ?? undefined,
     representedArtists: row.represented_artists ?? [],
     internalNotes: row.internal_notes ?? undefined,

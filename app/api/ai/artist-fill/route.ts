@@ -5,7 +5,7 @@ import { fetchArtistMatches } from "@/lib/ai/artist-fill";
 import { getBearerToken, getUserFromAccessToken } from "@/lib/supabase/server-user";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const requestSchema = z.object({
   artistName: z.string().min(1).max(200),

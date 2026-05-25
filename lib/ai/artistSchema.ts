@@ -1,10 +1,19 @@
 import { z } from "zod";
 
 import { normalizeArtistClassification } from "@/lib/ai/artist-classification";
-import { sanitizeArtistImageUrl } from "@/lib/ai/artist-image";
+import type { ArtistContactDiscovery } from "@/lib/ai/artist-contact-types";
+import type { ArtistImageConfidence, ArtistImageSource } from "@/lib/ai/artist-portrait-types";
 import { trimToMaxWords } from "@/lib/ai/artist-text";
 
 export const artistConfidenceSchema = z.enum(["low", "medium", "high"]);
+export const artistImageSourceSchema = z.enum([
+  "spotify_artist",
+  "wikimedia",
+  "official_site",
+  "instagram",
+  "manual_required",
+]);
+export const artistImageConfidenceSchema = z.enum(["low", "medium", "high"]);
 
 export const artistMatchSchema = z.object({
   artistName: z.string().min(1),
@@ -12,6 +21,10 @@ export const artistMatchSchema = z.object({
   genres: z.array(z.string()),
   location: z.string().optional(),
   imageUrl: z.string().optional(),
+  imageSource: artistImageSourceSchema.optional(),
+  imageConfidence: artistImageConfidenceSchema.optional(),
+  imageWarnings: z.array(z.string()).optional(),
+  imageAttribution: z.string().optional(),
   website: z.string().optional(),
   instagram: z.string().optional(),
   soundcloud: z.string().optional(),
@@ -23,6 +36,7 @@ export const artistMatchSchema = z.object({
   contactName: z.string().optional(),
   contactRole: z.string().optional(),
   contactPhone: z.string().optional(),
+  contactDiscovery: z.any().optional() as z.ZodType<ArtistContactDiscovery | undefined>,
   confidence: artistConfidenceSchema,
   sources: z.array(z.string()).optional(),
 });
@@ -32,6 +46,7 @@ export const artistFillResponseSchema = z.object({
 });
 
 export type ArtistConfidence = z.infer<typeof artistConfidenceSchema>;
+export type { ArtistImageConfidence, ArtistImageSource };
 export type ArtistMatch = z.infer<typeof artistMatchSchema>;
 export type ArtistFillResponse = z.infer<typeof artistFillResponseSchema>;
 
@@ -160,18 +175,19 @@ export function parseArtistFillResponse(raw: unknown, queryName = ""): ArtistFil
       description: trimToMaxWords(match.description),
       genres: match.genres.map((g) => g.trim()).filter(Boolean),
       location: emptyToUndefined(match.location),
-      imageUrl: sanitizeArtistImageUrl(match.imageUrl),
+      // Never trust OpenAI image URLs — portrait enrichment fills imageUrl.
+      imageUrl: undefined,
       website: emptyToUndefined(match.website),
       instagram: emptyToUndefined(match.instagram),
       soundcloud: emptyToUndefined(match.soundcloud),
       spotify: emptyToUndefined(match.spotify),
-      bookingEmail: emptyToUndefined(match.bookingEmail),
+      bookingEmail: undefined,
       classification: match.classification,
-      agencyName: emptyToUndefined(match.agencyName),
-      managementCompany: emptyToUndefined(match.managementCompany),
-      contactName: emptyToUndefined(match.contactName),
-      contactRole: emptyToUndefined(match.contactRole),
-      contactPhone: emptyToUndefined(match.contactPhone),
+      agencyName: undefined,
+      managementCompany: undefined,
+      contactName: undefined,
+      contactRole: undefined,
+      contactPhone: undefined,
       sources: match.sources?.map((s) => s.trim()).filter(Boolean),
     })),
   };

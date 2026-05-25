@@ -5,6 +5,10 @@ import { ExternalLink, Sparkles, X } from "lucide-react";
 
 import ArtistAvatar from "@/app/components/artists/ArtistAvatar";
 import Button from "@/app/components/ui/Button";
+import {
+  imageConfidenceClasses,
+  imageConfidenceLabel,
+} from "@/lib/ai/artist-portrait-types";
 import type { ArtistMatch } from "@/lib/ai/artistSchema";
 
 type ArtistMatchReviewModalProps = {
@@ -131,7 +135,32 @@ export default function ArtistMatchReviewModal({
                         >
                           {confidenceLabel(match.confidence)}
                         </span>
+                        {match.imageConfidence ? (
+                          <span
+                            className={[
+                              "rounded-md border px-2 py-0.5 text-[11px] font-medium",
+                              imageConfidenceClasses(match.imageConfidence),
+                            ].join(" ")}
+                            title={
+                              match.imageWarnings?.length
+                                ? match.imageWarnings.join(" · ")
+                                : undefined
+                            }
+                          >
+                            {imageConfidenceLabel(match.imageConfidence)}
+                          </span>
+                        ) : null}
                       </div>
+                      {match.imageConfidence === "low" || match.imageSource === "manual_required" ? (
+                        <p className="mt-2 text-[12px] text-amber-200/90">
+                          No reliable press photo found — upload an artist image manually after saving.
+                        </p>
+                      ) : null}
+                      {match.imageWarnings && match.imageWarnings.length > 0 && match.imageUrl ? (
+                        <p className="mt-1 text-[11px] text-[#71717A]">
+                          {match.imageWarnings.slice(0, 2).join(" · ")}
+                        </p>
+                      ) : null}
                       {match.location ? (
                         <p className="mt-1 text-[13px] text-[#A1A1AA]">{match.location}</p>
                       ) : null}

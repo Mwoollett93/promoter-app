@@ -1,3 +1,5 @@
+import { applyArtistContactSelection } from "@/lib/ai/apply-artist-contact";
+import type { ArtistContactCandidate } from "@/lib/ai/artist-contact-types";
 import { parseLocation } from "@/lib/ai/artist-text";
 import type { ArtistMatch } from "@/lib/ai/artistSchema";
 import type { ArtistDraft, ArtistSocialLink } from "@/lib/types/artist";
@@ -26,53 +28,60 @@ function normalizeContactRole(value: string | undefined): string {
   return "Agent";
 }
 
-function setSocialUrl(links: ArtistSocialLink[], platform: ArtistSocialLink["platform"], url: string): ArtistSocialLink[] {
+function setSocialUrl(
+  links: ArtistSocialLink[],
+  platform: ArtistSocialLink["platform"],
+  url: string,
+): ArtistSocialLink[] {
   const trimmed = url.trim();
   if (!trimmed) return links;
   return links.map((link) => (link.platform === platform ? { ...link, url: trimmed } : link));
 }
 
-export function listArtistFieldConflicts(draft: ArtistDraft, match: ArtistMatch): ArtistFieldConflict[] {
-  const { city, country } = parseLocation(match.location);
+function pushConflict(
+  conflicts: ArtistFieldConflict[],
+  field: string,
+  current: string,
+  suggested: string,
+) {
+  if (hasText(current) && hasText(suggested) && current.trim() !== suggested.trim()) {
+    conflicts.push({ field, current, suggested });
+  }
+}
+
+export function listArtistFieldConflicts(draft: ArtistDraft, proposed: ArtistDraft): ArtistFieldConflict[] {
   const conflicts: ArtistFieldConflict[] = [];
 
-  const checks: Array<{ field: string; current: string; suggested: string }> = [
-    { field: "Bio", current: draft.bio, suggested: match.description },
-    { field: "City", current: draft.city, suggested: city },
-    { field: "Country", current: draft.country, suggested: country },
-    { field: "Classification", current: draft.classification, suggested: match.classification ?? "" },
-    { field: "Email", current: draft.email, suggested: match.bookingEmail ?? "" },
-    { field: "Promo image URL", current: draft.promoImageUrl, suggested: match.imageUrl ?? "" },
-    { field: "Agency", current: draft.agencyName, suggested: match.agencyName ?? "" },
-    { field: "Management company", current: draft.managementCompany, suggested: match.managementCompany ?? "" },
-    { field: "Contact name", current: draft.contactName, suggested: match.contactName ?? "" },
-    { field: "Contact phone", current: draft.phone, suggested: match.contactPhone ?? "" },
-    {
-      field: "Instagram",
-      current: draft.socialLinks.find((l) => l.platform === "instagram")?.url ?? "",
-      suggested: match.instagram ?? "",
-    },
-    {
-      field: "Spotify",
-      current: draft.socialLinks.find((l) => l.platform === "spotify")?.url ?? "",
-      suggested: match.spotify ?? "",
-    },
-    {
-      field: "SoundCloud",
-      current: draft.socialLinks.find((l) => l.platform === "soundcloud")?.url ?? "",
-      suggested: match.soundcloud ?? "",
-    },
-  ];
+  pushConflict(conflicts, "Bio", draft.bio, proposed.bio);
+  pushConflict(conflicts, "City", draft.city, proposed.city);
+  pushConflict(conflicts, "Country", draft.country, proposed.country);
+  pushConflict(conflicts, "Classification", draft.classification, proposed.classification);
+  pushConflict(conflicts, "Email", draft.email, proposed.email);
+  pushConflict(conflicts, "Booking email", draft.bookingEmail, proposed.bookingEmail);
+  pushConflict(conflicts, "Management email", draft.managementEmail, proposed.managementEmail);
+  pushConflict(conflicts, "Press email", draft.pressEmail, proposed.pressEmail);
+  pushConflict(conflicts, "Promo image URL", draft.promoImageUrl, proposed.promoImageUrl);
+  pushConflict(conflicts, "Agency", draft.agencyName, proposed.agencyName);
+  pushConflict(conflicts, "Management company", draft.managementCompany, proposed.managementCompany);
+  pushConflict(conflicts, "Contact name", draft.contactName, proposed.contactName);
+  pushConflict(conflicts, "Contact phone", draft.phone, proposed.phone);
+  pushConflict(conflicts, "Contact page", draft.contactPage, proposed.contactPage);
 
-  for (const check of checks) {
-    if (hasText(check.current) && hasText(check.suggested) && check.current.trim() !== check.suggested.trim()) {
-      conflicts.push(check);
-    }
-  }
+  const draftIg = draft.socialLinks.find((l) => l.platform === "instagram")?.url ?? "";
+  const proposedIg = proposed.socialLinks.find((l) => l.platform === "instagram")?.url ?? "";
+  pushConflict(conflicts, "Instagram", draftIg, proposedIg);
 
-  if (draft.genres.length > 0 && match.genres.length > 0) {
+  const draftSp = draft.socialLinks.find((l) => l.platform === "spotify")?.url ?? "";
+  const proposedSp = proposed.socialLinks.find((l) => l.platform === "spotify")?.url ?? "";
+  pushConflict(conflicts, "Spotify", draftSp, proposedSp);
+
+  const draftSc = draft.socialLinks.find((l) => l.platform === "soundcloud")?.url ?? "";
+  const proposedSc = proposed.socialLinks.find((l) => l.platform === "soundcloud")?.url ?? "";
+  pushConflict(conflicts, "SoundCloud", draftSc, proposedSc);
+
+  if (draft.genres.length > 0 && proposed.genres.length > 0) {
     const current = draft.genres.join(", ");
-    const suggested = match.genres.join(", ");
+    const suggested = proposed.genres.join(", ");
     if (current !== suggested) {
       conflicts.push({ field: "Genres", current, suggested });
     }
@@ -111,33 +120,13 @@ export function applyArtistMatch(
     next.classification = match.classification;
   }
 
-  if (match.bookingEmail && (!hasText(draft.email) || overwrite)) {
-    next.email = match.bookingEmail;
-  }
+  const mayApplyImage =
+    Boolean(match.imageUrl) &&
+    match.imageConfidence !== "low" &&
+    match.imageSource !== "manual_required";
 
-  if (match.imageUrl && (!hasText(draft.promoImageUrl) || overwrite)) {
-    next.promoImageUrl = match.imageUrl;
-  }
-
-  if (match.agencyName && (!hasText(draft.agencyName) || overwrite)) {
-    next.agencyName = match.agencyName;
-  }
-
-  if (match.managementCompany && (!hasText(draft.managementCompany) || overwrite)) {
-    next.managementCompany = match.managementCompany;
-  }
-
-  if (match.contactName && (!hasText(draft.contactName) || overwrite)) {
-    next.contactName = match.contactName;
-    if (!hasText(draft.contactRole) || overwrite) {
-      next.contactRole = normalizeContactRole(match.contactRole);
-    }
-  } else if (match.contactRole && (!hasText(draft.contactRole) || overwrite)) {
-    next.contactRole = normalizeContactRole(match.contactRole);
-  }
-
-  if (match.contactPhone && (!hasText(draft.phone) || overwrite)) {
-    next.phone = match.contactPhone;
+  if (mayApplyImage && (!hasText(draft.promoImageUrl) || overwrite)) {
+    next.promoImageUrl = match.imageUrl!;
   }
 
   if (match.website && (!hasText(draft.internalNotes) || overwrite)) {
@@ -162,5 +151,18 @@ export function applyArtistMatch(
     next.artistType = "DJ / Producer";
   }
 
+  return next;
+}
+
+export function buildAppliedArtistDraft(
+  draft: ArtistDraft,
+  match: ArtistMatch,
+  contact: ArtistContactCandidate | null,
+  options: { overwrite: boolean },
+): ArtistDraft {
+  let next = applyArtistMatch(draft, match, options);
+  if (contact && match.contactDiscovery) {
+    next = applyArtistContactSelection(next, match, contact, match.contactDiscovery);
+  }
   return next;
 }
