@@ -135,8 +135,9 @@ If billing SQL failed with `invalid input value for enum workspace_role: "owner"
 | `SUPABASE_SERVICE_ROLE_KEY` | Stripe webhooks, integration token storage, AI file download |
 | `STRIPE_SECRET_KEY` | Billing checkout & portal |
 | `STRIPE_WEBHOOK_SECRET` | `POST /api/billing/webhook` |
-| `STRIPE_PRICE_PROFESSIONAL` | Pro plan Price ID |
-| `STRIPE_PRICE_ENTERPRISE` | Enterprise plan Price ID |
+| `STRIPE_PRICE_PROFESSIONAL` | Stripe Price ID for **Pro ($49/mo)** |
+| `STRIPE_PRICE_ENTERPRISE` | Stripe Price ID for **Enterprise ($99/mo)** |
+| `STRIPE_SWAP_PLAN_PRICES` | Set to `true` if Pro checkout shows $99 and Enterprise shows $50 (reversed env vars) |
 | `GOOGLE_INTEGRATION_CLIENT_ID` / `GOOGLE_INTEGRATION_CLIENT_SECRET` | Google Calendar connect |
 | `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` | Spotify connect |
 | `STRIPE_CONNECT_CLIENT_ID` | Stripe revenue sync (Connect OAuth) |

@@ -41,7 +41,7 @@ import MfaSetupPanel from "@/app/components/settings/MfaSetupPanel";
 import Link from "next/link";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import { fetchBillingStatus, openBillingPortal, startCheckout } from "@/lib/billing/client";
-import type { CheckoutPlanId } from "@/lib/billing/plans";
+import { CHECKOUT_PLAN_DISPLAY, type CheckoutPlanId } from "@/lib/billing/plans";
 import {
   connectIntegration,
   disconnectIntegration,
@@ -243,6 +243,7 @@ export default function SettingsPage() {
             onSave={() => notify("Account settings saved.")}
             onExport={handleExportData}
             onPrivacyReport={handlePrivacyReport}
+            onGoToBilling={() => setActiveTab("billing")}
           />
         ) : null}
 
@@ -530,26 +531,44 @@ function AccountTab({
   onSave,
   onExport,
   onPrivacyReport,
+  onGoToBilling,
 }: {
   account: import("@/lib/settings/settings").AccountSettings;
   onChange: (patch: Partial<typeof account>) => void;
   onSave: () => void;
   onExport: () => void;
   onPrivacyReport: () => void;
+  onGoToBilling: () => void;
 }) {
+  const { workspace } = useWorkspace();
+  const [subscriptionPlan, setSubscriptionPlan] = React.useState(account.accountType);
+
+  React.useEffect(() => {
+    if (!workspace?.id) return;
+    void fetchBillingStatus(workspace.id)
+      .then((data) => {
+        const plan = (data.billing as { plan?: string })?.plan;
+        if (plan === "Starter" || plan === "Professional" || plan === "Enterprise") {
+          setSubscriptionPlan(plan);
+        }
+      })
+      .catch(() => {
+        /* keep local fallback */
+      });
+  }, [workspace?.id, account.accountType]);
+
   return (
     <div className={`grid lg:grid-cols-2 ${GRID_CARD_GAP}`}>
       <SettingsCard title="Account Details">
         <div className="space-y-4">
           <SettingsInput label="Account ID" value="acc_8f2c91a4" onChange={() => {}} disabled />
-          <SettingsSelect
-            label="Account Type"
-            value={account.accountType}
-            options={["Starter", "Professional", "Enterprise"]}
-            onChange={(value) =>
-              onChange({ accountType: value as typeof account.accountType })
-            }
-          />
+          <SettingsInput label="Subscription plan" value={subscriptionPlan} onChange={() => {}} disabled />
+          <p className="text-[12px] leading-5 text-[#71717A]">
+            Your plan is set by Stripe billing, not manually.{" "}
+            <button type="button" onClick={onGoToBilling} className="text-[#8B5CF6] hover:text-[#A78BFA]">
+              Manage in Billing
+            </button>
+          </p>
           <SettingsSelect
             label="Default Landing Page"
             value={account.defaultLandingPage}
@@ -682,6 +701,7 @@ function BillingTab({ billing }: { billing: import("@/lib/settings/settings").Bi
 
   const displayPlan = remote?.plan ?? billing.plan;
   const billingDbMissing = Boolean(error?.includes("sprint2-billing.sql"));
+  const billingLoading = remote === null && !error;
 
   async function handleCheckout(planId: CheckoutPlanId) {
     if (!workspace?.id) return;
@@ -715,7 +735,7 @@ function BillingTab({ billing }: { billing: import("@/lib/settings/settings").Bi
         </p>
       ) : null}
       <SettingsCard title="Current Plan">
-        {!billingDbMissing && !remote?.stripeConfigured ? (
+        {!billingLoading && !billingDbMissing && !remote?.stripeConfigured ? (
           <p className="rounded-lg border border-[#8B5CF6]/25 bg-[#1A1630]/30 px-3 py-2 text-[12px] text-[#C4B5FD]">
             Add STRIPE_SECRET_KEY and price IDs in Vercel, then redeploy, to enable checkout.
           </p>
@@ -732,7 +752,7 @@ function BillingTab({ billing }: { billing: import("@/lib/settings/settings").Bi
             disabled={loading || !remote?.stripeConfigured}
             onClick={() => void handleCheckout("professional")}
           >
-            Upgrade to Pro
+            {CHECKOUT_PLAN_DISPLAY.professional.label} ({CHECKOUT_PLAN_DISPLAY.professional.priceHint})
           </Button>
           <Button
             variant="secondary"
@@ -741,7 +761,7 @@ function BillingTab({ billing }: { billing: import("@/lib/settings/settings").Bi
             disabled={loading || !remote?.stripeConfigured}
             onClick={() => void handleCheckout("enterprise")}
           >
-            Enterprise
+            {CHECKOUT_PLAN_DISPLAY.enterprise.label} ({CHECKOUT_PLAN_DISPLAY.enterprise.priceHint})
           </Button>
           <Link href="/pricing" className="inline-flex h-9 items-center px-3 text-[13px] text-[#8B5CF6]">
             Compare plans

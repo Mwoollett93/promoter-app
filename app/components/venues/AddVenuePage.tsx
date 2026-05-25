@@ -25,6 +25,7 @@ import {
 import * as SupabaseBrowser from "@/lib/supabase/browser";
 import type { SupabaseSession } from "@/lib/types/artist";
 import { applyVenueExtraction } from "@/lib/ai/apply-venue-extraction";
+import { extractPdfTextInBrowser } from "@/lib/ai/extract-pdf-text-browser";
 import type { VenueExtractionResult } from "@/lib/ai/venue-extract";
 import { readJsonResponse } from "@/lib/api/read-json-response";
 import CurrencyText from "@/app/components/ui/CurrencyText";
@@ -746,12 +747,14 @@ export default function AddVenuePage() {
         }
 
         if (name.endsWith(".pdf")) {
-          const form = new FormData();
-          form.append("file", pendingFile);
+          const documentText = await extractPdfTextInBrowser(pendingFile);
           response = await fetch("/api/venues/extract", {
             method: "POST",
-            headers: { Authorization: `Bearer ${session.accessToken}` },
-            body: form,
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.accessToken}`,
+            },
+            body: JSON.stringify({ text: documentText }),
           });
         } else {
           response = await fetch("/api/venues/extract", {
