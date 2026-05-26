@@ -14,6 +14,7 @@ type TeamMembersGridProps = {
   workloads: Map<string, MemberWorkload>;
   currentUserId?: string;
   canManage: boolean;
+  dense?: boolean;
   onRoleChange: (memberId: string, role: WorkspaceRole) => void;
   onRemove: (memberId: string) => void;
 };
@@ -23,6 +24,7 @@ export default function TeamMembersGrid({
   workloads,
   currentUserId,
   canManage,
+  dense = false,
   onRoleChange,
   onRemove,
 }: TeamMembersGridProps) {
@@ -34,10 +36,11 @@ export default function TeamMembersGrid({
         <h2 className={SECTION_TITLE}>Team members</h2>
         <span className="text-[13px] text-[#71717A]">{activeCount} active</span>
       </div>
-      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+      <div className={`mt-3 grid gap-[12px] ${dense ? "lg:grid-cols-2" : "lg:grid-cols-2"}`}>
         {members.map((member) => (
           <TeamMemberCard
             key={member.id}
+            dense={dense}
             member={member}
             workload={
               workloads.get(member.id) ?? {

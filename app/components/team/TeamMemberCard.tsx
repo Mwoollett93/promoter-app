@@ -24,6 +24,7 @@ type TeamMemberCardProps = {
   currentUserId?: string;
   canManage: boolean;
   isSelf: boolean;
+  dense?: boolean;
   onRoleChange: (memberId: string, role: WorkspaceRole) => void;
   onRemove: (memberId: string) => void;
 };
@@ -34,6 +35,7 @@ export default function TeamMemberCard({
   currentUserId,
   canManage,
   isSelf,
+  dense = false,
   onRoleChange,
   onRemove,
 }: TeamMemberCardProps) {
@@ -50,12 +52,17 @@ export default function TeamMemberCard({
     <article
       className={[
         SECTION_CARD_INNER,
-        "p-4 transition-colors hover:border-[#3F3F46]",
+        dense ? "p-3 transition-colors hover:border-[#3F3F46]" : "p-4 transition-colors hover:border-[#3F3F46]",
       ].join(" ")}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2.5">
         <div className="relative shrink-0">
-          <div className="flex size-11 items-center justify-center rounded-full border border-[#3F3F46] bg-[#1A1630] text-[13px] font-bold text-[#C4B5FD]">
+          <div
+            className={[
+              "flex items-center justify-center rounded-full border border-[#3F3F46] bg-[#1A1630] font-bold text-[#C4B5FD]",
+              dense ? "size-9 text-[11px]" : "size-11 text-[13px]",
+            ].join(" ")}
+          >
             {memberInitials(name)}
           </div>
           <span className="absolute -bottom-0.5 -right-0.5 rounded-full border-2 border-[#0F0F17] bg-[#0F0F17]">
@@ -149,7 +156,7 @@ export default function TeamMemberCard({
         </div>
       ) : null}
 
-      <dl className="mt-4 grid grid-cols-3 gap-2">
+      <dl className={`mt-3 grid grid-cols-3 gap-[12px] ${dense ? "" : ""}`}>
         <div className="rounded-lg border border-[#232330] bg-[#11111A] px-2 py-2 text-center">
           <dt className="text-[10px] uppercase tracking-wide text-[#71717A]">Tasks</dt>
           <dd className="mt-0.5 text-[15px] font-semibold tabular-nums text-[#F5F5F7]">
@@ -166,12 +173,16 @@ export default function TeamMemberCard({
           </dd>
           <dd className="text-[10px] text-[#71717A]">active</dd>
         </div>
-        <div className="rounded-lg border border-[#232330] bg-[#11111A] px-2 py-2">
+        <div
+          className={[
+            "rounded-lg border border-[#232330] bg-[#11111A] px-2 py-1.5 text-center",
+          ].join(" ")}
+        >
           <dt className="text-[10px] uppercase tracking-wide text-[#71717A]">Workload</dt>
           <dd className="mt-0.5 text-[11px] font-medium capitalize text-[#E4E4E7]">
             {workload.workloadLevel}
           </dd>
-          <WorkloadSparkline level={workload.workloadLevel} />
+          {!dense ? <WorkloadSparkline level={workload.workloadLevel} /> : null}
         </div>
       </dl>
 

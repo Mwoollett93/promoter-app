@@ -9,41 +9,51 @@ type ActivityFeedItemProps = {
   entry: ActivityLogEntry;
   actorName: string;
   href?: string;
+  compact?: boolean;
 };
 
-export default function ActivityFeedItem({ entry, actorName, href }: ActivityFeedItemProps) {
+export default function ActivityFeedItem({
+  entry,
+  actorName,
+  href,
+  compact = false,
+}: ActivityFeedItemProps) {
   const body = (
     <>
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-[#3F3F46] bg-[#1A1630] text-[10px] font-semibold text-[#C4B5FD]">
+      <div
+        className={[
+          "flex shrink-0 items-center justify-center rounded-full border border-[#3F3F46] bg-[#1A1630] font-semibold text-[#C4B5FD]",
+          compact ? "size-6 text-[9px]" : "size-8 text-[10px]",
+        ].join(" ")}
+      >
         {memberInitials(actorName)}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[13px] leading-snug text-[#E4E4E7]">{entry.summary}</p>
-        <p className="mt-0.5 text-[11px] text-[#71717A]">
+        <p className={compact ? "text-[12px] leading-snug text-[#E4E4E7]" : "text-[13px] leading-snug text-[#E4E4E7]"}>
+          {entry.summary}
+        </p>
+        <p className="mt-0.5 text-[10px] text-[#71717A]">
           {actorName} · {formatActivityTime(entry.createdAt)}
         </p>
       </div>
     </>
   );
 
+  const rowClass = compact
+    ? "flex gap-2 rounded-md px-1.5 py-1.5"
+    : "flex gap-3 rounded-lg px-2 py-2";
+
   if (href) {
     return (
       <li>
-        <Link
-          href={href}
-          className="flex gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[#18181F]"
-        >
+        <Link href={href} className={[rowClass, "transition-colors hover:bg-[#18181F]"].join(" ")}>
           {body}
         </Link>
       </li>
     );
   }
 
-  return (
-    <li className="flex gap-3 rounded-lg px-2 py-2">
-      {body}
-    </li>
-  );
+  return <li className={rowClass}>{body}</li>;
 }
 
 function formatActivityTime(iso: string) {

@@ -36,7 +36,7 @@ function loadWorkspacePrefs(): WorkspaceTeamPrefs {
   }
 }
 
-export default function WorkspaceSettingsPanel() {
+export default function WorkspaceSettingsPanel({ expanded = false }: { expanded?: boolean }) {
   const [prefs, setPrefs] = React.useState<WorkspaceTeamPrefs>(() => loadWorkspacePrefs());
   const [appPrefs, setAppPrefs] = React.useState(() => loadSettings().preferences);
 
@@ -62,7 +62,17 @@ export default function WorkspaceSettingsPanel() {
         Defaults for invites, automation, and notifications across your crew.
       </p>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <div className={`mt-4 grid gap-[12px] ${expanded ? "sm:grid-cols-2" : "sm:grid-cols-2"}`}>
+        {expanded ? (
+          <>
+            <div className="rounded-lg border border-[#232330] bg-[#0F0F17] p-3 sm:col-span-2">
+              <p className="text-[13px] font-medium text-[#F5F5F7]">Notification preferences</p>
+              <p className="mt-1 text-[12px] text-[#71717A]">
+                Control operational alerts on the Activity tab and task board suggestions.
+              </p>
+            </div>
+          </>
+        ) : null}
         <label className="flex cursor-pointer items-center gap-2 text-[13px] text-[#E4E4E7]">
           <input
             type="checkbox"

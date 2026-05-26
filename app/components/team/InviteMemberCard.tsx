@@ -15,6 +15,7 @@ import { inviteWorkspaceMember, revokeWorkspaceInvite } from "@/lib/supabase/wor
 import {
   FIELD_LABEL,
   INPUT_SURFACE,
+  LINK_ACCENT,
   SECTION_CARD,
   SECTION_CARD_PADDING,
   SECTION_DESCRIPTION,
@@ -26,9 +27,16 @@ import type { WorkspaceRole } from "@/lib/types/collaboration";
 type InviteMemberCardProps = {
   pendingRows: PendingInviteRow[];
   onRefresh: () => Promise<void>;
+  variant?: "overview" | "full";
+  onManageInvites?: () => void;
 };
 
-export default function InviteMemberCard({ pendingRows, onRefresh }: InviteMemberCardProps) {
+export default function InviteMemberCard({
+  pendingRows,
+  onRefresh,
+  variant = "full",
+  onManageInvites,
+}: InviteMemberCardProps) {
   const {
     session,
     workspace,
@@ -136,12 +144,27 @@ export default function InviteMemberCard({ pendingRows, onRefresh }: InviteMembe
     }
   }
 
+  const isOverview = variant === "overview";
+
   return (
     <section className={[SECTION_CARD, SECTION_CARD_PADDING].join(" ")}>
-      <h2 className={SECTION_TITLE}>Invite to workspace</h2>
-      <p className={SECTION_DESCRIPTION}>
-        Add promoters, marketing, finance, or artist liaison roles to your season workspace.
-      </p>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h2 className={SECTION_TITLE}>Invite to workspace</h2>
+          {!isOverview ? (
+            <p className={SECTION_DESCRIPTION}>
+              Add promoters, marketing, finance, or artist liaison roles to your season workspace.
+            </p>
+          ) : (
+            <p className={SECTION_DESCRIPTION}>Quick invite — manage pending in Members.</p>
+          )}
+        </div>
+        {isOverview && pendingRows.length > 0 && onManageInvites ? (
+          <button type="button" onClick={onManageInvites} className={LINK_ACCENT}>
+            {pendingRows.length} pending →
+          </button>
+        ) : null}
+      </div>
 
       {usingLocalFallback ? (
         <div className="mt-4 rounded-lg border border-amber-900/50 bg-amber-950/30 px-3 py-2 text-[13px] text-amber-200/90">
@@ -173,10 +196,10 @@ export default function InviteMemberCard({ pendingRows, onRefresh }: InviteMembe
         </p>
       ) : null}
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_minmax(240px,300px)]">
+      <div className={isOverview ? "mt-3" : "mt-5 grid gap-[12px] lg:grid-cols-[1fr_minmax(240px,300px)]"}>
         <div>
           {canInvite ? (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="flex flex-col gap-[12px] sm:flex-row sm:items-end">
               <label className="min-w-0 flex-1">
                 <span className={FIELD_LABEL}>Email</span>
                 <div className="relative mt-1">
@@ -218,14 +241,16 @@ export default function InviteMemberCard({ pendingRows, onRefresh }: InviteMembe
             <p className="text-[13px] text-[#71717A]">Only workspace admins can send invites.</p>
           )}
 
-          <div className="mt-4 flex flex-wrap gap-1.5">
-            {TEAM_ROLES.map((r) => (
-              <RoleBadge key={r} role={r} />
-            ))}
-          </div>
+          {!isOverview ? (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {TEAM_ROLES.map((r) => (
+                <RoleBadge key={r} role={r} />
+              ))}
+            </div>
+          ) : null}
         </div>
 
-        {pendingRows.length > 0 ? (
+        {!isOverview && pendingRows.length > 0 ? (
           <div className="rounded-lg border border-[#232330] bg-[#0F0F17] p-4">
             <h3 className="text-[12px] font-semibold uppercase tracking-wide text-[#71717A]">
               Pending invites
