@@ -9,8 +9,9 @@ import { getWorkspaceMemberLabel } from "@/lib/collaboration/member-display";
 import { createTask, updateTask } from "@/lib/collaboration/tasks";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import { newId } from "@/lib/collaboration/local-store";
-import type { Task, TaskChecklistItem } from "@/lib/types/collaboration";
-import type { WorkspaceMember } from "@/lib/types/collaboration";
+import type { ManagedEventRecord } from "@/lib/data/events";
+import { KANBAN_COLUMN_THEME } from "@/lib/tasks/kanban-column-theme";
+import type { Task, TaskChecklistItem, WorkspaceMember } from "@/lib/types/collaboration";
 
 const fieldClassName =
   "mt-1 w-full rounded-lg border border-[#3F3F46] bg-[#0B0B10] px-3 py-2 text-[#F5F5F7] outline-none transition-colors focus:border-[#8B5CF6] focus:ring-0 focus-visible:outline-none focus-visible:border-[#8B5CF6]";
@@ -24,6 +25,7 @@ function parseDueDate(iso?: string | null) {
 type TaskDetailDrawerProps = {
   task: Task;
   members: WorkspaceMember[];
+  events?: ManagedEventRecord[];
   isNew?: boolean;
   onClose: () => void;
   onUpdated: (task: Task) => void;
@@ -32,6 +34,7 @@ type TaskDetailDrawerProps = {
 export default function TaskDetailDrawer({
   task,
   members,
+  events = [],
   isNew = false,
   onClose,
   onUpdated,
@@ -39,9 +42,11 @@ export default function TaskDetailDrawer({
   const { session, workspace } = useWorkspace();
   const [title, setTitle] = React.useState(task.title);
   const [description, setDescription] = React.useState(task.description ?? "");
+  const [eventId, setEventId] = React.useState(task.eventId ?? "");
   const [assigneeId, setAssigneeId] = React.useState(task.assigneeId ?? "");
   const [dueDate, setDueDate] = React.useState<Date | undefined>(() => parseDueDate(task.dueAt));
   const [priority, setPriority] = React.useState(task.priority);
+  const [labelsText, setLabelsText] = React.useState(task.labels.join(", "));
   const [checklist, setChecklist] = React.useState<TaskChecklistItem[]>(task.checklist);
   const [saving, setSaving] = React.useState(false);
   const newItemRef = React.useRef<HTMLInputElement | null>(null);
@@ -58,16 +63,22 @@ export default function TaskDetailDrawer({
         text: item.text.trim() || "Untitled item",
       }));
 
+      const labels = labelsText
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
       if (isNew) {
         const created = await createTask(session, {
           workspaceId: workspace.id,
-          eventId: task.eventId,
+          eventId: eventId || null,
           title: title.trim(),
           column: task.column,
           description: description.trim() || undefined,
           assigneeId: assigneeId || null,
           dueAt,
           priority,
+          labels,
           checklist: checklistPayload,
         });
         onUpdated(created);
@@ -81,6 +92,7 @@ export default function TaskDetailDrawer({
         assigneeId: assigneeId || null,
         dueAt,
         priority,
+        labels,
         checklist: checklistPayload,
       });
       onUpdated(updated);
@@ -110,16 +122,44 @@ export default function TaskDetailDrawer({
     requestAnimationFrame(() => newItemRef.current?.focus());
   }
 
+  const columnTheme = KANBAN_COLUMN_THEME[task.column];
+  const linkedEvent = events.find((e) => e.id === (eventId || task.eventId));
+
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/60">
-      <div className="flex h-full w-full max-w-md flex-col border-l border-[#232330] bg-[#11111A] shadow-2xl">
-        <div className="flex items-center justify-between border-b border-[#232330] px-4 py-3">
-          <h2 className="text-[16px] font-semibold text-[#F5F5F7]">
-            {isNew ? "New task" : "Task"}
-          </h2>
-          <button type="button" onClick={onClose} className="text-[#A1A1AA] hover:text-[#F5F5F7]">
-            <X className="size-5" />
-          </button>
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-[2px]">
+      <button
+        type="button"
+        className="flex-1"
+        aria-label="Close task panel"
+        onClick={onClose}
+      />
+      <div className="flex h-full w-full max-w-lg flex-col border-l border-[#8B5CF6]/15 bg-gradient-to-b from-[#14141F] to-[#0F0F17] shadow-[-8px_0_48px_rgba(0,0,0,0.45)]">
+        <div className="border-b border-[#232330]/90 px-4 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <span
+                className={[
+                  "inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase",
+                  columnTheme.badgeClass,
+                ].join(" ")}
+              >
+                {columnTheme.label}
+              </span>
+              <h2 className="mt-1 text-[16px] font-semibold text-[#F5F5F7]">
+                {isNew ? "New task" : "Task detail"}
+              </h2>
+              {linkedEvent ? (
+                <p className="mt-0.5 text-[12px] text-[#A78BFA]">{linkedEvent.name}</p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-1 text-[#A1A1AA] hover:bg-[#232330] hover:text-[#F5F5F7]"
+            >
+              <X className="size-5" />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
@@ -138,6 +178,35 @@ export default function TaskDetailDrawer({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
+              className={`${fieldClassName} text-[13px]`}
+            />
+          </label>
+
+          {events.length > 0 ? (
+            <label className="block">
+              <span className="text-[11px] uppercase text-[#71717A]">Linked event</span>
+              <select
+                value={eventId}
+                onChange={(e) => setEventId(e.target.value)}
+                disabled={!isNew}
+                className={`${fieldClassName} text-[13px] disabled:opacity-60`}
+              >
+                <option value="">No event</option>
+                {events.map((ev) => (
+                  <option key={ev.id} value={ev.id}>
+                    {ev.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
+          <label className="block">
+            <span className="text-[11px] uppercase text-[#71717A]">Labels</span>
+            <input
+              value={labelsText}
+              onChange={(e) => setLabelsText(e.target.value)}
+              placeholder="venue, marketing, auto"
               className={`${fieldClassName} text-[13px]`}
             />
           </label>

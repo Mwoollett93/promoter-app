@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { X } from "lucide-react";
 import {
   DndContext,
   DragOverlay,
@@ -10,6 +9,7 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -18,12 +18,24 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
+import OperationalSuggestionsBar from "@/app/components/tasks/OperationalSuggestionsBar";
+import TaskBoardMetrics from "@/app/components/tasks/TaskBoardMetrics";
+import TaskBoardToolbar, { type BoardViewMode } from "@/app/components/tasks/TaskBoardToolbar";
 import TaskDetailDrawer from "@/app/components/tasks/TaskDetailDrawer";
+import TaskKanbanCard, { type TaskCardMeta } from "@/app/components/tasks/TaskKanbanCard";
+import { listComments } from "@/lib/collaboration/comments";
 import { logActivity } from "@/lib/collaboration/activity";
+import { getWorkspaceMemberLabel } from "@/lib/collaboration/member-display";
 import { createTask, deleteTask, listTasks, moveTask } from "@/lib/collaboration/tasks";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import { newId } from "@/lib/collaboration/local-store";
 import { notifyTaskAssigned } from "@/lib/notifications/rules";
+import { KANBAN_COLUMN_THEME } from "@/lib/tasks/kanban-column-theme";
+import {
+  buildOperationalSuggestions,
+  type OperationalSuggestion,
+} from "@/lib/tasks/operational-suggestions";
+import { boardMetrics, filterTasks } from "@/lib/tasks/task-board-utils";
 import type { Task, TaskColumn } from "@/lib/types/collaboration";
 import { TASK_COLUMN_LABELS, TASK_COLUMNS } from "@/lib/types/collaboration";
 
@@ -31,32 +43,100 @@ function isDraftTaskId(taskId: string) {
   return taskId.startsWith("draft-");
 }
 
-const fieldClassName =
-  "min-w-[200px] flex-1 rounded-lg border border-[#3F3F46] bg-[#11111A] px-3 py-2 text-[13px] text-[#F5F5F7] outline-none transition-colors placeholder:text-[#71717A] focus:border-[#8B5CF6] focus:ring-0 focus-visible:outline-none focus-visible:border-[#8B5CF6]";
-
 type KanbanBoardProps = {
   workspaceId: string;
   eventId?: string;
 };
 
-export default function KanbanBoard({ workspaceId, eventId }: KanbanBoardProps) {
-  const { session, members } = useWorkspace();
+export default function KanbanBoard({ workspaceId, eventId: lockedEventId }: KanbanBoardProps) {
+  const { session, members, events, membership } = useWorkspace();
   const [tasks, setTasks] = React.useState<Task[]>([]);
+  const [commentCounts, setCommentCounts] = React.useState<Record<string, number>>({});
   const [activeId, setActiveId] = React.useState<string | null>(null);
+  const [overColumn, setOverColumn] = React.useState<TaskColumn | null>(null);
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
   const [newTitle, setNewTitle] = React.useState("");
+  const [search, setSearch] = React.useState("");
+  const [eventFilter, setEventFilter] = React.useState<string | null>(lockedEventId ?? null);
+  const [assigneeFilter, setAssigneeFilter] = React.useState<string | null>(null);
+  const [assignedToMe, setAssignedToMe] = React.useState(false);
+  const [statusFilter, setStatusFilter] = React.useState<TaskColumn | null>(null);
+  const [viewMode, setViewMode] = React.useState<BoardViewMode>("kanban");
+  const [compact, setCompact] = React.useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   const refresh = React.useCallback(async () => {
     if (!session) return;
-    const list = await listTasks(session, workspaceId, { eventId });
+    const list = await listTasks(session, workspaceId, {
+      eventId: lockedEventId,
+    });
     setTasks(list);
-  }, [session, workspaceId, eventId]);
+
+    const counts: Record<string, number> = {};
+    await Promise.all(
+      list.map(async (task) => {
+        try {
+          const comments = await listComments(session, workspaceId, "task", task.id);
+          counts[task.id] = comments.length;
+        } catch {
+          counts[task.id] = 0;
+        }
+      }),
+    );
+    setCommentCounts(counts);
+  }, [session, workspaceId, lockedEventId]);
 
   React.useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  React.useEffect(() => {
+    if (lockedEventId) setEventFilter(lockedEventId);
+  }, [lockedEventId]);
+
+  const eventNameById = React.useMemo(() => {
+    const map = new Map<string, string>();
+    for (const ev of events) map.set(ev.id, ev.name);
+    return map;
+  }, [events]);
+
+  const assigneeNameById = React.useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of members) {
+      if (m.userId) map.set(m.userId, getWorkspaceMemberLabel(m));
+    }
+    return map;
+  }, [members]);
+
+  const filteredTasks = React.useMemo(
+    () =>
+      filterTasks(tasks, {
+        search,
+        eventId: eventFilter,
+        assigneeId: assigneeFilter,
+        assignedToMe,
+        statusColumn: statusFilter,
+        currentUserId: membership?.userId ?? session?.user.id,
+      }),
+    [
+      tasks,
+      search,
+      eventFilter,
+      assigneeFilter,
+      assignedToMe,
+      statusFilter,
+      membership?.userId,
+      session?.user.id,
+    ],
+  );
+
+  const metrics = React.useMemo(() => boardMetrics(filteredTasks), [filteredTasks]);
+
+  const suggestions = React.useMemo(
+    () => buildOperationalSuggestions(events),
+    [events],
+  );
 
   const tasksByColumn = React.useMemo(() => {
     const map: Record<TaskColumn, Task[]> = {
@@ -66,18 +146,43 @@ export default function KanbanBoard({ workspaceId, eventId }: KanbanBoardProps) 
       waiting: [],
       complete: [],
     };
-    for (const task of tasks) {
+    for (const task of filteredTasks) {
       map[task.column].push(task);
     }
     for (const col of TASK_COLUMNS) {
       map[col].sort((a, b) => a.position - b.position);
     }
     return map;
-  }, [tasks]);
+  }, [filteredTasks]);
+
+  function taskMeta(task: Task): TaskCardMeta {
+    return {
+      eventName: task.eventId ? eventNameById.get(task.eventId) : undefined,
+      assigneeName: task.assigneeId
+        ? (task.assigneeName ?? assigneeNameById.get(task.assigneeId))
+        : undefined,
+      commentCount: commentCounts[task.id] ?? 0,
+    };
+  }
+
+  function handleDragOver(event: DragOverEvent) {
+    const overId = event.over ? String(event.over.id) : null;
+    if (!overId) {
+      setOverColumn(null);
+      return;
+    }
+    if (TASK_COLUMNS.includes(overId as TaskColumn)) {
+      setOverColumn(overId as TaskColumn);
+      return;
+    }
+    const overTask = tasks.find((t) => t.id === overId);
+    setOverColumn(overTask?.column ?? null);
+  }
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveId(null);
+    setOverColumn(null);
     if (!over || !session) return;
 
     const taskId = String(active.id);
@@ -106,7 +211,7 @@ export default function KanbanBoard({ workspaceId, eventId }: KanbanBoardProps) 
       setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
       void logActivity(session, {
         workspaceId,
-        eventId: eventId ?? task.eventId,
+        eventId: lockedEventId ?? task.eventId,
         entityType: "task",
         entityId: taskId,
         verb: "moved",
@@ -125,7 +230,7 @@ export default function KanbanBoard({ workspaceId, eventId }: KanbanBoardProps) 
       await deleteTask(session, workspaceId, task.id);
       void logActivity(session, {
         workspaceId,
-        eventId: eventId ?? task.eventId,
+        eventId: lockedEventId ?? task.eventId,
         entityType: "task",
         entityId: task.id,
         verb: "deleted",
@@ -136,23 +241,23 @@ export default function KanbanBoard({ workspaceId, eventId }: KanbanBoardProps) 
     }
   }
 
-  function buildDraftTask(title: string): Task {
+  function buildDraftTask(title: string, partial?: Partial<Task>): Task {
     const now = new Date().toISOString();
     return {
       id: `draft-${newId()}`,
       workspaceId,
-      eventId: eventId ?? null,
+      eventId: partial?.eventId ?? lockedEventId ?? eventFilter ?? null,
       artistId: null,
       venueId: null,
       bookingId: null,
-      column: "todo",
+      column: partial?.column ?? "todo",
       position: 0,
       title,
-      description: null,
+      description: partial?.description ?? null,
       assigneeId: null,
       dueAt: null,
       priority: "medium",
-      labels: [],
+      labels: partial?.labels ?? [],
       checklist: [],
       createdBy: session!.user.id,
       createdAt: now,
@@ -160,77 +265,133 @@ export default function KanbanBoard({ workspaceId, eventId }: KanbanBoardProps) 
     };
   }
 
-  async function handleQuickAdd(column: TaskColumn) {
+  async function handleQuickAdd() {
     if (!session || !newTitle.trim()) return;
     const task = await createTask(session, {
       workspaceId,
-      eventId: eventId ?? null,
+      eventId: lockedEventId ?? eventFilter ?? null,
       title: newTitle.trim(),
-      column,
+      column: "todo",
     });
     setNewTitle("");
     setTasks((prev) => [...prev, task]);
   }
 
-  function handleCreateToDo() {
+  function handleCreateTask() {
     if (!session) return;
     const trimmed = newTitle.trim();
     if (trimmed) {
-      void handleQuickAdd("todo");
+      void handleQuickAdd();
       return;
     }
     setSelectedTask(buildDraftTask(""));
   }
 
+  async function handleSuggestionCreate(suggestion: OperationalSuggestion) {
+    if (!session) return;
+    const task = await createTask(session, {
+      workspaceId,
+      eventId: suggestion.eventId,
+      title: suggestion.title,
+      description: suggestion.detail,
+      column: "todo",
+      labels: [suggestion.label, "auto"],
+    });
+    setTasks((prev) => [...prev, task]);
+  }
+
   const activeTask = tasks.find((t) => t.id === activeId) ?? null;
   const isNewDrawerTask = selectedTask ? isDraftTaskId(selectedTask.id) : false;
+  const columnMinH = compact ? "min-h-[140px]" : "min-h-[180px]";
+  const columnMaxH = compact
+    ? "max-h-[calc(100vh-300px)]"
+    : "max-h-[calc(100vh-340px)]";
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        <input
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleCreateToDo();
-          }}
-          placeholder="Quick add task…"
-          className={fieldClassName}
-        />
-        <button
-          type="button"
-          onClick={handleCreateToDo}
-          className="rounded-lg border border-[rgba(139,92,246,0.45)] bg-[#7C3AED] px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[#6D28D9]"
-        >
-          Create To Do
-        </button>
-      </div>
+    <div className="space-y-3">
+      <TaskBoardToolbar
+        events={events}
+        members={members}
+        search={search}
+        onSearchChange={setSearch}
+        eventFilter={eventFilter}
+        onEventFilterChange={setEventFilter}
+        assigneeFilter={assigneeFilter}
+        onAssigneeFilterChange={setAssigneeFilter}
+        assignedToMe={assignedToMe}
+        onAssignedToMeChange={setAssignedToMe}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        compact={compact}
+        onCompactChange={setCompact}
+        quickAddValue={newTitle}
+        onQuickAddChange={setNewTitle}
+        onQuickAdd={handleCreateTask}
+      />
 
-      <DndContext
-        sensors={sensors}
-        onDragStart={(e) => setActiveId(String(e.active.id))}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="grid gap-3 lg:grid-cols-5">
-          {TASK_COLUMNS.map((column) => (
-            <KanbanColumn
-              key={column}
-              column={column}
-              tasks={tasksByColumn[column]}
-              onSelect={setSelectedTask}
-              onDelete={handleDeleteTask}
-            />
-          ))}
-        </div>
-        <DragOverlay dropAnimation={null}>
-          {activeTask ? <TaskCardPreview task={activeTask} /> : null}
-        </DragOverlay>
-      </DndContext>
+      <TaskBoardMetrics {...metrics} />
+
+      <OperationalSuggestionsBar
+        suggestions={suggestions}
+        onCreateFromSuggestion={(s) => void handleSuggestionCreate(s)}
+      />
+
+      {viewMode === "list" ? (
+        <TaskListView
+          tasks={filteredTasks}
+          taskMeta={taskMeta}
+          compact={compact}
+          onSelect={setSelectedTask}
+          onDelete={handleDeleteTask}
+        />
+      ) : (
+        <DndContext
+          sensors={sensors}
+          onDragStart={(e) => setActiveId(String(e.active.id))}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => {
+            setActiveId(null);
+            setOverColumn(null);
+          }}
+        >
+          <div className="grid gap-2 lg:grid-cols-5">
+            {TASK_COLUMNS.map((column) => (
+              <KanbanColumn
+                key={column}
+                column={column}
+                tasks={tasksByColumn[column]}
+                compact={compact}
+                columnMinH={columnMinH}
+                columnMaxH={columnMaxH}
+                isDropTarget={overColumn === column}
+                taskMeta={taskMeta}
+                onSelect={setSelectedTask}
+                onDelete={handleDeleteTask}
+              />
+            ))}
+          </div>
+          <DragOverlay dropAnimation={{ duration: 180, easing: "ease-out" }}>
+            {activeTask ? (
+              <TaskKanbanCard
+                task={activeTask}
+                meta={taskMeta(activeTask)}
+                compact={compact}
+                dragging
+                onSelect={() => {}}
+              />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      )}
 
       {selectedTask && session ? (
         <TaskDetailDrawer
           task={selectedTask}
           members={members}
+          events={events}
           isNew={isNewDrawerTask}
           onClose={() => setSelectedTask(null)}
           onUpdated={(updated) => {
@@ -247,9 +408,12 @@ export default function KanbanBoard({ workspaceId, eventId }: KanbanBoardProps) 
                 workspaceId,
                 updated.assigneeId,
                 updated.title,
-                eventId ? `/events/${eventId}/workspace?tab=tasks` : "/tasks",
+                lockedEventId
+                  ? `/events/${lockedEventId}/workspace?tab=tasks`
+                  : "/tasks",
               );
             }
+            void refresh();
           }}
         />
       ) : null}
@@ -260,40 +424,91 @@ export default function KanbanBoard({ workspaceId, eventId }: KanbanBoardProps) 
 function KanbanColumn({
   column,
   tasks,
+  compact,
+  columnMinH,
+  columnMaxH,
+  isDropTarget,
+  taskMeta,
   onSelect,
   onDelete,
 }: {
   column: TaskColumn;
   tasks: Task[];
+  compact: boolean;
+  columnMinH: string;
+  columnMaxH: string;
+  isDropTarget: boolean;
+  taskMeta: (task: Task) => TaskCardMeta;
   onSelect: (task: Task) => void;
   onDelete: (task: Task) => void;
 }) {
+  const theme = KANBAN_COLUMN_THEME[column];
   const { setNodeRef, isOver } = useDroppable({ id: column });
+  const highlight = isOver || isDropTarget;
+  const Icon = theme.Icon;
 
   return (
     <div
       ref={setNodeRef}
       className={[
-        "flex min-h-[320px] flex-col rounded-xl border border-[#232330] bg-[#0F0F17]",
-        isOver ? "border-[#8B5CF6]/40 bg-[#14141F]" : "",
+        "flex flex-col rounded-xl border backdrop-blur-sm transition-all duration-200",
+        theme.columnClass,
+        columnMinH,
+        columnMaxH,
+        highlight ? `ring-1 ring-inset ${theme.dropGlow}` : "",
+        highlight ? "border-[#8B5CF6]/30" : "",
       ].join(" ")}
     >
-      <div className="border-b border-[#232330] px-3 py-2">
-        <p className="text-[12px] font-semibold uppercase tracking-wide text-[#A1A1AA]">
-          {TASK_COLUMN_LABELS[column]}
-        </p>
-        <p className="text-[11px] text-[#71717A]">{tasks.length}</p>
+      <div
+        className={[
+          "flex shrink-0 items-center justify-between gap-2 rounded-t-xl border-b px-2.5 py-2",
+          theme.headerClass,
+        ].join(" ")}
+      >
+        <div className="flex min-w-0 items-center gap-1.5">
+          <Icon
+            className={[
+              "size-3.5 shrink-0",
+              column === "in_progress" && highlight ? "animate-spin" : "",
+            ].join(" ")}
+            strokeWidth={2}
+          />
+          <span className="truncate text-[11px] font-semibold uppercase tracking-wide text-[#E4E4E7]">
+            {theme.label}
+          </span>
+        </div>
+        <span
+          className={[
+            "shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
+            theme.badgeClass,
+          ].join(" ")}
+        >
+          {tasks.length}
+        </span>
       </div>
+
       <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-        <ul className="flex flex-1 flex-col gap-2 p-2">
+        <ul
+          className={[
+            "flex flex-1 flex-col overflow-y-auto p-1.5",
+            compact ? "gap-1" : "gap-1.5",
+          ].join(" ")}
+        >
           {tasks.map((task) => (
             <SortableTaskCard
               key={task.id}
               task={task}
-              onSelect={onSelect}
-              onDelete={onDelete}
+              meta={taskMeta(task)}
+              compact={compact}
+              onSelect={() => onSelect(task)}
+              onDelete={() => onDelete(task)}
             />
           ))}
+          {highlight && tasks.length === 0 ? (
+            <li className="rounded-lg border border-dashed border-[#8B5CF6]/40 bg-[#1A1630]/30 px-2 py-3 text-center text-[10px] text-[#A78BFA]">
+              Drop here
+            </li>
+          ) : null}
         </ul>
       </SortableContext>
     </div>
@@ -302,14 +517,17 @@ function KanbanColumn({
 
 function SortableTaskCard({
   task,
+  meta,
+  compact,
   onSelect,
   onDelete,
 }: {
   task: Task;
-  onSelect: (task: Task) => void;
-  onDelete: (task: Task) => void;
+  meta: TaskCardMeta;
+  compact: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
 }) {
-  const isComplete = task.column === "complete";
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
   });
@@ -317,75 +535,82 @@ function SortableTaskCard({
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition: isDragging ? undefined : transition,
-    opacity: isDragging ? 0.35 : 1,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 50 : undefined,
   };
 
   return (
     <li ref={setNodeRef} style={style} className="touch-none">
-      <div
-        className={[
-          "relative rounded-lg border bg-[#11111A] transition-colors",
-          isComplete ? "border-[#27272F] opacity-80" : "border-[#3F3F46] hover:border-[#52525B]",
-        ].join(" ")}
-      >
-        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing pr-7">
-          <button
-            type="button"
-            onClick={() => onSelect(task)}
-            className="w-full px-3 py-2 text-left"
-          >
-            <p
-              className={[
-                "text-[13px] font-medium",
-                isComplete ? "text-[#71717A] line-through" : "text-[#F5F5F7]",
-              ].join(" ")}
-            >
-              {task.title}
-            </p>
-            {task.dueAt ? (
-              <p
-                className={[
-                  "mt-1 text-[11px]",
-                  isComplete ? "text-[#52525B] line-through" : "text-[#71717A]",
-                ].join(" ")}
-              >
-                Due {new Date(task.dueAt).toLocaleDateString()}
-              </p>
-            ) : null}
-          </button>
-        </div>
-
-        {!isComplete ? (
-          <button
-            type="button"
-            aria-label={`Delete ${task.title}`}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(task);
-            }}
-            className="absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-md text-[#71717A] transition-colors hover:bg-[#27272F] hover:text-[#FCA5A5]"
-          >
-            <X className="size-3.5" strokeWidth={2} />
-          </button>
-        ) : null}
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+        <TaskKanbanCard
+          task={task}
+          meta={meta}
+          compact={compact}
+          onSelect={onSelect}
+          onDelete={onDelete}
+        />
       </div>
     </li>
   );
 }
 
-function TaskCardPreview({ task }: { task: Task }) {
-  const isComplete = task.column === "complete";
+function TaskListView({
+  tasks,
+  taskMeta,
+  compact,
+  onSelect,
+  onDelete,
+}: {
+  tasks: Task[];
+  taskMeta: (task: Task) => TaskCardMeta;
+  compact: boolean;
+  onSelect: (task: Task) => void;
+  onDelete: (task: Task) => void;
+}) {
   return (
-    <div className="rounded-lg border border-[#8B5CF6]/40 bg-[#11111A] px-3 py-2 shadow-lg">
-      <p
-        className={[
-          "text-[13px] font-medium",
-          isComplete ? "text-[#71717A] line-through" : "text-[#F5F5F7]",
-        ].join(" ")}
-      >
-        {task.title}
-      </p>
+    <div className="overflow-hidden rounded-xl border border-[#232330]/90 bg-[#0F0F17]">
+      <ul className="divide-y divide-[#232330]">
+        {tasks.length === 0 ? (
+          <li className="px-4 py-8 text-center text-[13px] text-[#71717A]">No tasks match filters.</li>
+        ) : (
+          tasks.map((task) => {
+            const meta = taskMeta(task);
+            const theme = KANBAN_COLUMN_THEME[task.column];
+            return (
+              <li
+                key={task.id}
+                className="flex flex-wrap items-center gap-3 px-3 py-2 transition-colors hover:bg-[#14141F]/80"
+              >
+                <span
+                  className={[
+                    "rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase",
+                    theme.badgeClass,
+                  ].join(" ")}
+                >
+                  {theme.label}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onSelect(task)}
+                  className="min-w-0 flex-1 text-left"
+                >
+                  <p className="truncate text-[13px] font-medium text-[#F5F5F7]">{task.title}</p>
+                  <p className="text-[11px] text-[#71717A]">
+                    {[meta.eventName, meta.assigneeName].filter(Boolean).join(" · ") || "—"}
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDelete(task)}
+                  className="text-[11px] text-[#71717A] hover:text-[#FCA5A5]"
+                >
+                  Delete
+                </button>
+              </li>
+            );
+          })
+        )}
+      </ul>
     </div>
   );
 }

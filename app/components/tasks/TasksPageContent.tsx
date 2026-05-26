@@ -39,8 +39,8 @@ export default function TasksPageContent() {
       <div className="space-y-4">
         <div>
           <h1 className="text-[28px] font-bold text-[#F5F5F7]">Tasks</h1>
-          <p className="mt-1 text-[14px] text-[#A1A1AA]">
-            Operational backbone — drag cards across columns for your whole season.
+          <p className="mt-1 max-w-2xl text-[14px] text-[#A1A1AA]">
+            Season operations board — filter by event, track overdue work, and drag tasks through your workflow.
           </p>
         </div>
         <KanbanBoard workspaceId={workspace.id} />
