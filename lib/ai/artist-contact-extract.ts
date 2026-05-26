@@ -16,7 +16,7 @@ const MGMT_LOCAL = /mgmt|management|manage|manager/i;
 const PRESS_LOCAL = /press|media|publicity|pr@|promo/i;
 
 const AGENCY_RE =
-  /(?:represented by|booking(?:s)?(?:\s+through)?|booked (?:by|through)|managed by|management[:\s]+)\s*([A-Z][A-Za-z0-9\s&'.-]{2,60}(?:Agency|Artists|Management|MGMT|Entertainment|Bookings?))/i;
+  /(?:represented by|booking(?:s)?(?:\s+through)?|booked (?:by|through)|managed by|management[:\s]+)\s*([A-Z][A-Za-z0-9\s&'.-]{2,60}(?:Agency|Artists|Management|MGMT|Entertainment|Bookings?))/gi;
 
 export type PageScanResult = {
   url: string;
