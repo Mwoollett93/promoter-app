@@ -57,6 +57,7 @@ type InviteRow = {
   token: string;
   expires_at: string;
   accepted_at: string | null;
+  invited_by?: string | null;
   created_at: string;
 };
 
@@ -98,6 +99,7 @@ function mapInvite(row: InviteRow): WorkspaceInvite {
   return {
     id: row.id,
     workspaceId: row.workspace_id,
+    invitedBy: row.invited_by ?? null,
     email: row.email,
     role: row.role,
     token: row.token,
@@ -612,4 +614,52 @@ export async function removeWorkspaceMember(
     method: "DELETE",
     prefer: "return=minimal",
   });
+}
+
+export async function listWorkspaceInvites(
+  session: SupabaseSession,
+  workspaceId: string,
+): Promise<WorkspaceInvite[]> {
+  if (shouldUseLocalCollaboration(session, workspaceId)) {
+    return loadLocalInvites(workspaceId).filter((i) => !i.acceptedAt);
+  }
+
+  try {
+    const rows = await supabaseRest<InviteRow[]>(
+      `workspace_invites?workspace_id=eq.${workspaceId}&accepted_at=is.null&order=created_at.desc`,
+      session,
+    );
+    return rows.map(mapInvite);
+  } catch {
+    return loadLocalInvites(workspaceId).filter((i) => !i.acceptedAt);
+  }
+}
+
+export async function revokeWorkspaceInvite(
+  session: SupabaseSession,
+  workspaceId: string,
+  input: { inviteId: string; memberId?: string },
+): Promise<void> {
+  if (shouldUseLocalCollaboration(session, workspaceId)) {
+    saveLocalInvites(
+      workspaceId,
+      loadLocalInvites(workspaceId).filter((i) => i.id !== input.inviteId),
+    );
+    if (input.memberId) {
+      const members = loadLocalMembers(workspaceId).filter((m) => m.id !== input.memberId);
+      saveLocalMembers(workspaceId, members);
+    }
+    return;
+  }
+
+  await supabaseRest(`workspace_invites?id=eq.${input.inviteId}`, session, {
+    method: "DELETE",
+    prefer: "return=minimal",
+  });
+  if (input.memberId) {
+    await supabaseRest(`workspace_members?id=eq.${input.memberId}`, session, {
+      method: "DELETE",
+      prefer: "return=minimal",
+    });
+  }
 }

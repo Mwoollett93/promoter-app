@@ -60,6 +60,7 @@ export type WorkspaceInvite = {
   token: string;
   expiresAt: string;
   acceptedAt: string | null;
+  invitedBy?: string | null;
   createdAt: string;
 };
 
