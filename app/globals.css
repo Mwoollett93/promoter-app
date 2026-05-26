@@ -136,3 +136,24 @@ body {
     @apply font-sans;
   }
 }
+
+@keyframes promosync-soft-glow-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.promosync-soft-glow-ring {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(139, 92, 246, 0.08) 40deg,
+    rgba(139, 92, 246, 0.45) 110deg,
+    rgba(167, 139, 250, 0.65) 140deg,
+    rgba(139, 92, 246, 0.35) 200deg,
+    transparent 300deg,
+    transparent 360deg
+  );
+  animation: promosync-soft-glow-spin 2.8s linear infinite;
+  filter: blur(10px);
+}

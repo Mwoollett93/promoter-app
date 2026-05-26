@@ -12,7 +12,13 @@ const BLOCKED_IMAGE_HOSTS = [
 ];
 
 const ALBUM_HOST_OR_PATH =
-  /coverartarchive\.org|dzcdn\.net|deezer\.com|mzstatic\.com|itunes\.apple|music\.apple|album|cover|release|single|\bep\b|\blp\b|artwork|track/i;
+  /coverartarchive\.org|mzstatic\.com|itunes\.apple|music\.apple|album|cover|release|single|\bep\b|\blp\b|artwork|track/i;
+
+function isBlockedCatalogueUrl(url: string): boolean {
+  if (/dzcdn\.net\/images\/artist\//i.test(url)) return false;
+  if (/dzcdn\.net|deezer\.com/i.test(url)) return true;
+  return ALBUM_HOST_OR_PATH.test(url);
+}
 
 export function sanitizeArtistImageUrl(url: string | undefined): string | undefined {
   if (!url?.trim()) return undefined;
@@ -23,7 +29,7 @@ export function sanitizeArtistImageUrl(url: string | undefined): string | undefi
     const parsed = new URL(trimmed);
     if (BLOCKED_IMAGE_HOSTS.some((host) => parsed.hostname.endsWith(host))) return undefined;
     if (/example|placeholder|dummy|fake/i.test(trimmed)) return undefined;
-    if (ALBUM_HOST_OR_PATH.test(trimmed)) return undefined;
+    if (isBlockedCatalogueUrl(trimmed)) return undefined;
     return trimmed;
   } catch {
     return undefined;

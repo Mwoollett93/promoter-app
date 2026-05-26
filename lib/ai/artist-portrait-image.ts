@@ -112,10 +112,13 @@ function contentTypeIsImage(type: string): boolean {
   return lower.startsWith("image/") || lower.includes("octet-stream");
 }
 
-async function validateImageUrl(url: string): Promise<{ ok: boolean; warning?: string }> {
+async function validateImageUrl(
+  url: string,
+  source: ArtistImageSource,
+): Promise<{ ok: boolean; warning?: string }> {
   const normalized = normalizeUrl(url);
   if (!normalized) return { ok: false, warning: "Invalid URL" };
-  if (urlLooksLikeAlbumArt(normalized, "manual_required")) {
+  if (urlLooksLikeAlbumArt(normalized, source)) {
     return { ok: false, warning: "URL looks like album/release artwork" };
   }
 
@@ -406,7 +409,7 @@ export async function resolveArtistPortraitImage(input: {
       continue;
     }
 
-    const check = await validateImageUrl(c.url);
+    const check = await validateImageUrl(c.url, c.source);
     if (!check.ok) {
       warnings.push(`Rejected ${c.source}: ${check.warning ?? "invalid"}`);
       continue;

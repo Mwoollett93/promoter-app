@@ -5,6 +5,7 @@ import { ExternalLink, Sparkles, X } from "lucide-react";
 
 import ArtistAvatar from "@/app/components/artists/ArtistAvatar";
 import Button from "@/app/components/ui/Button";
+import { SearchingEllipsisText, SoftGlowLoader } from "@/app/components/ui/SoftGlowLoader";
 import {
   imageConfidenceClasses,
   imageConfidenceLabel,
@@ -84,9 +85,11 @@ export default function ArtistMatchReviewModal({
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {loading ? (
-            <p className="rounded-lg border border-[#8B5CF6]/25 bg-[#1A1630]/30 px-4 py-8 text-center text-[13px] text-[#C4B5FD]">
-              Searching for artist profiles…
-            </p>
+            <SoftGlowLoader>
+              <p className="border border-[#8B5CF6]/25 bg-[#1A1630]/30 px-4 py-10 text-center text-[13px] text-[#C4B5FD] shadow-[inset_0_0_32px_rgba(139,92,246,0.06)]">
+                <SearchingEllipsisText />
+              </p>
+            </SoftGlowLoader>
           ) : null}
 
           {error ? (
