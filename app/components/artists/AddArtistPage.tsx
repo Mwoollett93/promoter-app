@@ -432,8 +432,8 @@ export default function AddArtistPage() {
   }
 
   return (
-    <div className="flex w-full max-w-none flex-col gap-3 pb-10">
-      <header className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <div className="flex h-[calc(100dvh-40px)] min-h-0 w-full max-w-none flex-col gap-3 overflow-hidden">
+      <header className="shrink-0 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="mb-2 flex items-center gap-2 text-sm text-[#A1A1AA]">
             <Link href="/artists" className="hover:text-white">
@@ -481,7 +481,7 @@ export default function AddArtistPage() {
       {(message || error) && (
         <div
           className={[
-            "rounded-lg border px-4 py-3 text-sm",
+            "shrink-0 rounded-lg border px-4 py-3 text-sm",
             error ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
           ].join(" ")}
         >
@@ -489,8 +489,8 @@ export default function AddArtistPage() {
         </div>
       )}
 
-      <section className="overflow-hidden rounded-xl border border-[#232330] bg-[#11111A] shadow-[0px_10px_40px_0px_rgba(0,0,0,0.35)]">
-        <nav className="grid border-b border-[#232330] bg-[#0F0F17] md:grid-cols-4">
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#232330] bg-[#11111A] shadow-[0px_10px_40px_0px_rgba(0,0,0,0.35)]">
+        <nav className="grid shrink-0 border-b border-[#232330] bg-[#0F0F17] md:grid-cols-4">
           {steps.map((item, index) => {
             const Icon = item.icon;
             const active = item.id === step;
@@ -517,8 +517,8 @@ export default function AddArtistPage() {
           })}
         </nav>
 
-        <div className="grid gap-3 p-5 xl:grid-cols-[minmax(0,1fr)_260px]">
-          <div>
+        <div className="grid min-h-0 flex-1 gap-0 overflow-hidden xl:grid-cols-[minmax(0,1fr)_240px]">
+          <div className="min-h-0 overflow-y-auto p-5">
             {step === "basic" ? (
               <BasicInfoStep
                 draft={draft}
@@ -573,29 +573,29 @@ export default function AddArtistPage() {
             )}
           </div>
 
-          <aside className="space-y-3">
-            <section className="rounded-xl border border-[#232330] bg-[#0F0F17] p-5">
+          <aside className="hidden min-h-0 space-y-3 overflow-y-auto border-l border-[#232330] bg-[#0D0D12] p-5 xl:block">
+            <section className="rounded-xl border border-[#232330] bg-[#0F0F17] p-4">
               <h2 className="text-sm font-semibold text-[#F5F5F7]">Tips</h2>
-              <p className="mt-3 text-sm leading-6 text-[#A1A1AA]">
+              <p className="mt-2 text-[13px] leading-relaxed text-[#A1A1AA]">
                 Add essential details first. Social links, tags, and files make lineup planning faster later.
               </p>
             </section>
-            <section className="rounded-xl border border-[#232330] bg-[#0F0F17] p-5">
+            <section className="rounded-xl border border-[#232330] bg-[#0F0F17] p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-sm font-semibold text-[#F5F5F7]">Profile Completion</h2>
                   <p className="mt-1 text-xs text-[#A1A1AA]">{completion}% complete</p>
                 </div>
-                <div className="flex size-14 items-center justify-center rounded-full border-4 border-[#7C3AED] text-sm font-bold text-white">
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-full border-[3px] border-[#7C3AED] text-xs font-bold text-white">
                   {completion}%
                 </div>
               </div>
-              <ul className="mt-4 space-y-2 text-xs text-[#A1A1AA]">
+              <ul className="mt-3 space-y-1.5 text-xs text-[#A1A1AA]">
                 {steps.map((item, index) => (
                   <li key={item.id} className="flex items-center gap-2">
                     <span
                       className={[
-                        "size-2 rounded-full",
+                        "size-1.5 rounded-full",
                         index <= currentIndex ? "bg-[#8B5CF6]" : "bg-[#3F3F46]",
                       ].join(" ")}
                     />
@@ -607,7 +607,7 @@ export default function AddArtistPage() {
           </aside>
         </div>
 
-        <footer className="flex items-center justify-between gap-3 border-t border-[#232330] px-5 py-4">
+        <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-[#232330] bg-[#0D0D12] px-5 py-3">
           <button
             type="button"
             disabled={currentIndex === 0}
@@ -660,37 +660,43 @@ function BasicInfoStep({
   onAiSuccess: (message: string) => void;
 }) {
   return (
-    <section>
+    <section className="space-y-4">
       <h2 className="text-lg font-bold text-[#F5F5F7]">Basic Information</h2>
-      <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
-        <div className="space-y-3">
-          <label className="block">
-            <span className="mb-1.5 flex items-center justify-between gap-2">
-              <span className="text-sm font-medium text-[#F5F5F7]">
-                Artist Name <span className="text-red-400">*</span>
-              </span>
-              <ArtistAiFillButton
-                artistName={draft.name}
-                draft={draft}
-                onApply={(next) => {
-                  patchDraft(next);
-                  if (next.promoImageUrl) setPromoImageFile(null);
-                }}
-                onError={onAiError}
-                onSuccess={onAiSuccess}
-              />
-            </span>
+
+      <div className="rounded-xl border border-[#8B5CF6]/20 bg-[#1A1630]/20 p-4">
+        <label className="block">
+          <span className="text-sm font-medium text-[#F5F5F7]">
+            Artist Name <span className="text-red-400">*</span>
+          </span>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
             <input
               type="text"
               value={draft.name}
               onChange={(event) => patchDraft({ name: event.target.value })}
               placeholder="Enter artist name"
-              className="h-11 w-full rounded-lg border border-[#3F3F46] bg-[#0F0F17] px-3 text-sm text-[#F5F5F7] outline-none transition-colors placeholder:text-[#71717A] focus:border-[#8B5CF6]"
+              className="h-11 min-w-0 flex-1 rounded-lg border border-[#3F3F46] bg-[#0F0F17] px-3 text-sm text-[#F5F5F7] outline-none transition-colors placeholder:text-[#71717A] focus:border-[#8B5CF6]"
             />
-            <span className="mt-1 block text-[12px] text-[#71717A]">
-              Type the artist name, then use Find Artist to preview matches before filling the form.
-            </span>
-          </label>
+            <ArtistAiFillButton
+              compact
+              artistName={draft.name}
+              draft={draft}
+              onApply={(next) => {
+                patchDraft(next);
+                if (next.promoImageUrl) setPromoImageFile(null);
+              }}
+              onError={onAiError}
+              onSuccess={onAiSuccess}
+              className="w-full sm:w-auto"
+            />
+          </div>
+          <p className="mt-2 text-[12px] leading-relaxed text-[#A1A1AA]">
+            Search Spotify and public sources to pre-fill bio, image, and links.
+          </p>
+        </label>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="space-y-3">
           <SelectField
             label="Artist Type"
             required
@@ -739,7 +745,7 @@ function BasicInfoStep({
                 </div>
               </div>
             ) : null}
-            <div className="flex min-h-[170px] flex-col items-center justify-center rounded-xl border border-dashed border-[#3F3F46] bg-[#0B0B10] p-5 text-center">
+            <div className="flex min-h-[132px] flex-col items-center justify-center rounded-xl border border-dashed border-[#3F3F46] bg-[#0B0B10] p-4 text-center">
               <Image className="size-8 text-[#A1A1AA]" aria-hidden />
               <p className="mt-3 text-sm font-semibold text-[#F5F5F7]">
                 {promoImageFile ? promoImageFile.name : "Upload Image"}
@@ -764,7 +770,7 @@ function BasicInfoStep({
               />
             </div>
           </div>
-          <BioTextArea value={draft.bio} onChange={(bio) => patchDraft({ bio })} />
+          <BioTextArea compact value={draft.bio} onChange={(bio) => patchDraft({ bio })} />
         </div>
       </div>
     </section>
@@ -779,27 +785,27 @@ function ContactStep({
   patchDraft: (patch: Partial<ArtistDraft>) => void;
 }) {
   return (
-    <section>
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">
-        <div className="space-y-3">
-          <section className="rounded-xl border border-[#232330] bg-[#0F0F17] p-5">
-            <h2 className="text-lg font-bold text-[#F5F5F7]">Primary Contact</h2>
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
+    <section className="space-y-4">
+      <h2 className="text-lg font-bold text-[#F5F5F7]">Contact Information</h2>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]">
+        <div className="space-y-4">
+          <section className="rounded-xl border border-[#232330] bg-[#0F0F17] p-4">
+            <h3 className="text-sm font-semibold text-[#F5F5F7]">Primary Contact</h3>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <Field label="Contact Name" required value={draft.contactName} onChange={(contactName) => patchDraft({ contactName })} placeholder="Enter full name" />
               <SelectField label="Role" value={draft.contactRole} onChange={(contactRole) => patchDraft({ contactRole })} options={["Artist", "Agent", "Manager", "Tour Manager"]} />
-            </div>
-            <div className="mt-3 space-y-3">
               <Field label="Primary email" required value={draft.email} onChange={(email) => patchDraft({ email })} placeholder="Enter email address" type="email" />
+              <Field label="Phone" value={draft.phone} onChange={(phone) => patchDraft({ phone })} placeholder="Enter phone number" />
               <Field label="Booking email" value={draft.bookingEmail} onChange={(bookingEmail) => patchDraft({ bookingEmail })} placeholder="bookings@…" type="email" />
               <Field label="Management email" value={draft.managementEmail} onChange={(managementEmail) => patchDraft({ managementEmail })} placeholder="management@…" type="email" />
               <Field label="Press email" value={draft.pressEmail} onChange={(pressEmail) => patchDraft({ pressEmail })} placeholder="press@…" type="email" />
               <Field label="Contact page URL" value={draft.contactPage} onChange={(contactPage) => patchDraft({ contactPage })} placeholder="https://…/contact" />
-              <Field label="Phone" value={draft.phone} onChange={(phone) => patchDraft({ phone })} placeholder="Enter phone number" />
               <SelectField label="Preferred Contact Method" value={draft.preferredContactMethod} onChange={(preferredContactMethod) => patchDraft({ preferredContactMethod })} options={["Email", "Phone", "WhatsApp", "Instagram DM"]} />
             </div>
             <div className="mt-3">
-              <label className="mb-2 block text-sm font-medium text-[#F5F5F7]">Reliability Rating</label>
-              <div className="flex items-center gap-2">
+              <label className="mb-1.5 block text-sm font-medium text-[#F5F5F7]">Reliability Rating</label>
+              <div className="flex items-center gap-1.5">
                 {[1, 2, 3, 4, 5].map((rating) => (
                   <button
                     key={rating}
@@ -808,23 +814,25 @@ function ContactStep({
                     className={rating <= draft.reliabilityRating ? "text-[#8B5CF6]" : "text-[#71717A]"}
                     aria-label={`${rating} star rating`}
                   >
-                    <Star className="size-6" fill={rating <= draft.reliabilityRating ? "currentColor" : "none"} />
+                    <Star className="size-5" fill={rating <= draft.reliabilityRating ? "currentColor" : "none"} />
                   </button>
                 ))}
               </div>
             </div>
           </section>
 
-          <section className="rounded-xl border border-[#232330] bg-[#0F0F17] p-5">
-            <h2 className="text-lg font-bold text-[#F5F5F7]">Agency / Management <span className="text-sm font-normal text-[#A1A1AA]">(Optional)</span></h2>
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <section className="rounded-xl border border-[#232330] bg-[#0F0F17] p-4">
+            <h3 className="text-sm font-semibold text-[#F5F5F7]">
+              Agency / Management <span className="font-normal text-[#A1A1AA]">(Optional)</span>
+            </h3>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <Field label="Agency / Management Name" value={draft.agencyName} onChange={(agencyName) => patchDraft({ agencyName })} placeholder="Enter agency or management name" />
               <Field label="Management Company" value={draft.managementCompany} onChange={(managementCompany) => patchDraft({ managementCompany })} placeholder="Enter management company" />
             </div>
           </section>
         </div>
 
-        <section className="rounded-xl border border-[#232330] bg-[#0F0F17] p-5">
+        <section className="rounded-xl border border-[#232330] bg-[#0F0F17] p-4">
           <div className="flex items-center gap-2">
             <span className="flex size-9 items-center justify-center rounded-lg bg-[#2D2640] text-[#C4B5FD]">
               <DollarSign className="size-5" aria-hidden />
@@ -1195,7 +1203,7 @@ function GenreInput({
         </div>
       </div>
       {input.trim() || suggestions.length > 0 ? (
-        <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="mt-2 flex max-h-[4.5rem] flex-wrap gap-1.5 overflow-y-auto pr-1">
           {input.trim() ? (
             <button
               type="button"
@@ -1365,7 +1373,15 @@ function SelectField({
   );
 }
 
-function BioTextArea({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+function BioTextArea({
+  value,
+  onChange,
+  compact = false,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  compact?: boolean;
+}) {
   const words = countWords(value);
   const overLimit = words > MAX_ARTIST_BIO_WORDS;
 
@@ -1383,7 +1399,9 @@ function BioTextArea({ value, onChange }: { value: string; onChange: (value: str
           onChange(trimToMaxWords(next, MAX_ARTIST_BIO_WORDS));
         }}
         placeholder="Write a short bio about the artist..."
-        className="min-h-[126px] w-full resize-none rounded-lg border border-[#3F3F46] bg-[#0F0F17] px-3 py-3 text-sm text-[#F5F5F7] outline-none placeholder:text-[#71717A] focus:border-[#8B5CF6]"
+        className={`w-full resize-none rounded-lg border border-[#3F3F46] bg-[#0F0F17] px-3 py-2.5 text-sm text-[#F5F5F7] outline-none placeholder:text-[#71717A] focus:border-[#8B5CF6] ${
+          compact ? "min-h-[96px]" : "min-h-[126px]"
+        }`}
       />
       <span
         className={[

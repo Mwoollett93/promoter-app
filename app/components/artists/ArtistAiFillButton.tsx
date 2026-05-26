@@ -24,6 +24,9 @@ type ArtistAiFillButtonProps = {
   onApply: (next: ArtistDraft) => void;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
+  /** Matches input height when placed beside the artist name field. */
+  compact?: boolean;
+  className?: string;
 };
 
 export default function ArtistAiFillButton({
@@ -32,6 +35,8 @@ export default function ArtistAiFillButton({
   onApply,
   onError,
   onSuccess,
+  compact = false,
+  className = "",
 }: ArtistAiFillButtonProps) {
   const [loading, setLoading] = React.useState(false);
   const [profileLoading, setProfileLoading] = React.useState(false);
@@ -258,10 +263,14 @@ export default function ArtistAiFillButton({
         type="button"
         disabled={disabled}
         onClick={() => void handleFindArtist()}
-        className="shrink-0 gap-1.5 px-4"
+        className={[
+          "shrink-0 gap-1.5",
+          compact ? "h-11 px-4 text-sm" : "px-4",
+          className,
+        ].join(" ")}
         title={disabled ? "Enter an artist name first" : "Find artist profile with AI"}
       >
-        <Sparkles className="size-4" aria-hidden />
+        <Sparkles className="size-4 shrink-0" aria-hidden />
         {loading ? "Finding…" : profileLoading ? "Loading…" : enriching ? "Enriching…" : "Find Artist"}
       </Button>
 
