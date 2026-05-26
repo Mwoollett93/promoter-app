@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { Upload, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, CloudUpload, Sparkles, Upload } from "lucide-react";
 
+import ArtistAiLookupModal from "@/app/components/artists/ArtistAiLookupModal";
 import Button from "@/app/components/ui/Button";
 import type { PortraitImageCandidate } from "@/lib/ai/artist-portrait-candidate-types";
 import {
@@ -21,8 +22,16 @@ type ArtistImageChooseModalProps = {
   onUploadManually: () => void;
 };
 
-function primaryWarning(candidate: PortraitImageCandidate): string | undefined {
-  return candidate.warnings.find((w) => w.includes("Square") || w.includes("release") || w.includes("check"));
+function candidateInsight(candidate: PortraitImageCandidate, confidence: "low" | "medium" | "high"): string {
+  if (candidate.vision?.reason?.trim()) return candidate.vision.reason;
+  if (confidence === "high") {
+    return "This image appears to be an official press photo. High quality and recognisable across sources.";
+  }
+  const squareWarning = candidate.warnings.find((w) => w.includes("Square"));
+  if (squareWarning) {
+    return "Square image — verify this is a press photo, not album or release artwork, before saving.";
+  }
+  return "Review this image before saving it to your artist profile.";
 }
 
 export default function ArtistImageChooseModal({
@@ -33,105 +42,162 @@ export default function ArtistImageChooseModal({
   onUseImage,
   onUploadManually,
 }: ArtistImageChooseModalProps) {
-  if (!open) return null;
-
   const list = candidates.slice(0, 3);
+  const [index, setIndex] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!open) setIndex(0);
+  }, [open]);
+
+  React.useEffect(() => {
+    if (index >= list.length) setIndex(0);
+  }, [index, list.length]);
+
+  const candidate = list[index];
+  const confidence = candidate ? portraitScoreToConfidence(candidate.score) : "low";
 
   return (
-    <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/75 p-4" onClick={onClose}>
-      <section
-        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[#232330] bg-[#11111A] shadow-[0_0_40px_rgba(139,92,246,0.12)]"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <header className="flex items-start justify-between gap-4 border-b border-[#232330] px-5 py-4">
-          <div>
-            <h2 className="text-lg font-semibold text-[#F5F5F7]">Choose artist image</h2>
-            <p className="mt-1 text-[13px] text-[#A1A1AA]">
-              Pick a press photo for <span className="text-[#E4E4E7]">{artistName}</span>, or upload your own.
-            </p>
-          </div>
-          <button type="button" onClick={onClose} className="text-[#71717A] hover:text-white" aria-label="Close">
-            <X className="size-5" />
-          </button>
-        </header>
-
-        <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
-          {list.length === 0 ? (
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-6 text-center text-amber-100">
-              <p className="text-[15px] font-medium">No suitable portrait candidates found.</p>
-              <p className="mt-2 text-[13px] text-amber-200/90">Upload a press photo manually.</p>
-            </div>
-          ) : (
-            list.map((candidate) => {
-              const confidence = portraitScoreToConfidence(candidate.score);
-              const warning = primaryWarning(candidate);
-              return (
-                <article
-                  key={candidate.id}
-                  className="flex gap-4 rounded-xl border border-[#232330] bg-[#0F0F17] p-4"
-                >
-                  <div className="relative size-24 shrink-0 overflow-hidden rounded-lg border border-[#232330] bg-[#18181F]">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={candidate.imageUrl}
-                      alt={`${artistName} candidate`}
-                      className="size-full object-cover"
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-md border border-[#8B5CF6]/40 bg-[#1A1630]/50 px-2 py-0.5 text-[11px] font-medium text-[#C4B5FD]">
-                        {portraitSourceLabel(candidate.sourceType)}
-                      </span>
-                      <span
-                        className={[
-                          "rounded-md border px-2 py-0.5 text-[11px] font-medium",
-                          imageConfidenceClasses(confidence),
-                        ].join(" ")}
-                      >
-                        {imageConfidenceLabel(confidence)} · score {candidate.score}
-                      </span>
-                    </div>
-                    {candidate.width && candidate.height ? (
-                      <p className="mt-2 text-[12px] text-[#71717A]">
-                        {candidate.width}×{candidate.height}px
-                      </p>
-                    ) : null}
-                    {warning ? (
-                      <p className="mt-2 text-[12px] text-amber-200">{warning}</p>
-                    ) : null}
-                    {candidate.vision ? (
-                      <p className="mt-1 text-[12px] text-[#A1A1AA]">
-                        AI: {candidate.vision.isLikelyArtistPhoto ? "Likely press photo" : "May not be a portrait"} —{" "}
-                        {candidate.vision.reason}
-                      </p>
-                    ) : null}
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      type="button"
-                      className="mt-3"
-                      onClick={() => onUseImage(candidate)}
-                    >
-                      Use image
-                    </Button>
-                  </div>
-                </article>
-              );
-            })
-          )}
-        </div>
-
-        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[#232330] px-5 py-4">
+    <ArtistAiLookupModal
+      open={open}
+      zIndexClass="z-[55]"
+      maxWidthClass="max-w-4xl"
+      title="Choose artist image"
+      subtitle={
+        <>
+          Pick a press photo for <span className="text-[#E4E4E7]">{artistName}</span>, or upload your own.
+        </>
+      }
+      onClose={onClose}
+      footer={
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <Button variant="ghost" size="sm" type="button" onClick={onClose}>
             Back
           </Button>
-          <Button variant="secondary" size="sm" type="button" className="gap-1.5" onClick={onUploadManually}>
+          <Button variant="primary" size="sm" type="button" className="gap-2" onClick={onUploadManually}>
             <Upload className="size-4" aria-hidden />
             Upload manually
           </Button>
-        </footer>
-      </section>
-    </div>
+        </div>
+      }
+    >
+      {list.length === 0 ? (
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
+          <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-[#3F3F46] bg-[#0A0A0F] px-6 py-12 text-center">
+            <CloudUpload className="size-10 text-[#71717A]" aria-hidden />
+            <p className="mt-4 text-[15px] font-medium text-[#F5F5F7]">No suitable images found</p>
+            <p className="mt-2 max-w-sm text-[13px] text-[#A1A1AA]">
+              We couldn&apos;t find a confident press photo. Upload your own image to continue.
+            </p>
+            <Button variant="primary" size="sm" type="button" className="mt-6" onClick={onUploadManually}>
+              Upload manually
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
+          <div className="flex shrink-0 flex-col items-center gap-3 lg:w-[200px]">
+            <div className="relative size-[180px] overflow-hidden rounded-xl border border-[#232330] bg-[#0A0A0F] shadow-inner">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={candidate.imageUrl}
+                alt={`${artistName} press photo`}
+                className="size-full object-cover"
+              />
+            </div>
+            {list.length > 1 ? (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg border border-[#232330] p-1.5 text-[#A1A1AA] hover:border-[#8B5CF6]/40 hover:text-white disabled:opacity-40"
+                  disabled={index === 0}
+                  onClick={() => setIndex((i) => Math.max(0, i - 1))}
+                  aria-label="Previous image"
+                >
+                  <ChevronLeft className="size-4" />
+                </button>
+                <span className="text-[12px] text-[#71717A]">
+                  {index + 1} of {list.length}
+                </span>
+                <button
+                  type="button"
+                  className="rounded-lg border border-[#232330] p-1.5 text-[#A1A1AA] hover:border-[#8B5CF6]/40 hover:text-white disabled:opacity-40"
+                  disabled={index >= list.length - 1}
+                  onClick={() => setIndex((i) => Math.min(list.length - 1, i + 1))}
+                  aria-label="Next image"
+                >
+                  <ChevronRight className="size-4" />
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="flex min-w-0 flex-1 flex-col justify-center gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-lg border border-[#8B5CF6]/35 bg-[#1A1630]/60 px-2.5 py-1 text-[11px] font-medium text-[#C4B5FD]">
+                {portraitSourceLabel(candidate.sourceType)}
+              </span>
+              <span
+                className={[
+                  "rounded-lg border px-2.5 py-1 text-[11px] font-medium",
+                  imageConfidenceClasses(confidence),
+                ].join(" ")}
+              >
+                {imageConfidenceLabel(confidence)} · score {candidate.score}
+              </span>
+            </div>
+
+            <div className="flex gap-3 rounded-xl border border-[#8B5CF6]/20 bg-[#1A1630]/30 px-4 py-3.5">
+              <Sparkles className="mt-0.5 size-4 shrink-0 text-[#8B5CF6]" aria-hidden />
+              <p className="text-[13px] leading-relaxed text-[#D4D4D8]">
+                {candidateInsight(candidate, confidence)}
+              </p>
+            </div>
+
+            {candidate.width && candidate.height ? (
+              <p className="text-[12px] text-[#71717A]">
+                {candidate.width} × {candidate.height}px
+              </p>
+            ) : null}
+
+            <Button
+              variant="secondary"
+              size="sm"
+              type="button"
+              className="w-fit"
+              onClick={() => onUseImage(candidate)}
+            >
+              Use this image
+            </Button>
+          </div>
+
+          <div className="hidden items-stretch gap-4 lg:flex">
+            <div className="flex flex-col items-center justify-center">
+              <span className="text-[11px] font-medium uppercase tracking-wider text-[#52525B]">or</span>
+            </div>
+            <button
+              type="button"
+              onClick={onUploadManually}
+              className="flex w-[200px] flex-col items-center justify-center rounded-xl border border-dashed border-[#3F3F46] bg-[#0A0A0F] px-4 py-8 text-center transition-colors hover:border-[#8B5CF6]/40 hover:bg-[#12121A]"
+            >
+              <CloudUpload className="size-9 text-[#71717A]" aria-hidden />
+              <span className="mt-4 text-[14px] font-medium text-[#F5F5F7]">Upload your own</span>
+              <span className="mt-1 text-[12px] text-[#71717A]">JPG, PNG or WebP</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {list.length > 0 ? (
+        <button
+          type="button"
+          onClick={onUploadManually}
+          className="mt-6 flex w-full flex-col items-center justify-center rounded-xl border border-dashed border-[#3F3F46] bg-[#0A0A0F] px-4 py-8 text-center transition-colors hover:border-[#8B5CF6]/40 lg:hidden"
+        >
+          <CloudUpload className="size-8 text-[#71717A]" aria-hidden />
+          <span className="mt-3 text-[14px] font-medium text-[#F5F5F7]">Upload your own</span>
+          <span className="mt-1 text-[12px] text-[#71717A]">JPG, PNG or WebP</span>
+        </button>
+      ) : null}
+    </ArtistAiLookupModal>
   );
 }
