@@ -63,7 +63,7 @@ export const artistMatchSchema = z.object({
   imageAttribution: z.string().optional(),
   imageCandidates: z.array(portraitImageCandidateSchema).optional(),
   requiresImageChoice: z.boolean().optional(),
-  enrichStatus: z.enum(["partial", "complete"]).optional(),
+  enrichStatus: z.enum(["preview", "partial", "complete"]).optional(),
   website: z.string().optional(),
   instagram: z.string().optional(),
   soundcloud: z.string().optional(),

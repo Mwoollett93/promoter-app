@@ -144,12 +144,9 @@ function buildProviderFallbackMatch(
 async function resolveSpotifyPortrait(
   artistName: string,
   externalLinks: ArtistExternalLinks | null,
+  initial: SpotifyArtistMatch | null = null,
 ): Promise<SpotifyArtistMatch | null> {
-  let spotify = await withTimeout(
-    fetchSpotifyArtistPortrait(artistName),
-    SPOTIFY_TIMEOUT_MS,
-    null,
-  );
+  let spotify = initial;
 
   if (!spotify && externalLinks?.spotify) {
     spotify = await withTimeout(
@@ -208,7 +205,7 @@ export async function fetchArtistMatchesFast(artistName: string): Promise<Artist
   const cached = getCached<ArtistFillFastResponse>(cacheKey);
   if (cached) return cached;
 
-  const [openAiMatches, deezerUrl, externalLinks] = await Promise.all([
+  const [openAiMatches, deezerUrl, externalLinks, spotifyInitial] = await Promise.all([
     withTimeout(fetchOpenAiMatchesSafe(artistName), OPENAI_TIMEOUT_MS, []),
     withTimeout(fetchDeezerArtistPortrait(artistName), DEEZER_TIMEOUT_MS, null),
     withTimeout(
@@ -216,9 +213,10 @@ export async function fetchArtistMatchesFast(artistName: string): Promise<Artist
       MUSICBRAINZ_TIMEOUT_MS,
       null,
     ),
+    withTimeout(fetchSpotifyArtistPortrait(artistName), SPOTIFY_TIMEOUT_MS, null),
   ]);
 
-  const spotify = await resolveSpotifyPortrait(artistName, externalLinks);
+  const spotify = await resolveSpotifyPortrait(artistName, externalLinks, spotifyInitial);
 
   let matches = openAiMatches;
   if (matches.length === 0) {

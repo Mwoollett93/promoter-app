@@ -12,6 +12,7 @@ import { buildAppliedArtistDraft, listArtistFieldConflicts } from "@/lib/ai/appl
 import type { ArtistContactCandidate } from "@/lib/ai/artist-contact-types";
 import type { PortraitImageCandidate } from "@/lib/ai/artist-portrait-candidate-types";
 import { mapPortraitSourceToArtistSource, portraitScoreToConfidence } from "@/lib/ai/artist-portrait-scoring";
+import { mergeArtistMatches } from "@/lib/ai/merge-artist-matches";
 import type { ArtistMatch } from "@/lib/ai/artistSchema";
 import { readJsonResponse } from "@/lib/api/read-json-response";
 import { getStoredSession } from "@/lib/supabase/browser";
@@ -33,6 +34,7 @@ export default function ArtistAiFillButton({
   onSuccess,
 }: ArtistAiFillButtonProps) {
   const [loading, setLoading] = React.useState(false);
+  const [profileLoading, setProfileLoading] = React.useState(false);
   const [enriching, setEnriching] = React.useState(false);
   const [loadingStep, setLoadingStep] = React.useState<string>("Finding artist…");
   const [reviewOpen, setReviewOpen] = React.useState(false);
@@ -45,7 +47,7 @@ export default function ArtistAiFillButton({
   const [overwriteOpen, setOverwriteOpen] = React.useState(false);
   const [conflicts, setConflicts] = React.useState<ReturnType<typeof listArtistFieldConflicts>>([]);
 
-  const disabled = !artistName.trim() || loading;
+  const disabled = !artistName.trim() || loading || profileLoading;
 
   async function handleFindArtist() {
     const name = artistName.trim();
@@ -58,6 +60,7 @@ export default function ArtistAiFillButton({
     }
 
     setLoading(true);
+    setProfileLoading(false);
     setEnriching(false);
     setLoadingStep("Finding artist…");
     setReviewError(null);
@@ -69,54 +72,91 @@ export default function ArtistAiFillButton({
       Authorization: `Bearer ${session.accessToken}`,
     };
 
-    try {
-      setLoadingStep("Pulling profile…");
-      const response = await fetch("/api/ai/artist-fill", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ artistName: name }),
+    let sawPreview = false;
+
+    const previewPromise = fetch("/api/ai/artist-fill/preview", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ artistName: name }),
+    })
+      .then(async (response) => {
+        const payload = await readJsonResponse<{ error?: string; matches?: ArtistMatch[] }>(response);
+        if (!response.ok || !payload.matches?.length) return;
+        sawPreview = true;
+        setMatches(payload.matches ?? []);
+        setLoading(false);
+        setProfileLoading(true);
+        setLoadingStep("Pulling profile…");
+      })
+      .catch(() => {
+        /* full request still runs */
       });
 
-      const payload = await readJsonResponse<{ error?: string; matches?: ArtistMatch[] }>(response);
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Unable to find artist matches.");
-      }
+    try {
+      const [, fullMatches] = await Promise.all([
+        previewPromise,
+        fetch("/api/ai/artist-fill", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ artistName: name }),
+        }).then(async (response) => {
+          const payload = await readJsonResponse<{ error?: string; matches?: ArtistMatch[] }>(
+            response,
+          );
+          if (!response.ok) {
+            throw new Error(payload.error ?? "Unable to find artist matches.");
+          }
+          const nextMatches = payload.matches ?? [];
+          if (nextMatches.length === 0) {
+            throw new Error("No confident match found. Try a more specific artist name.");
+          }
+          return nextMatches;
+        }),
+      ]);
 
-      const nextMatches = payload.matches ?? [];
-      if (nextMatches.length === 0) {
-        setReviewError("No confident match found. Try a more specific artist name.");
+      if (!fullMatches?.length) {
+        if (!sawPreview) {
+          setReviewError("No confident match found. Try a more specific artist name.");
+        }
+        setLoading(false);
+        setProfileLoading(false);
         return;
       }
 
-      setMatches(nextMatches);
+      setMatches((prev) => mergeArtistMatches(prev, fullMatches));
       setLoading(false);
-      setLoadingStep("Finding image…");
-
+      setProfileLoading(false);
+      setLoadingStep("Checking contacts…");
       setEnriching(true);
+
       void fetch("/api/ai/artist-fill/enrich", {
         method: "POST",
         headers,
-        body: JSON.stringify({ matches: nextMatches }),
+        body: JSON.stringify({ matches: fullMatches }),
       })
         .then(async (enrichRes) => {
           const enriched = await readJsonResponse<{ error?: string; matches?: ArtistMatch[] }>(
             enrichRes,
           );
           if (!enrichRes.ok || !enriched.matches?.length) return;
-          setMatches(enriched.matches);
+          setMatches((prev) => mergeArtistMatches(prev, enriched.matches ?? []));
         })
         .catch(() => {
           /* keep partial results */
         })
         .finally(() => {
           setEnriching(false);
+          setProfileLoading(false);
           setLoadingStep("Done");
         });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Artist lookup failed.";
-      setReviewError(message);
-      onError(message);
+      if (!sawPreview) {
+        const message = err instanceof Error ? err.message : "Artist lookup failed.";
+        setReviewError(message);
+        onError(message);
+      }
       setLoading(false);
+      setProfileLoading(false);
       setEnriching(false);
     }
   }
@@ -222,14 +262,15 @@ export default function ArtistAiFillButton({
         title={disabled ? "Enter an artist name first" : "Find artist profile with AI"}
       >
         <Sparkles className="size-4" aria-hidden />
-        {loading ? "Finding…" : enriching ? "Enriching…" : "Find Artist"}
+        {loading ? "Finding…" : profileLoading ? "Loading…" : enriching ? "Enriching…" : "Find Artist"}
       </Button>
 
       <ArtistMatchReviewModal
         open={reviewOpen}
         artistQuery={artistName.trim()}
         matches={matches}
-        loading={loading}
+        loading={loading && matches.length === 0}
+        profileLoading={profileLoading}
         enriching={enriching}
         loadingStep={loadingStep}
         error={reviewError}

@@ -17,6 +17,7 @@ type ArtistMatchReviewModalProps = {
   artistQuery: string;
   matches: ArtistMatch[];
   loading?: boolean;
+  profileLoading?: boolean;
   enriching?: boolean;
   loadingStep?: string;
   error?: string | null;
@@ -49,6 +50,7 @@ export default function ArtistMatchReviewModal({
   artistQuery,
   matches,
   loading = false,
+  profileLoading = false,
   enriching = false,
   loadingStep = "Finding artist…",
   error = null,
@@ -96,9 +98,15 @@ export default function ArtistMatchReviewModal({
             </SoftGlowLoader>
           ) : null}
 
+          {!loading && profileLoading ? (
+            <p className="mb-3 rounded-lg border border-[#8B5CF6]/25 bg-[#1A1630]/40 px-3 py-2 text-[12px] text-[#C4B5FD]">
+              Pulling bio and profile details…
+            </p>
+          ) : null}
+
           {!loading && enriching ? (
             <p className="mb-3 rounded-lg border border-[#8B5CF6]/25 bg-[#1A1630]/40 px-3 py-2 text-[12px] text-[#C4B5FD]">
-              Enriching profile — images and contacts may update in a few seconds…
+              Checking contacts and extra sources…
             </p>
           ) : null}
 
@@ -167,7 +175,7 @@ export default function ArtistMatchReviewModal({
                       {!match.imageUrl &&
                       (match.imageConfidence === "low" || match.imageSource === "manual_required") ? (
                         <p className="mt-2 text-[12px] text-amber-200/90">
-                          {match.enrichStatus === "partial"
+                          {match.enrichStatus === "preview" || match.enrichStatus === "partial"
                             ? "Finding press photo…"
                             : "No reliable press photo found — upload an artist image manually after saving."}
                         </p>
@@ -201,7 +209,17 @@ export default function ArtistMatchReviewModal({
                           ))}
                         </div>
                       ) : null}
-                      <p className="mt-2 text-[13px] leading-5 text-[#D4D4D8]">{bioPreview(match.description)}</p>
+                      {profileLoading && !match.description.trim() ? (
+                        <div className="mt-2 space-y-2" aria-hidden>
+                          <div className="h-3 w-full animate-pulse rounded bg-[#232330]" />
+                          <div className="h-3 w-4/5 animate-pulse rounded bg-[#232330]" />
+                          <p className="text-[12px] text-[#71717A]">Loading bio…</p>
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-[13px] leading-5 text-[#D4D4D8]">
+                          {bioPreview(match.description)}
+                        </p>
+                      )}
                       {match.sources && match.sources.length > 0 ? (
                         <p className="mt-2 text-[11px] text-[#71717A]">
                           Sources: {match.sources.join(" · ")}
