@@ -12,6 +12,7 @@ import {
   scanHtmlPage,
   scoreEmailConfidence,
 } from "@/lib/ai/artist-contact-extract";
+import type { ArtistExternalLinks } from "@/lib/ai/artist-musicbrainz-links";
 import { fetchArtistExternalLinks } from "@/lib/ai/artist-musicbrainz-links";
 import { fetchSpotifyArtistPortrait } from "@/lib/ai/spotify-artist-api";
 
@@ -175,13 +176,14 @@ export async function discoverArtistContacts(input: {
   instagram?: string;
   soundcloud?: string;
   spotify?: string;
+  externalLinks?: ArtistExternalLinks | null;
 }): Promise<ArtistContactDiscovery> {
   const warnings: string[] = [];
   const sources: string[] = [];
   const hits: RawEmailHit[] = [];
   const agencyNames = new Set<string>();
 
-  const mb = await fetchArtistExternalLinks(input.artistName);
+  const mb = input.externalLinks ?? (await fetchArtistExternalLinks(input.artistName));
   if (mb) sources.push("MusicBrainz");
 
   const spotifyMatch = await fetchSpotifyArtistPortrait(input.artistName, input.spotify);

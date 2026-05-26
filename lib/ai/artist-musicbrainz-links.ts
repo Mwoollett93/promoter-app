@@ -1,3 +1,5 @@
+import { waitForMusicBrainzSlot } from "@/lib/ai/musicbrainz-rate";
+
 const MUSICBRAINZ_UA = "PromoSync/1.0 (promoter-app; contact@promosync.app)";
 
 export type ArtistExternalLinks = {
@@ -47,6 +49,7 @@ function classifyUrl(resource: string, links: ArtistExternalLinks): void {
 
 /** MusicBrainz + Wikidata external links for contact discovery. */
 export async function fetchArtistExternalLinks(artistName: string): Promise<ArtistExternalLinks | null> {
+  await waitForMusicBrainzSlot();
   const search = await fetchJson<{
     artists?: Array<{ id: string; name: string }>;
   }>(
@@ -57,6 +60,7 @@ export async function fetchArtistExternalLinks(artistName: string): Promise<Arti
   const top = search?.artists?.[0];
   if (!top?.id) return null;
 
+  await waitForMusicBrainzSlot();
   const detail = await fetchJson<{
     name: string;
     relations?: Array<{ type?: string; url?: { resource?: string } }>;

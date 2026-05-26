@@ -3,6 +3,7 @@ export type ArtistImageSource =
   | "wikimedia"
   | "official_site"
   | "instagram"
+  | "deezer_artist"
   | "manual_required";
 
 export type ArtistImageConfidence = "low" | "medium" | "high";

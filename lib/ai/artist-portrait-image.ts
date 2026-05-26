@@ -3,6 +3,8 @@ import type {
   ArtistImageResult,
   ArtistImageSource,
 } from "@/lib/ai/artist-portrait-types";
+import { fetchDeezerArtistPortrait, isDeezerArtistPhotoUrl } from "@/lib/ai/deezer-artist-api";
+import type { ArtistExternalLinks } from "@/lib/ai/artist-musicbrainz-links";
 import { fetchSpotifyArtistPortrait } from "@/lib/ai/spotify-artist-api";
 
 const MUSICBRAINZ_UA = "PromoSync/1.0 (promoter-app; contact@promosync.app)";
@@ -33,6 +35,7 @@ const TRUSTED_PORTRAIT_HOSTS = [
   "commons.wikimedia.org",
   "cdninstagram.com",
   "fbcdn.net",
+  "cdn-images.dzcdn.net",
 ];
 
 const PRESS_PATHS = ["/press", "/media", "/epk", "/photos", "/bio", "/about", "/"];
@@ -61,6 +64,9 @@ function normalizeUrl(url: string): string | undefined {
 
 function applyScorePenalties(candidate: ImageCandidate): ImageCandidate {
   const lower = candidate.url.toLowerCase();
+  if (candidate.source === "deezer_artist" || isDeezerArtistPhotoUrl(lower)) {
+    return candidate;
+  }
   if (lower.includes("coverartarchive.org")) {
     candidate.score -= 50;
     candidate.warnings.push("Cover Art Archive is release artwork only");
@@ -84,6 +90,7 @@ function applyScorePenalties(candidate: ImageCandidate): ImageCandidate {
 function urlLooksLikeAlbumArt(url: string, source: ArtistImageSource): boolean {
   const lower = url.toLowerCase();
   if (source === "manual_required") return true;
+  if (source === "deezer_artist" || isDeezerArtistPhotoUrl(lower)) return false;
   if (lower.includes("coverartarchive.org")) return true;
   if (lower.includes("dzcdn.net") || lower.includes("deezer")) return true;
   if (lower.includes("mzstatic.com") || lower.includes("itunes.apple")) return true;
@@ -163,51 +170,6 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T | null> 
   } catch {
     return null;
   }
-}
-
-type MbIdentity = {
-  name: string;
-  wikidataId?: string;
-  website?: string;
-};
-
-async function musicBrainzIdentity(artistName: string): Promise<MbIdentity | null> {
-  const search = await fetchJson<{
-    artists?: Array<{ id: string; name: string; score?: number }>;
-  }>(
-    `https://musicbrainz.org/ws/2/artist/?query=${encodeURIComponent(`artist:"${artistName}"`)}&fmt=json&limit=3`,
-    {
-      headers: { Accept: "application/json", "User-Agent": MUSICBRAINZ_UA },
-    },
-  );
-
-  const top = search?.artists?.[0];
-  if (!top?.id) return null;
-
-  const detail = await fetchJson<{
-    name: string;
-    relations?: Array<{ type?: string; url?: { resource?: string } }>;
-  }>(`https://musicbrainz.org/ws/2/artist/${top.id}?inc=url-rels&fmt=json`, {
-    headers: { Accept: "application/json", "User-Agent": MUSICBRAINZ_UA },
-  });
-
-  if (!detail) return { name: top.name };
-
-  let wikidataId: string | undefined;
-  let website: string | undefined;
-
-  for (const rel of detail.relations ?? []) {
-    const resource = rel.url?.resource ?? "";
-    if (rel.type === "wikidata" && resource.includes("wikidata.org/wiki/Q")) {
-      const qid = resource.match(/Q\d+/)?.[0];
-      if (qid) wikidataId = qid;
-    }
-    if (!website && (rel.type === "official homepage" || rel.type === "official site")) {
-      website = resource;
-    }
-  }
-
-  return { name: detail.name, wikidataId, website };
 }
 
 async function wikimediaCommonsImageUrl(filename: string): Promise<string | undefined> {
@@ -346,10 +308,12 @@ async function buildCandidates(input: {
   spotify?: string;
   website?: string;
   instagram?: string;
+  externalLinks?: ArtistExternalLinks | null;
 }): Promise<ImageCandidate[]> {
   const candidates: ImageCandidate[] = [];
 
-  const spotify = await fetchSpotifyArtistPortrait(input.artistName, input.spotify);
+  const spotifyUrl = input.spotify ?? input.externalLinks?.spotify;
+  const spotify = await fetchSpotifyArtistPortrait(input.artistName, spotifyUrl);
   if (spotify?.imageUrl) {
     addCandidate(candidates, {
       url: spotify.imageUrl,
@@ -359,11 +323,11 @@ async function buildCandidates(input: {
     });
   }
 
-  const mb = await musicBrainzIdentity(input.artistName);
-  const siteUrl = input.website ?? mb?.website;
+  const wikidataId = input.externalLinks?.wikidataId;
+  const siteUrl = input.website ?? input.externalLinks?.website;
 
-  if (mb?.wikidataId) {
-    const wiki = await wikidataPortrait(mb.wikidataId);
+  if (wikidataId) {
+    const wiki = await wikidataPortrait(wikidataId);
     if (wiki.url) {
       addCandidate(candidates, {
         url: wiki.url,
@@ -373,6 +337,16 @@ async function buildCandidates(input: {
         attribution: wiki.attribution,
       });
     }
+  }
+
+  const deezerUrl = await fetchDeezerArtistPortrait(input.artistName);
+  if (deezerUrl) {
+    addCandidate(candidates, {
+      url: deezerUrl,
+      source: "deezer_artist",
+      score: 42,
+      warnings: [],
+    });
   }
 
   if (siteUrl) {
@@ -404,6 +378,7 @@ export async function resolveArtistPortraitImage(input: {
   spotify?: string;
   website?: string;
   instagram?: string;
+  externalLinks?: ArtistExternalLinks | null;
 }): Promise<ArtistImageResult> {
   const warnings: string[] = [];
   const rawCandidates = await buildCandidates(input);
@@ -486,8 +461,11 @@ export async function enrichArtistMatchPortraits<
     website?: string;
     instagram?: string;
     imageUrl?: string;
+    externalLinks?: ArtistExternalLinks | null;
   },
->(matches: T[]): Promise<
+>(
+  matches: T[],
+): Promise<
   (T & {
     imageUrl?: string;
     imageSource: ArtistImageSource;
@@ -496,25 +474,33 @@ export async function enrichArtistMatchPortraits<
     imageAttribution?: string;
   })[]
 > {
-  return Promise.all(
-    matches.map(async (match) => {
-      const portrait = await resolveArtistPortraitImage({
-        artistName: match.artistName,
-        spotify: match.spotify,
-        website: match.website,
-        instagram: match.instagram,
-      });
+  const { sanitizeArtistImageUrl } = await import("@/lib/ai/artist-portrait-image-legacy");
+  const results: (T & {
+    imageUrl?: string;
+    imageSource: ArtistImageSource;
+    imageConfidence: ArtistImageConfidence;
+    imageWarnings: string[];
+    imageAttribution?: string;
+  })[] = [];
 
-      const { sanitizeArtistImageUrl } = await import("@/lib/ai/artist-portrait-image-legacy");
+  for (const match of matches) {
+    const portrait = await resolveArtistPortraitImage({
+      artistName: match.artistName,
+      spotify: match.spotify ?? match.externalLinks?.spotify,
+      website: match.website ?? match.externalLinks?.website,
+      instagram: match.instagram ?? match.externalLinks?.instagram,
+      externalLinks: match.externalLinks,
+    });
 
-      return {
-        ...match,
-        imageUrl: sanitizeArtistImageUrl(portrait.imageUrl),
-        imageSource: portrait.imageSource,
-        imageConfidence: portrait.imageConfidence,
-        imageWarnings: portrait.imageWarnings,
-        imageAttribution: portrait.imageAttribution,
-      };
-    }),
-  );
+    results.push({
+      ...match,
+      imageUrl: sanitizeArtistImageUrl(portrait.imageUrl),
+      imageSource: portrait.imageSource,
+      imageConfidence: portrait.imageConfidence,
+      imageWarnings: portrait.imageWarnings,
+      imageAttribution: portrait.imageAttribution,
+    });
+  }
+
+  return results;
 }

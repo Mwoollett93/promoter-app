@@ -11,6 +11,7 @@ export const artistImageSourceSchema = z.enum([
   "wikimedia",
   "official_site",
   "instagram",
+  "deezer_artist",
   "manual_required",
 ]);
 export const artistImageConfidenceSchema = z.enum(["low", "medium", "high"]);
