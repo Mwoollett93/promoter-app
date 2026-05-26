@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "@/lib/api/fetch-with-timeout";
 import { waitForMusicBrainzSlot } from "@/lib/ai/musicbrainz-rate";
 
 const MUSICBRAINZ_UA = "PromoSync/1.0 (promoter-app; contact@promosync.app)";
@@ -16,9 +17,13 @@ export type ArtistExternalLinks = {
   otherUrls: string[];
 };
 
-async function fetchJson<T>(url: string, init?: RequestInit): Promise<T | null> {
+async function fetchJson<T>(
+  url: string,
+  init?: RequestInit,
+  timeoutMs = 5000,
+): Promise<T | null> {
   try {
-    const res = await fetch(url, { cache: "no-store", ...init });
+    const res = await fetchWithTimeout(url, { cache: "no-store", ...init }, timeoutMs);
     if (!res.ok) return null;
     return (await res.json()) as T;
   } catch {
@@ -47,14 +52,25 @@ function classifyUrl(resource: string, links: ArtistExternalLinks): void {
   else links.otherUrls.push(resource);
 }
 
-/** MusicBrainz + Wikidata external links for contact discovery. */
-export async function fetchArtistExternalLinks(artistName: string): Promise<ArtistExternalLinks | null> {
+export type FetchArtistLinksOptions = {
+  skipWikidata?: boolean;
+  timeoutMs?: number;
+};
+
+/** MusicBrainz + optional Wikidata external links. */
+export async function fetchArtistExternalLinks(
+  artistName: string,
+  options: FetchArtistLinksOptions = {},
+): Promise<ArtistExternalLinks | null> {
+  const timeoutMs = options.timeoutMs ?? 5000;
+
   await waitForMusicBrainzSlot();
   const search = await fetchJson<{
     artists?: Array<{ id: string; name: string }>;
   }>(
     `https://musicbrainz.org/ws/2/artist/?query=${encodeURIComponent(`artist:"${artistName}"`)}&fmt=json&limit=3`,
     { headers: { Accept: "application/json", "User-Agent": MUSICBRAINZ_UA } },
+    timeoutMs,
   );
 
   const top = search?.artists?.[0];
@@ -64,9 +80,11 @@ export async function fetchArtistExternalLinks(artistName: string): Promise<Arti
   const detail = await fetchJson<{
     name: string;
     relations?: Array<{ type?: string; url?: { resource?: string } }>;
-  }>(`https://musicbrainz.org/ws/2/artist/${top.id}?inc=url-rels&fmt=json`, {
-    headers: { Accept: "application/json", "User-Agent": MUSICBRAINZ_UA },
-  });
+  }>(
+    `https://musicbrainz.org/ws/2/artist/${top.id}?inc=url-rels&fmt=json`,
+    { headers: { Accept: "application/json", "User-Agent": MUSICBRAINZ_UA } },
+    timeoutMs,
+  );
 
   const links: ArtistExternalLinks = {
     name: detail?.name ?? top.name,
@@ -81,7 +99,9 @@ export async function fetchArtistExternalLinks(artistName: string): Promise<Arti
       const qid = resource.match(/Q\d+/)?.[0];
       if (qid) {
         links.wikidataId = qid;
-        await mergeWikidataLinks(qid, links);
+        if (!options.skipWikidata) {
+          await mergeWikidataLinks(qid, links);
+        }
       }
       continue;
     }

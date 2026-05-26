@@ -33,6 +33,8 @@ export default function ArtistAiFillButton({
   onSuccess,
 }: ArtistAiFillButtonProps) {
   const [loading, setLoading] = React.useState(false);
+  const [enriching, setEnriching] = React.useState(false);
+  const [loadingStep, setLoadingStep] = React.useState<string>("Finding artist…");
   const [reviewOpen, setReviewOpen] = React.useState(false);
   const [imageOpen, setImageOpen] = React.useState(false);
   const [contactOpen, setContactOpen] = React.useState(false);
@@ -56,17 +58,22 @@ export default function ArtistAiFillButton({
     }
 
     setLoading(true);
+    setEnriching(false);
+    setLoadingStep("Finding artist…");
     setReviewError(null);
     setMatches([]);
     setReviewOpen(true);
 
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.accessToken}`,
+    };
+
     try {
+      setLoadingStep("Pulling profile…");
       const response = await fetch("/api/ai/artist-fill", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.accessToken}`,
-        },
+        headers,
         body: JSON.stringify({ artistName: name }),
       });
 
@@ -82,12 +89,35 @@ export default function ArtistAiFillButton({
       }
 
       setMatches(nextMatches);
+      setLoading(false);
+      setLoadingStep("Finding image…");
+
+      setEnriching(true);
+      void fetch("/api/ai/artist-fill/enrich", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ matches: nextMatches }),
+      })
+        .then(async (enrichRes) => {
+          const enriched = await readJsonResponse<{ error?: string; matches?: ArtistMatch[] }>(
+            enrichRes,
+          );
+          if (!enrichRes.ok || !enriched.matches?.length) return;
+          setMatches(enriched.matches);
+        })
+        .catch(() => {
+          /* keep partial results */
+        })
+        .finally(() => {
+          setEnriching(false);
+          setLoadingStep("Done");
+        });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Artist lookup failed.";
       setReviewError(message);
       onError(message);
-    } finally {
       setLoading(false);
+      setEnriching(false);
     }
   }
 
@@ -192,7 +222,7 @@ export default function ArtistAiFillButton({
         title={disabled ? "Enter an artist name first" : "Find artist profile with AI"}
       >
         <Sparkles className="size-4" aria-hidden />
-        {loading ? "Finding…" : "Find Artist"}
+        {loading ? "Finding…" : enriching ? "Enriching…" : "Find Artist"}
       </Button>
 
       <ArtistMatchReviewModal
@@ -200,6 +230,8 @@ export default function ArtistAiFillButton({
         artistQuery={artistName.trim()}
         matches={matches}
         loading={loading}
+        enriching={enriching}
+        loadingStep={loadingStep}
         error={reviewError}
         onClose={() => {
           if (!loading) {

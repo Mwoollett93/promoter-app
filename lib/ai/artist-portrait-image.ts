@@ -144,10 +144,25 @@ export async function resolveArtistPortraitImage(input: {
   website?: string;
   instagram?: string;
   externalLinks?: ArtistExternalLinks | null;
+  mode?: "fast" | "full";
+  /** Skip HEAD/GET validation and dimension probes (Stage B lazy path). */
+  lazyValidation?: boolean;
+  seedCandidates?: PortraitImageCandidate[];
 }): Promise<PortraitResolutionResult> {
   const pipelineWarnings: string[] = [];
-  const raw = await collectPortraitCandidates(input);
-  const withDims = await enrichCandidatesWithDimensions(raw);
+  const lazy = input.lazyValidation ?? input.mode === "full";
+  const slowCollected = await collectPortraitCandidates({
+    ...input,
+    slowOnly: input.mode === "full",
+  });
+  const raw = [...(input.seedCandidates ?? []), ...slowCollected];
+  const seen = new Set<string>();
+  const deduped = raw.filter((c) => {
+    if (seen.has(c.imageUrl)) return false;
+    seen.add(c.imageUrl);
+    return true;
+  });
+  const withDims = lazy ? deduped : await enrichCandidatesWithDimensions(deduped);
 
   const releaseDupes = new Set(
     withDims.filter((c) => c.isReleaseContext).map((c) => c.imageUrl),
@@ -182,23 +197,27 @@ export async function resolveArtistPortraitImage(input: {
 
     if (reject || score < 45) continue;
 
-    const check = await validateImageUrl(candidate.imageUrl);
-    if (!check.ok) {
-      pipelineWarnings.push(`Rejected ${sourceLabel(candidate.sourceType)}: ${check.warning ?? "invalid"}`);
-      continue;
+    if (!lazy) {
+      const check = await validateImageUrl(candidate.imageUrl);
+      if (!check.ok) {
+        pipelineWarnings.push(`Rejected ${sourceLabel(candidate.sourceType)}: ${check.warning ?? "invalid"}`);
+        continue;
+      }
     }
 
     scored.push({
       ...candidate,
       score: score + legacyHeuristic.scoreDelta,
-      warnings: [...warnings, ...(check.warning ? [check.warning] : [])],
+      warnings: [...warnings],
     });
   }
 
   scored.sort((a, b) => b.score - a.score);
 
   const topForVision = scored.slice(0, 3);
-  const withVision = await applyVisionToTopCandidates(topForVision, 3);
+  const withVision = lazy
+    ? topForVision
+    : await applyVisionToTopCandidates(topForVision, 3);
   const visionById = new Map(withVision.map((c) => [c.id, c]));
 
   const ranked = scored.map((c) => visionById.get(c.id) ?? c);
@@ -224,45 +243,30 @@ export async function resolveArtistPortraitImage(input: {
   const visionOn = isPortraitVisionEnabled();
   const autoApply = canAutoApplyPortrait(top, visionOn);
 
-  if (autoApply && !visionOn && pickerCandidates.length > 1) {
-    return {
-      imageSource: mapPortraitSourceToArtistSource(top.sourceType),
-      imageConfidence: portraitScoreToConfidence(top.score),
-      imageWarnings: [...pipelineWarnings, ...top.warnings],
-      imageAttribution: top.attribution,
-      imageCandidates: pickerCandidates,
-      requiresImageChoice: true,
-    };
-  }
-
-  if (autoApply) {
-    return {
-      imageUrl: top.imageUrl,
-      imageSource: mapPortraitSourceToArtistSource(top.sourceType),
-      imageConfidence: "high",
-      imageWarnings: [...pipelineWarnings, ...top.warnings],
-      imageAttribution: top.attribution,
-      imageCandidates: pickerCandidates,
-      requiresImageChoice: false,
-    };
-  }
-
+  const topSource = mapPortraitSourceToArtistSource(top.sourceType);
   const topConfidence = portraitScoreToConfidence(top.score);
+  const showPreview =
+    top.sourceType === "spotify_artist" || top.score >= 55 || topConfidence !== "low";
+
+  const needsChoice =
+    !autoApply ||
+    (pickerCandidates.length > 1 && top.score < 85) ||
+    (visionOn && !autoApply);
 
   return {
-    imageUrl: topConfidence === "high" ? top.imageUrl : undefined,
-    imageSource: mapPortraitSourceToArtistSource(top.sourceType),
-    imageConfidence: topConfidence,
+    imageUrl: showPreview ? top.imageUrl : undefined,
+    imageSource: topSource,
+    imageConfidence: autoApply ? "high" : topConfidence,
     imageWarnings: [
       ...pipelineWarnings,
       ...top.warnings,
-      visionOn
-        ? "Vision check did not confirm auto-apply — choose an image below."
-        : "Multiple or medium-confidence candidates — choose an image below.",
+      ...(needsChoice && pickerCandidates.length > 1
+        ? ["Multiple image options — confirm when saving."]
+        : []),
     ],
     imageAttribution: top.attribution,
     imageCandidates: pickerCandidates,
-    requiresImageChoice: true,
+    requiresImageChoice: needsChoice && pickerCandidates.length > 0,
   };
 }
 
@@ -308,14 +312,9 @@ export async function enrichArtistMatchPortraits<
       externalLinks: match.externalLinks,
     });
 
-    const safeUrl =
-      portrait.requiresImageChoice && portrait.imageConfidence !== "high"
-        ? undefined
-        : sanitizeArtistImageUrl(portrait.imageUrl);
-
     results.push({
       ...match,
-      imageUrl: safeUrl,
+      imageUrl: sanitizeArtistImageUrl(portrait.imageUrl),
       imageSource: portrait.imageSource,
       imageConfidence: portrait.imageConfidence,
       imageWarnings: portrait.imageWarnings,

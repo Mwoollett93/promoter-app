@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from "@/lib/api/fetch-with-timeout";
+
 /** Deezer public API — artist profile photos only (not album covers). No API key required. */
 
 function normalizeName(value: string): string {
@@ -10,9 +12,10 @@ export function isDeezerArtistPhotoUrl(url: string): boolean {
 
 export async function fetchDeezerArtistPortrait(artistName: string): Promise<string | null> {
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `https://api.deezer.com/search/artist?q=${encodeURIComponent(artistName)}&limit=8`,
       { cache: "no-store" },
+      3000,
     );
     if (!res.ok) return null;
 

@@ -17,6 +17,8 @@ type ArtistMatchReviewModalProps = {
   artistQuery: string;
   matches: ArtistMatch[];
   loading?: boolean;
+  enriching?: boolean;
+  loadingStep?: string;
   error?: string | null;
   onClose: () => void;
   onSelect: (match: ArtistMatch) => void;
@@ -47,6 +49,8 @@ export default function ArtistMatchReviewModal({
   artistQuery,
   matches,
   loading = false,
+  enriching = false,
+  loadingStep = "Finding artist…",
   error = null,
   onClose,
   onSelect,
@@ -87,9 +91,15 @@ export default function ArtistMatchReviewModal({
           {loading ? (
             <SoftGlowLoader>
               <p className="border border-[#8B5CF6]/20 px-4 py-10 text-center text-[13px] text-[#C4B5FD]">
-                <SearchingEllipsisText />
+                <SearchingEllipsisText text={loadingStep.replace(/…$/, "")} />
               </p>
             </SoftGlowLoader>
+          ) : null}
+
+          {!loading && enriching ? (
+            <p className="mb-3 rounded-lg border border-[#8B5CF6]/25 bg-[#1A1630]/40 px-3 py-2 text-[12px] text-[#C4B5FD]">
+              Enriching profile — images and contacts may update in a few seconds…
+            </p>
           ) : null}
 
           {error ? (
@@ -154,9 +164,12 @@ export default function ArtistMatchReviewModal({
                           </span>
                         ) : null}
                       </div>
-                      {match.imageConfidence === "low" || match.imageSource === "manual_required" ? (
+                      {!match.imageUrl &&
+                      (match.imageConfidence === "low" || match.imageSource === "manual_required") ? (
                         <p className="mt-2 text-[12px] text-amber-200/90">
-                          No reliable press photo found — upload an artist image manually after saving.
+                          {match.enrichStatus === "partial"
+                            ? "Finding press photo…"
+                            : "No reliable press photo found — upload an artist image manually after saving."}
                         </p>
                       ) : null}
                       {match.imageWarnings && match.imageWarnings.length > 0 && match.imageUrl ? (

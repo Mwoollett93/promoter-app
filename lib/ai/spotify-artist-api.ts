@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from "@/lib/api/fetch-with-timeout";
+
 const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token";
 const SPOTIFY_API = "https://api.spotify.com/v1";
 
@@ -35,7 +37,7 @@ async function getSpotifyAccessToken(): Promise<string | null> {
 
   try {
     const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
-    const response = await fetch(SPOTIFY_TOKEN_URL, {
+    const response = await fetchWithTimeout(SPOTIFY_TOKEN_URL, {
       method: "POST",
       headers: {
         Authorization: `Basic ${credentials}`,
@@ -43,7 +45,7 @@ async function getSpotifyAccessToken(): Promise<string | null> {
       },
       body: "grant_type=client_credentials",
       cache: "no-store",
-    });
+    }, 3000);
     if (!response.ok) return null;
 
     const data = (await response.json()) as { access_token?: string; expires_in?: number };
@@ -114,12 +116,13 @@ export async function fetchSpotifyArtistPortrait(
   if (urlMatch?.[1]) artistId = urlMatch[1];
 
   if (!artistId) {
-    const searchRes = await fetch(
+    const searchRes = await fetchWithTimeout(
       `${SPOTIFY_API}/search?q=${encodeURIComponent(artistName)}&type=artist&limit=8`,
       {
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
       },
+      3000,
     );
     if (!searchRes.ok) return null;
 
@@ -134,14 +137,18 @@ export async function fetchSpotifyArtistPortrait(
       .map((item) => ({ item, score: nameSimilarity(artistName, item.name) }))
       .sort((a, b) => b.score - a.score);
 
-    if (ranked[0].score < 40) return null;
+    if (ranked[0].score < 35) return null;
     artistId = ranked[0].item.id;
   }
 
-  const artistRes = await fetch(`${SPOTIFY_API}/artists/${artistId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
+  const artistRes = await fetchWithTimeout(
+    `${SPOTIFY_API}/artists/${artistId}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    },
+    3000,
+  );
   if (!artistRes.ok) return null;
 
   const artist = (await artistRes.json()) as {

@@ -244,7 +244,10 @@ async function collectOfficialAndAgency(
     }
   }
 
+  let pagesScanned = 0;
   for (const pageUrl of pagesToScan) {
+    if (pagesScanned >= MAX_OFFICIAL_PAGES) break;
+    pagesScanned += 1;
     const html = pageUrl === homepageUrl ? homeHtml : await fetchPageHtml(pageUrl);
     if (!html) continue;
 
@@ -317,27 +320,33 @@ async function instagramProfileImage(instagramUrl: string): Promise<string | und
   }
 }
 
+const MAX_OFFICIAL_PAGES = 8;
+
 export async function collectPortraitCandidates(input: {
   artistName: string;
   spotify?: string;
   website?: string;
   instagram?: string;
   externalLinks?: ArtistExternalLinks | null;
+  /** Skip Spotify/Deezer (already resolved in fast stage). */
+  slowOnly?: boolean;
 }): Promise<PortraitImageCandidate[]> {
   candidateCounter = 0;
   const candidates: PortraitImageCandidate[] = [];
   const releaseImageUrls = new Set<string>();
 
-  const spotifyUrl = input.spotify ?? input.externalLinks?.spotify;
-  const spotify = await fetchSpotifyArtistPortrait(input.artistName, spotifyUrl);
-  if (spotify?.imageUrl && !spotify.fromOembed) {
-    pushCandidate(candidates, {
-      imageUrl: spotify.imageUrl,
-      sourceUrl: spotify.externalUrl ?? spotifyUrl ?? "",
-      sourceType: "spotify_artist",
-      pageTitle: input.artistName,
-      surroundingText: "Spotify Web API artist object",
-    });
+  if (!input.slowOnly) {
+    const spotifyUrl = input.spotify ?? input.externalLinks?.spotify;
+    const spotify = await fetchSpotifyArtistPortrait(input.artistName, spotifyUrl);
+    if (spotify?.imageUrl && !spotify.fromOembed) {
+      pushCandidate(candidates, {
+        imageUrl: spotify.imageUrl,
+        sourceUrl: spotify.externalUrl ?? spotifyUrl ?? "",
+        sourceType: "spotify_artist",
+        pageTitle: input.artistName,
+        surroundingText: "Spotify Web API artist object",
+      });
+    }
   }
 
   const siteUrl = input.website ?? input.externalLinks?.website;
@@ -365,15 +374,17 @@ export async function collectPortraitCandidates(input: {
   const bandcampUrl = input.externalLinks?.bandcamp;
   if (bandcampUrl) await collectBandcamp(bandcampUrl, candidates);
 
-  const deezerUrl = await fetchDeezerArtistPortrait(input.artistName);
-  if (deezerUrl) {
-    pushCandidate(candidates, {
-      imageUrl: deezerUrl,
-      sourceUrl: `https://www.deezer.com/search/${encodeURIComponent(input.artistName)}`,
-      sourceType: "deezer_artist",
-      pageTitle: input.artistName,
-      surroundingText: "Deezer artist profile image",
-    });
+  if (!input.slowOnly) {
+    const deezerUrl = await fetchDeezerArtistPortrait(input.artistName);
+    if (deezerUrl) {
+      pushCandidate(candidates, {
+        imageUrl: deezerUrl,
+        sourceUrl: `https://www.deezer.com/search/${encodeURIComponent(input.artistName)}`,
+        sourceType: "deezer_artist",
+        pageTitle: input.artistName,
+        surroundingText: "Deezer artist profile image",
+      });
+    }
   }
 
   if (input.instagram) {
