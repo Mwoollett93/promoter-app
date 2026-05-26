@@ -4,11 +4,14 @@ import * as React from "react";
 import { Sparkles } from "lucide-react";
 
 import ArtistContactConfirmModal from "@/app/components/artists/ArtistContactConfirmModal";
+import ArtistImageChooseModal from "@/app/components/artists/ArtistImageChooseModal";
 import ArtistMatchReviewModal from "@/app/components/artists/ArtistMatchReviewModal";
 import ArtistOverwriteConfirmDialog from "@/app/components/artists/ArtistOverwriteConfirmDialog";
 import Button from "@/app/components/ui/Button";
 import { buildAppliedArtistDraft, listArtistFieldConflicts } from "@/lib/ai/apply-artist-match";
 import type { ArtistContactCandidate } from "@/lib/ai/artist-contact-types";
+import type { PortraitImageCandidate } from "@/lib/ai/artist-portrait-candidate-types";
+import { mapPortraitSourceToArtistSource, portraitScoreToConfidence } from "@/lib/ai/artist-portrait-scoring";
 import type { ArtistMatch } from "@/lib/ai/artistSchema";
 import { readJsonResponse } from "@/lib/api/read-json-response";
 import { getStoredSession } from "@/lib/supabase/browser";
@@ -31,6 +34,7 @@ export default function ArtistAiFillButton({
 }: ArtistAiFillButtonProps) {
   const [loading, setLoading] = React.useState(false);
   const [reviewOpen, setReviewOpen] = React.useState(false);
+  const [imageOpen, setImageOpen] = React.useState(false);
   const [contactOpen, setContactOpen] = React.useState(false);
   const [matches, setMatches] = React.useState<ArtistMatch[]>([]);
   const [reviewError, setReviewError] = React.useState<string | null>(null);
@@ -87,11 +91,50 @@ export default function ArtistAiFillButton({
     }
   }
 
-  function handleSelectMatch(match: ArtistMatch) {
+  function proceedAfterImage(match: ArtistMatch) {
     setPendingMatch(match);
     setPendingContact(null);
-    setReviewOpen(false);
+    setImageOpen(false);
     setContactOpen(true);
+  }
+
+  function handleSelectMatch(match: ArtistMatch) {
+    setReviewOpen(false);
+    const needsChoice =
+      match.requiresImageChoice ||
+      (match.imageCandidates && match.imageCandidates.length > 0 && !match.imageUrl);
+    if (needsChoice && (match.imageCandidates?.length ?? 0) > 0) {
+      setPendingMatch(match);
+      setImageOpen(true);
+      return;
+    }
+    proceedAfterImage(match);
+  }
+
+  function applyChosenImage(candidate: PortraitImageCandidate) {
+    if (!pendingMatch) return;
+    const next: ArtistMatch = {
+      ...pendingMatch,
+      imageUrl: candidate.imageUrl,
+      imageSource: mapPortraitSourceToArtistSource(candidate.sourceType),
+      imageConfidence: portraitScoreToConfidence(candidate.score),
+      imageWarnings: candidate.warnings,
+      imageAttribution: candidate.attribution,
+      requiresImageChoice: false,
+    };
+    proceedAfterImage(next);
+  }
+
+  function handleUploadManually() {
+    if (!pendingMatch) return;
+    proceedAfterImage({
+      ...pendingMatch,
+      imageUrl: undefined,
+      imageSource: "manual_required",
+      imageConfidence: "low",
+      imageWarnings: ["Portrait skipped — upload manually on the artist form."],
+      requiresImageChoice: false,
+    });
   }
 
   function tryApplyMatch(match: ArtistMatch, contact: ArtistContactCandidate | null) {
@@ -124,6 +167,7 @@ export default function ArtistAiFillButton({
     const next = buildAppliedArtistDraft(draft, match, contact, { overwrite });
     onApply(next);
     setReviewOpen(false);
+    setImageOpen(false);
     setContactOpen(false);
     setOverwriteOpen(false);
     setPendingMatch(null);
@@ -166,6 +210,19 @@ export default function ArtistAiFillButton({
         onSelect={handleSelectMatch}
       />
 
+      <ArtistImageChooseModal
+        open={imageOpen}
+        artistName={pendingMatch?.artistName ?? ""}
+        candidates={pendingMatch?.imageCandidates ?? []}
+        onClose={() => {
+          setImageOpen(false);
+          setPendingMatch(null);
+          setReviewOpen(true);
+        }}
+        onUseImage={applyChosenImage}
+        onUploadManually={handleUploadManually}
+      />
+
       <ArtistContactConfirmModal
         open={contactOpen}
         artistName={pendingMatch?.artistName ?? ""}
@@ -173,7 +230,11 @@ export default function ArtistAiFillButton({
         onClose={() => {
           setContactOpen(false);
           setPendingMatch(null);
-          setReviewOpen(true);
+          if (pendingMatch?.requiresImageChoice && (pendingMatch.imageCandidates?.length ?? 0) > 0) {
+            setImageOpen(true);
+          } else {
+            setReviewOpen(true);
+          }
         }}
         onSkip={handleSkipContact}
         onSelect={handleSelectContact}

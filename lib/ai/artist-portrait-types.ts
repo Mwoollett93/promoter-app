@@ -28,3 +28,19 @@ export function imageConfidenceClasses(confidence: ArtistImageConfidence): strin
   if (confidence === "medium") return "border-[#8B5CF6]/30 bg-[#1A1630]/40 text-[#C4B5FD]";
   return "border-amber-500/30 bg-amber-500/10 text-amber-200";
 }
+
+export function portraitSourceLabel(
+  sourceType: string,
+): string {
+  const labels: Record<string, string> = {
+    spotify_artist: "Spotify artist",
+    official_site: "Official website",
+    agency_press: "Agency / press kit",
+    resident_advisor: "Resident Advisor",
+    wikimedia: "Wikimedia Commons",
+    bandcamp_artist: "Bandcamp",
+    deezer_artist: "Deezer",
+    instagram: "Instagram",
+  };
+  return labels[sourceType] ?? sourceType;
+}

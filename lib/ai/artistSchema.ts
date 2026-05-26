@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { normalizeArtistClassification } from "@/lib/ai/artist-classification";
 import type { ArtistContactDiscovery } from "@/lib/ai/artist-contact-types";
+import type { PortraitImageCandidate } from "@/lib/ai/artist-portrait-candidate-types";
 import type { ArtistImageConfidence, ArtistImageSource } from "@/lib/ai/artist-portrait-types";
 import { trimToMaxWords } from "@/lib/ai/artist-text";
 
@@ -17,6 +18,39 @@ export const artistImageSourceSchema = z.enum([
 ]);
 export const artistImageConfidenceSchema = z.enum(["low", "medium", "high"]);
 
+export const portraitImageCandidateSchema = z.object({
+  id: z.string(),
+  imageUrl: z.string().min(1),
+  sourceUrl: z.string(),
+  sourceType: z.enum([
+    "spotify_artist",
+    "wikimedia",
+    "official_site",
+    "instagram",
+    "deezer_artist",
+    "bandcamp_artist",
+    "resident_advisor",
+    "agency_press",
+    "manual_required",
+  ]),
+  pageTitle: z.string().optional(),
+  altText: z.string().optional(),
+  surroundingText: z.string().optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
+  score: z.number(),
+  warnings: z.array(z.string()),
+  attribution: z.string().optional(),
+  isReleaseContext: z.boolean().optional(),
+  vision: z
+    .object({
+      isLikelyArtistPhoto: z.boolean(),
+      reason: z.string(),
+      confidence: artistImageConfidenceSchema,
+    })
+    .optional(),
+});
+
 export const artistMatchSchema = z.object({
   artistName: z.string().min(1),
   description: z.string(),
@@ -27,6 +61,8 @@ export const artistMatchSchema = z.object({
   imageConfidence: artistImageConfidenceSchema.optional(),
   imageWarnings: z.array(z.string()).optional(),
   imageAttribution: z.string().optional(),
+  imageCandidates: z.array(portraitImageCandidateSchema).optional(),
+  requiresImageChoice: z.boolean().optional(),
   website: z.string().optional(),
   instagram: z.string().optional(),
   soundcloud: z.string().optional(),
