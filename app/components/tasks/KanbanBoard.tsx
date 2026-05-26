@@ -23,7 +23,12 @@ import TaskBoardMetrics from "@/app/components/tasks/TaskBoardMetrics";
 import TaskBoardToolbar, { type BoardViewMode } from "@/app/components/tasks/TaskBoardToolbar";
 import TaskDetailDrawer from "@/app/components/tasks/TaskDetailDrawer";
 import TaskKanbanCard, { type TaskCardMeta } from "@/app/components/tasks/TaskKanbanCard";
-import { listComments } from "@/lib/collaboration/comments";
+import { listTaskCommentCounts } from "@/lib/collaboration/comments";
+import {
+  readTasksBoardCache,
+  tasksBoardCacheKey,
+  writeTasksBoardCache,
+} from "@/lib/collaboration/tasks-board-cache";
 import { logActivity } from "@/lib/collaboration/activity";
 import { getWorkspaceMemberLabel } from "@/lib/collaboration/member-display";
 import { createTask, deleteTask, listTasks, moveTask } from "@/lib/collaboration/tasks";
@@ -50,8 +55,10 @@ type KanbanBoardProps = {
 
 export default function KanbanBoard({ workspaceId, eventId: lockedEventId }: KanbanBoardProps) {
   const { session, members, events, membership } = useWorkspace();
-  const [tasks, setTasks] = React.useState<Task[]>([]);
+  const cacheKey = tasksBoardCacheKey(workspaceId, lockedEventId);
+  const [tasks, setTasks] = React.useState<Task[]>(() => readTasksBoardCache(cacheKey) ?? []);
   const [commentCounts, setCommentCounts] = React.useState<Record<string, number>>({});
+  const [loadingTasks, setLoadingTasks] = React.useState(() => readTasksBoardCache(cacheKey) == null);
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [overColumn, setOverColumn] = React.useState<TaskColumn | null>(null);
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
@@ -66,30 +73,29 @@ export default function KanbanBoard({ workspaceId, eventId: lockedEventId }: Kan
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
-  const refresh = React.useCallback(async () => {
-    if (!session) return;
-    const list = await listTasks(session, workspaceId, {
-      eventId: lockedEventId,
-    });
-    setTasks(list);
+  const refresh = React.useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!session) return;
+      if (!options?.silent && tasks.length === 0) setLoadingTasks(true);
 
-    const counts: Record<string, number> = {};
-    await Promise.all(
-      list.map(async (task) => {
-        try {
-          const comments = await listComments(session, workspaceId, "task", task.id);
-          counts[task.id] = comments.length;
-        } catch {
-          counts[task.id] = 0;
-        }
-      }),
-    );
-    setCommentCounts(counts);
-  }, [session, workspaceId, lockedEventId]);
+      const list = await listTasks(session, workspaceId, {
+        eventId: lockedEventId,
+      });
+      setTasks(list);
+      writeTasksBoardCache(cacheKey, list);
+      setLoadingTasks(false);
+
+      void listTaskCommentCounts(session, workspaceId)
+        .then(setCommentCounts)
+        .catch(() => setCommentCounts({}));
+    },
+    [session, workspaceId, lockedEventId, cacheKey, tasks.length],
+  );
 
   React.useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    const cached = readTasksBoardCache(cacheKey);
+    void refresh({ silent: cached != null });
+  }, [refresh, cacheKey]);
 
   React.useEffect(() => {
     if (lockedEventId) setEventFilter(lockedEventId);
@@ -155,15 +161,16 @@ export default function KanbanBoard({ workspaceId, eventId: lockedEventId }: Kan
     return map;
   }, [filteredTasks]);
 
-  function taskMeta(task: Task): TaskCardMeta {
-    return {
+  const taskMeta = React.useCallback(
+    (task: Task): TaskCardMeta => ({
       eventName: task.eventId ? eventNameById.get(task.eventId) : undefined,
       assigneeName: task.assigneeId
         ? (task.assigneeName ?? assigneeNameById.get(task.assigneeId))
         : undefined,
-      commentCount: commentCounts[task.id] ?? 0,
-    };
-  }
+      commentCount: commentCounts[task.id],
+    }),
+    [eventNameById, assigneeNameById, commentCounts],
+  );
 
   function handleDragOver(event: DragOverEvent) {
     const overId = event.over ? String(event.over.id) : null;
@@ -331,12 +338,20 @@ export default function KanbanBoard({ workspaceId, eventId: lockedEventId }: Kan
         onQuickAdd={handleCreateTask}
       />
 
-      <TaskBoardMetrics {...metrics} />
+      {loadingTasks ? (
+        <div className="rounded-xl border border-[#232330] bg-[#11111A] px-4 py-8 text-center text-[13px] text-[#71717A]">
+          Loading tasks…
+        </div>
+      ) : (
+        <TaskBoardMetrics {...metrics} />
+      )}
 
-      <OperationalSuggestionsBar
-        suggestions={suggestions}
-        onCreateFromSuggestion={(s) => void handleSuggestionCreate(s)}
-      />
+      {!loadingTasks ? (
+        <OperationalSuggestionsBar
+          suggestions={suggestions}
+          onCreateFromSuggestion={(s) => void handleSuggestionCreate(s)}
+        />
+      ) : null}
 
       {viewMode === "list" ? (
         <TaskListView
@@ -346,7 +361,7 @@ export default function KanbanBoard({ workspaceId, eventId: lockedEventId }: Kan
           onSelect={setSelectedTask}
           onDelete={handleDeleteTask}
         />
-      ) : (
+      ) : loadingTasks ? null : (
         <DndContext
           sensors={sensors}
           onDragStart={(e) => setActiveId(String(e.active.id))}
@@ -413,7 +428,7 @@ export default function KanbanBoard({ workspaceId, eventId: lockedEventId }: Kan
                   : "/tasks",
               );
             }
-            void refresh();
+            void refresh({ silent: true });
           }}
         />
       ) : null}

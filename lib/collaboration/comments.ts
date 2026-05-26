@@ -37,6 +37,40 @@ function mapRow(row: CommentRow): Comment {
   };
 }
 
+/** Single request: comment counts per task id (avoids N+1 listComments calls on the board). */
+export async function listTaskCommentCounts(
+  session: SupabaseSession,
+  workspaceId: string,
+): Promise<Record<string, number>> {
+  if (shouldUseLocalCollaboration(session, workspaceId)) {
+    const counts: Record<string, number> = {};
+    for (const comment of loadLocalComments(workspaceId)) {
+      if (comment.targetType !== "task") continue;
+      counts[comment.targetId] = (counts[comment.targetId] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  try {
+    const rows = await supabaseRest<{ target_id: string }[]>(
+      `comments?workspace_id=eq.${workspaceId}&target_type=eq.task&select=target_id`,
+      session,
+    );
+    const counts: Record<string, number> = {};
+    for (const row of rows) {
+      counts[row.target_id] = (counts[row.target_id] ?? 0) + 1;
+    }
+    return counts;
+  } catch {
+    const counts: Record<string, number> = {};
+    for (const comment of loadLocalComments(workspaceId)) {
+      if (comment.targetType !== "task") continue;
+      counts[comment.targetId] = (counts[comment.targetId] ?? 0) + 1;
+    }
+    return counts;
+  }
+}
+
 export async function listComments(
   session: SupabaseSession,
   workspaceId: string,

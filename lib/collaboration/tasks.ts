@@ -6,6 +6,7 @@ import {
 import type { SupabaseSession } from "@/lib/types/artist";
 import type { Task, TaskChecklistItem, TaskColumn } from "@/lib/types/collaboration";
 
+import { invalidateTasksBoardCache } from "@/lib/collaboration/tasks-board-cache";
 import { shouldUseLocalCollaboration } from "@/lib/collaboration/storage-mode";
 import { supabaseRest } from "@/lib/supabase/client-rest";
 
@@ -123,6 +124,7 @@ export async function createTask(
     const all = loadLocalTasks(input.workspaceId);
     all.push(task);
     saveLocalTasks(input.workspaceId, all);
+    invalidateTasksBoardCache(input.workspaceId);
     return task;
   }
 
@@ -147,11 +149,13 @@ export async function createTask(
       },
       prefer: "return=representation",
     });
+    invalidateTasksBoardCache(input.workspaceId);
     return mapRow(rows[0]);
   } catch {
     const all = loadLocalTasks(input.workspaceId);
     all.push(task);
     saveLocalTasks(input.workspaceId, all);
+    invalidateTasksBoardCache(input.workspaceId);
     return task;
   }
 }
@@ -171,6 +175,7 @@ export async function moveTask(
       if (index !== -1) {
         tasks[index] = { ...tasks[index], column, position, updatedAt: new Date().toISOString() };
         saveLocalTasks(wsId, tasks);
+        invalidateTasksBoardCache(wsId);
         return tasks[index];
       }
     }
@@ -182,14 +187,18 @@ export async function moveTask(
       method: "POST",
       body: { p_task_id: taskId, p_column: column, p_position: position },
     });
-    return mapRow(rows[0]);
+    const updated = mapRow(rows[0]);
+    invalidateTasksBoardCache(updated.workspaceId);
+    return updated;
   } catch {
     const rows = await supabaseRest<TaskRow[]>(`tasks?id=eq.${taskId}`, session, {
       method: "PATCH",
       body: { board_column: column, position, updated_at: new Date().toISOString() },
       prefer: "return=representation",
     });
-    return mapRow(rows[0]);
+    const updated = mapRow(rows[0]);
+    invalidateTasksBoardCache(updated.workspaceId);
+    return updated;
   }
 }
 
@@ -224,7 +233,9 @@ export async function updateTask(
     body,
     prefer: "return=representation",
   });
-  return mapRow(rows[0]);
+  const updated = mapRow(rows[0]);
+  invalidateTasksBoardCache(workspaceId);
+  return updated;
 }
 
 export async function deleteTask(
@@ -235,6 +246,7 @@ export async function deleteTask(
   if (shouldUseLocalCollaboration(session, workspaceId)) {
     const tasks = loadLocalTasks(workspaceId).filter((t) => t.id !== taskId);
     saveLocalTasks(workspaceId, tasks);
+    invalidateTasksBoardCache(workspaceId);
     return;
   }
 
@@ -243,8 +255,10 @@ export async function deleteTask(
       method: "DELETE",
       prefer: "return=minimal",
     });
+    invalidateTasksBoardCache(workspaceId);
   } catch {
     const tasks = loadLocalTasks(workspaceId).filter((t) => t.id !== taskId);
     saveLocalTasks(workspaceId, tasks);
+    invalidateTasksBoardCache(workspaceId);
   }
 }
