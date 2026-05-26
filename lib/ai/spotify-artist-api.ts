@@ -116,13 +116,14 @@ export async function fetchSpotifyArtistPortrait(
   if (urlMatch?.[1]) artistId = urlMatch[1];
 
   if (!artistId) {
+    const searchQuery = `artist:"${artistName.trim()}"`;
     const searchRes = await fetchWithTimeout(
-      `${SPOTIFY_API}/search?q=${encodeURIComponent(artistName)}&type=artist&limit=8`,
+      `${SPOTIFY_API}/search?q=${encodeURIComponent(searchQuery)}&type=artist&limit=8`,
       {
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
       },
-      3000,
+      4000,
     );
     if (!searchRes.ok) return null;
 
@@ -147,7 +148,7 @@ export async function fetchSpotifyArtistPortrait(
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
     },
-    3000,
+    4000,
   );
   if (!artistRes.ok) return null;
 

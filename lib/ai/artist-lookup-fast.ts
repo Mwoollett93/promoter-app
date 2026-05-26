@@ -9,14 +9,17 @@ import { resolveFastPortrait } from "@/lib/ai/artist-portrait-fast";
 import { fetchArtistExternalLinks } from "@/lib/ai/artist-musicbrainz-links";
 import { fetchDeezerArtistPortrait } from "@/lib/ai/deezer-artist-api";
 import { fetchSpotifyArtistPortrait } from "@/lib/ai/spotify-artist-api";
+import type { ArtistExternalLinks } from "@/lib/ai/artist-musicbrainz-links";
 import type { ArtistMatch } from "@/lib/ai/artistSchema";
 import { parseArtistFillResponse } from "@/lib/ai/artistSchema";
 import { sanitizeArtistImageUrl } from "@/lib/ai/artist-portrait-image-legacy";
+import type { SpotifyArtistMatch } from "@/lib/ai/spotify-artist-api";
 
-const OPENAI_TIMEOUT_MS = 8000;
-const SPOTIFY_TIMEOUT_MS = 3000;
-const MUSICBRAINZ_TIMEOUT_MS = 4000;
-const DEEZER_TIMEOUT_MS = 3000;
+const OPENAI_TIMEOUT_MS = 10000;
+/** Spotify needs token + search + artist fetch — 3s was too tight. */
+const SPOTIFY_TIMEOUT_MS = 7000;
+const MUSICBRAINZ_TIMEOUT_MS = 4500;
+const DEEZER_TIMEOUT_MS = 3500;
 
 const MATCH_SCHEMA = `{
   "matches": [
@@ -48,6 +51,14 @@ function parseAiJsonContent(content: string): unknown {
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const raw = fenced ? fenced[1].trim() : trimmed;
   return JSON.parse(raw) as unknown;
+}
+
+async function fetchOpenAiMatchesSafe(artistName: string): Promise<ArtistMatch[]> {
+  try {
+    return await fetchOpenAiMatches(artistName);
+  } catch {
+    return [];
+  }
 }
 
 async function fetchOpenAiMatches(artistName: string): Promise<ArtistMatch[]> {
@@ -100,6 +111,57 @@ async function fetchOpenAiMatches(artistName: string): Promise<ArtistMatch[]> {
   return parsed.matches;
 }
 
+/** When OpenAI is slow/empty, build a match from Spotify / MusicBrainz. */
+function buildProviderFallbackMatch(
+  queryName: string,
+  spotify: SpotifyArtistMatch | null,
+  externalLinks: ArtistExternalLinks | null,
+): ArtistMatch | null {
+  const spotifyUrl = spotify?.externalUrl ?? externalLinks?.spotify;
+  if (!spotifyUrl && !externalLinks?.website && !externalLinks?.instagram) {
+    return null;
+  }
+
+  const displayName = spotify?.name ?? externalLinks?.name ?? queryName.trim();
+
+  return {
+    artistName: displayName,
+    description: "",
+    genres: [],
+    spotify: spotifyUrl,
+    website: externalLinks?.website,
+    instagram: externalLinks?.instagram,
+    soundcloud: externalLinks?.soundcloud,
+    confidence: spotify ? "high" : "medium",
+    sources: [
+      ...(spotifyUrl ? ["Spotify"] : []),
+      ...(externalLinks ? ["MusicBrainz"] : []),
+    ],
+    contactDiscovery: undefined,
+  } satisfies ArtistMatch;
+}
+
+async function resolveSpotifyPortrait(
+  artistName: string,
+  externalLinks: ArtistExternalLinks | null,
+): Promise<SpotifyArtistMatch | null> {
+  let spotify = await withTimeout(
+    fetchSpotifyArtistPortrait(artistName),
+    SPOTIFY_TIMEOUT_MS,
+    null,
+  );
+
+  if (!spotify && externalLinks?.spotify) {
+    spotify = await withTimeout(
+      fetchSpotifyArtistPortrait(artistName, externalLinks.spotify),
+      SPOTIFY_TIMEOUT_MS,
+      null,
+    );
+  }
+
+  return spotify;
+}
+
 function applyFastPortraitToMatch(
   match: ArtistMatch,
   shared: {
@@ -142,13 +204,12 @@ export type ArtistFillFastResponse = {
 
 /** Stage A — OpenAI + parallel Spotify / MusicBrainz / Deezer portraits. */
 export async function fetchArtistMatchesFast(artistName: string): Promise<ArtistFillFastResponse> {
-  const cacheKey = `fast:${normalizeArtistCacheKey(artistName)}`;
+  const cacheKey = `fast:v2:${normalizeArtistCacheKey(artistName)}`;
   const cached = getCached<ArtistFillFastResponse>(cacheKey);
   if (cached) return cached;
 
-  const [openAiMatches, spotify, deezerUrl, externalLinks] = await Promise.all([
-    withTimeout(fetchOpenAiMatches(artistName), OPENAI_TIMEOUT_MS, []),
-    withTimeout(fetchSpotifyArtistPortrait(artistName), SPOTIFY_TIMEOUT_MS, null),
+  const [openAiMatches, deezerUrl, externalLinks] = await Promise.all([
+    withTimeout(fetchOpenAiMatchesSafe(artistName), OPENAI_TIMEOUT_MS, []),
     withTimeout(fetchDeezerArtistPortrait(artistName), DEEZER_TIMEOUT_MS, null),
     withTimeout(
       fetchArtistExternalLinks(artistName, { skipWikidata: true }),
@@ -157,11 +218,18 @@ export async function fetchArtistMatchesFast(artistName: string): Promise<Artist
     ),
   ]);
 
-  if (openAiMatches.length === 0) {
-    throw new Error("No artist match found. Try a more specific name.");
+  const spotify = await resolveSpotifyPortrait(artistName, externalLinks);
+
+  let matches = openAiMatches;
+  if (matches.length === 0) {
+    const fallback = buildProviderFallbackMatch(artistName, spotify, externalLinks);
+    if (!fallback) {
+      throw new Error("No artist match found. Try a more specific name.");
+    }
+    matches = [fallback];
   }
 
-  const enriched = openAiMatches.map((match) =>
+  const enriched = matches.map((match) =>
     applyFastPortraitToMatch(match, { spotify, deezerUrl, externalLinks }),
   );
 
