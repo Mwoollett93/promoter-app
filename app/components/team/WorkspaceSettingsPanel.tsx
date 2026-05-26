@@ -3,6 +3,14 @@
 import * as React from "react";
 
 import { loadSettings, saveSettings } from "@/lib/settings/settings";
+import {
+  FIELD_LABEL,
+  INPUT_SURFACE,
+  SECTION_CARD,
+  SECTION_CARD_PADDING,
+  SECTION_DESCRIPTION,
+  SECTION_TITLE,
+} from "@/lib/ui/page-surfaces";
 
 const WORKSPACE_PREFS_KEY = "promosync:workspace-team-prefs";
 
@@ -14,29 +22,17 @@ type WorkspaceTeamPrefs = {
 };
 
 function loadWorkspacePrefs(): WorkspaceTeamPrefs {
-  if (typeof window === "undefined") {
-    return {
-      allowMemberInvites: false,
-      defaultInviteRole: "promoter",
-      taskAutomationHints: true,
-      workspaceNotifications: true,
-    };
-  }
+  const defaults: WorkspaceTeamPrefs = {
+    allowMemberInvites: false,
+    defaultInviteRole: "promoter",
+    taskAutomationHints: true,
+    workspaceNotifications: true,
+  };
+  if (typeof window === "undefined") return defaults;
   try {
-    return {
-      allowMemberInvites: false,
-      defaultInviteRole: "promoter",
-      taskAutomationHints: true,
-      workspaceNotifications: true,
-      ...JSON.parse(window.localStorage.getItem(WORKSPACE_PREFS_KEY) ?? "{}"),
-    };
+    return { ...defaults, ...JSON.parse(window.localStorage.getItem(WORKSPACE_PREFS_KEY) ?? "{}") };
   } catch {
-    return {
-      allowMemberInvites: false,
-      defaultInviteRole: "promoter",
-      taskAutomationHints: true,
-      workspaceNotifications: true,
-    };
+    return defaults;
   }
 }
 
@@ -60,19 +56,19 @@ export default function WorkspaceSettingsPanel() {
   }
 
   return (
-    <section className="rounded-xl border border-[#232330]/90 bg-[#0F0F17]/60 p-4">
-      <h2 className="text-[16px] font-semibold text-[#F5F5F7]">Workspace settings</h2>
-      <p className="mt-1 text-[12px] text-[#71717A]">
+    <section className={[SECTION_CARD, SECTION_CARD_PADDING].join(" ")}>
+      <h2 className={SECTION_TITLE}>Workspace settings</h2>
+      <p className={SECTION_DESCRIPTION}>
         Defaults for invites, automation, and notifications across your crew.
       </p>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="flex cursor-pointer items-center gap-2 text-[13px] text-[#E4E4E7]">
           <input
             type="checkbox"
             checked={prefs.taskAutomationHints}
             onChange={(e) => updatePrefs({ taskAutomationHints: e.target.checked })}
-            className="size-4 accent-[#7C3AED]"
+            className="size-4 rounded border-[#3F3F46] accent-[#7C3AED]"
           />
           Show operational task suggestions
         </label>
@@ -81,26 +77,26 @@ export default function WorkspaceSettingsPanel() {
             type="checkbox"
             checked={prefs.workspaceNotifications}
             onChange={(e) => updatePrefs({ workspaceNotifications: e.target.checked })}
-            className="size-4 accent-[#7C3AED]"
+            className="size-4 rounded border-[#3F3F46] accent-[#7C3AED]"
           />
           Workspace alert panel on Team page
         </label>
-        <label className="flex cursor-pointer items-center gap-2 text-[13px] text-[#A1A1AA]">
+        <label className="flex cursor-pointer items-center gap-2 text-[13px] text-[#71717A]">
           <input
             type="checkbox"
             checked={prefs.allowMemberInvites}
             onChange={(e) => updatePrefs({ allowMemberInvites: e.target.checked })}
             disabled
-            className="size-4 accent-[#7C3AED]"
+            className="size-4 rounded border-[#3F3F46] accent-[#7C3AED]"
           />
           Allow promoters to invite (coming soon)
         </label>
         <label className="block sm:col-span-2">
-          <span className="text-[11px] uppercase text-[#71717A]">Timezone</span>
+          <span className={FIELD_LABEL}>Timezone</span>
           <input
             value={appPrefs.timezone}
             onChange={(e) => updateTimezone(e.target.value)}
-            className="mt-1 w-full max-w-md rounded-lg border border-[#3F3F46] bg-[#0B0B10] px-3 py-2 text-[13px] text-[#F5F5F7]"
+            className={`${INPUT_SURFACE} mt-1 max-w-md`}
           />
         </label>
       </div>

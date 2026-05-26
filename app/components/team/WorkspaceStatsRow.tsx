@@ -1,42 +1,69 @@
 "use client";
 
-import { AlertTriangle, CalendarDays, ClipboardList, PauseCircle, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarDays,
+  ClipboardList,
+  PauseCircle,
+  Users,
+} from "lucide-react";
 
-import WorkspaceStatCard from "@/app/components/team/WorkspaceStatCard";
+import StatMiniCard from "@/app/components/dashboard/StatMiniCard";
+import { GRID_CARD_GAP } from "@/lib/layout/page-layout";
 import type { WorkspaceTeamStats } from "@/lib/team/workspace-team-stats";
 
 type WorkspaceStatsRowProps = {
   stats: WorkspaceTeamStats;
+  activeMemberCount: number;
+  assignedToYou: number;
 };
 
-export default function WorkspaceStatsRow({ stats }: WorkspaceStatsRowProps) {
+export default function WorkspaceStatsRow({
+  stats,
+  activeMemberCount,
+  assignedToYou,
+}: WorkspaceStatsRowProps) {
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-      <WorkspaceStatCard label="Team members" value={stats.teamMembers} icon={Users} />
-      <WorkspaceStatCard
+    <section className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 ${GRID_CARD_GAP}`}>
+      <StatMiniCard
+        icon={Users}
+        label="Team members"
+        value={stats.teamMembers}
+        trend={`${activeMemberCount} active`}
+        trendUp
+      />
+      <StatMiniCard
+        icon={CalendarDays}
         label="Active events"
         value={stats.activeEvents}
-        icon={CalendarDays}
-        tone="text-[#93C5FD]"
+        trend={stats.activeEvents > 0 ? "In your workspace" : "No active shows"}
+        trendUp
       />
-      <WorkspaceStatCard
+      <StatMiniCard
+        icon={ClipboardList}
         label="Open tasks"
         value={stats.openTasks}
-        icon={ClipboardList}
-        tone="text-[#C4B5FD]"
+        trend={
+          assignedToYou > 0
+            ? `${assignedToYou} assigned to you`
+            : "Nothing assigned to you"
+        }
+        trendUp
       />
-      <WorkspaceStatCard
+      <StatMiniCard
+        icon={PauseCircle}
         label="Pending approvals"
         value={stats.pendingApprovals}
-        icon={PauseCircle}
-        tone="text-[#FCD34D]"
+        trend={stats.pendingApprovals === 0 ? "All caught up" : "Waiting on response"}
+        trendUp={stats.pendingApprovals === 0}
       />
-      <WorkspaceStatCard
+      <StatMiniCard
+        icon={AlertTriangle}
         label="Overdue tasks"
         value={stats.overdueTasks}
-        icon={AlertTriangle}
-        tone="text-[#FCA5A5]"
+        trend={stats.overdueTasks === 0 ? "Great work" : "Needs attention"}
+        trendUp={stats.overdueTasks === 0}
       />
-    </div>
+    </section>
   );
 }

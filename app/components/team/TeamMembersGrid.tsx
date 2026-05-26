@@ -2,6 +2,11 @@
 
 import TeamMemberCard from "@/app/components/team/TeamMemberCard";
 import type { MemberWorkload } from "@/lib/team/member-workload";
+import {
+  SECTION_CARD,
+  SECTION_CARD_PADDING,
+  SECTION_TITLE,
+} from "@/lib/ui/page-surfaces";
 import type { WorkspaceMember, WorkspaceRole } from "@/lib/types/collaboration";
 
 type TeamMembersGridProps = {
@@ -21,15 +26,15 @@ export default function TeamMembersGrid({
   onRoleChange,
   onRemove,
 }: TeamMembersGridProps) {
-  const activeMembers = members.filter((m) => m.status === "active");
+  const activeCount = members.filter((m) => m.status === "active").length;
 
   return (
-    <section className="rounded-xl border border-[#232330]/90 bg-[#0F0F17]/60 p-4">
+    <section className={[SECTION_CARD, SECTION_CARD_PADDING].join(" ")}>
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-[16px] font-semibold text-[#F5F5F7]">Team members</h2>
-        <span className="text-[12px] text-[#71717A]">{activeMembers.length} active</span>
+        <h2 className={SECTION_TITLE}>Team members</h2>
+        <span className="text-[13px] text-[#71717A]">{activeCount} active</span>
       </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
         {members.map((member) => (
           <TeamMemberCard
             key={member.id}

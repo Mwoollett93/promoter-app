@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Mail, UserPlus } from "lucide-react";
+import { Mail } from "lucide-react";
 
 import Button from "@/app/components/ui/Button";
 import PendingInviteList, { type PendingInviteRow } from "@/app/components/team/PendingInviteList";
@@ -12,6 +12,15 @@ import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import { sendWorkspaceInviteEmail } from "@/lib/notifications/send-workspace-invite-email";
 import { TEAM_ROLES, TEAM_ROLE_LABELS } from "@/lib/team/role-display";
 import { inviteWorkspaceMember, revokeWorkspaceInvite } from "@/lib/supabase/workspace";
+import {
+  FIELD_LABEL,
+  INPUT_SURFACE,
+  SECTION_CARD,
+  SECTION_CARD_PADDING,
+  SECTION_DESCRIPTION,
+  SECTION_TITLE,
+  SELECT_SURFACE,
+} from "@/lib/ui/page-surfaces";
 import type { WorkspaceRole } from "@/lib/types/collaboration";
 
 type InviteMemberCardProps = {
@@ -127,26 +136,15 @@ export default function InviteMemberCard({ pendingRows, onRefresh }: InviteMembe
     }
   }
 
-  async function handleReconnectCloud() {
-    if (!session) return;
-    setReconnecting(true);
-    reconnectCloudCollaboration(session.user.id);
-    await refresh();
-    setReconnecting(false);
-  }
-
   return (
-    <section className="rounded-xl border border-[#8B5CF6]/15 bg-gradient-to-b from-[#14141F]/95 to-[#0F0F17] p-4 shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
-      <div className="flex items-center gap-2">
-        <UserPlus className="size-4 text-[#A78BFA]" />
-        <h2 className="text-[16px] font-semibold text-[#F5F5F7]">Invite to workspace</h2>
-      </div>
-      <p className="mt-1 text-[12px] text-[#71717A]">
+    <section className={[SECTION_CARD, SECTION_CARD_PADDING].join(" ")}>
+      <h2 className={SECTION_TITLE}>Invite to workspace</h2>
+      <p className={SECTION_DESCRIPTION}>
         Add promoters, marketing, finance, or artist liaison roles to your season workspace.
       </p>
 
       {usingLocalFallback ? (
-        <div className="mt-3 rounded-lg border border-amber-900/50 bg-amber-950/30 px-3 py-2 text-[12px] text-amber-200/90">
+        <div className="mt-4 rounded-lg border border-amber-900/50 bg-amber-950/30 px-3 py-2 text-[13px] text-amber-200/90">
           Cloud sync offline — invites are device-local until reconnected.
           <Button
             variant="secondary"
@@ -154,7 +152,12 @@ export default function InviteMemberCard({ pendingRows, onRefresh }: InviteMembe
             type="button"
             className="mt-2"
             disabled={reconnecting}
-            onClick={() => void handleReconnectCloud()}
+            onClick={() => {
+              if (!session) return;
+              setReconnecting(true);
+              reconnectCloudCollaboration(session.user.id);
+              void refresh().finally(() => setReconnecting(false));
+            }}
           >
             {reconnecting ? "Reconnecting…" : "Reconnect"}
           </Button>
@@ -162,70 +165,82 @@ export default function InviteMemberCard({ pendingRows, onRefresh }: InviteMembe
       ) : null}
 
       {workspaceError && !usingLocalFallback ? (
-        <p className="mt-3 text-[12px] text-[#FCA5A5]">{workspaceError}</p>
+        <p className="mt-3 text-[13px] text-[#FCA5A5]">{workspaceError}</p>
       ) : null}
       {message ? (
-        <p className="mt-3 rounded-lg border border-[#232330] bg-[#0B0B10] px-3 py-2 text-[12px] text-[#A1A1AA]">
+        <p className="mt-3 rounded-lg border border-[#232330] bg-[#0F0F17] px-3 py-2 text-[13px] text-[#A1A1AA]">
           {message}
         </p>
       ) : null}
 
-      {canInvite ? (
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-          <label className="min-w-0 flex-1">
-            <span className="text-[10px] font-medium uppercase text-[#71717A]">Email</span>
-            <div className="relative mt-1">
-              <Mail className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[#71717A]" />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="colleague@collective.com"
-                className="h-10 w-full rounded-lg border border-[#3F3F46] bg-[#0B0B10] pl-8 pr-3 text-[13px] text-[#F5F5F7] outline-none focus:border-[#8B5CF6]"
-              />
+      <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_minmax(240px,300px)]">
+        <div>
+          {canInvite ? (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <label className="min-w-0 flex-1">
+                <span className={FIELD_LABEL}>Email</span>
+                <div className="relative mt-1">
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#71717A]" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="colleague@collective.com"
+                    className={`${INPUT_SURFACE} pl-9`}
+                  />
+                </div>
+              </label>
+              <label className="sm:w-44">
+                <span className={FIELD_LABEL}>Role</span>
+                <select
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value as WorkspaceRole)}
+                  className={`${SELECT_SURFACE} mt-1 w-full`}
+                >
+                  {TEAM_ROLES.map((r) => (
+                    <option key={r} value={r}>
+                      {TEAM_ROLE_LABELS[r]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Button
+                variant="primary"
+                size="sm"
+                type="button"
+                disabled={loading || !email.trim()}
+                onClick={() => void handleInvite()}
+              >
+                Send invite
+              </Button>
             </div>
-          </label>
-          <label className="sm:w-44">
-            <span className="text-[10px] font-medium uppercase text-[#71717A]">Role</span>
-            <select
-              value={inviteRole}
-              onChange={(e) => setInviteRole(e.target.value as WorkspaceRole)}
-              className="mt-1 h-10 w-full rounded-lg border border-[#3F3F46] bg-[#0B0B10] px-3 text-[13px] text-[#F5F5F7]"
-            >
-              {TEAM_ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {TEAM_ROLE_LABELS[r]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Button
-            variant="primary"
-            size="sm"
-            type="button"
-            disabled={loading || !email.trim()}
-            onClick={() => void handleInvite()}
-          >
-            Send invite
-          </Button>
+          ) : (
+            <p className="text-[13px] text-[#71717A]">Only workspace admins can send invites.</p>
+          )}
+
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            {TEAM_ROLES.map((r) => (
+              <RoleBadge key={r} role={r} />
+            ))}
+          </div>
         </div>
-      ) : (
-        <p className="mt-3 text-[12px] text-[#71717A]">Only workspace admins can send invites.</p>
-      )}
 
-      <div className="mt-3 flex flex-wrap gap-1">
-        {TEAM_ROLES.map((r) => (
-          <RoleBadge key={r} role={r} />
-        ))}
+        {pendingRows.length > 0 ? (
+          <div className="rounded-lg border border-[#232330] bg-[#0F0F17] p-4">
+            <h3 className="text-[12px] font-semibold uppercase tracking-wide text-[#71717A]">
+              Pending invites
+            </h3>
+            <PendingInviteList
+              rows={pendingRows}
+              canManage={canInvite}
+              onResend={(row) => void handleResend(row)}
+              onRevoke={(row) => void handleRevoke(row)}
+              busyId={busyId}
+              embedded
+            />
+          </div>
+        ) : null}
       </div>
-
-      <PendingInviteList
-        rows={pendingRows}
-        canManage={canInvite}
-        onResend={(row) => void handleResend(row)}
-        onRevoke={(row) => void handleRevoke(row)}
-        busyId={busyId}
-      />
     </section>
   );
 }

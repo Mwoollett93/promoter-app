@@ -5,6 +5,11 @@ import * as React from "react";
 import ActivityFeedItem from "@/app/components/team/ActivityFeedItem";
 import { listActivity } from "@/lib/collaboration/activity";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
+import {
+  SECTION_CARD,
+  SECTION_CARD_PADDING,
+  SECTION_TITLE,
+} from "@/lib/ui/page-surfaces";
 import type { ActivityEntity, ActivityLogEntry } from "@/lib/types/collaboration";
 
 type ActivityFilter = "all" | ActivityEntity;
@@ -18,7 +23,6 @@ const FILTERS: { id: ActivityFilter; label: string }[] = [
 
 function activityHref(entry: ActivityLogEntry): string | undefined {
   if (entry.entityType === "task") return "/tasks";
-  if (entry.entityType === "event" && entry.eventId) return `/events/${entry.eventId}/workspace`;
   if (entry.eventId) return `/events/${entry.eventId}/workspace`;
   return undefined;
 }
@@ -67,10 +71,8 @@ export default function WorkspaceActivityFeed() {
   }, [entries, filter]);
 
   return (
-    <section className="rounded-xl border border-[#232330]/90 bg-gradient-to-b from-[#14141F]/95 to-[#0F0F17] p-4">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-[14px] font-semibold text-[#F5F5F7]">Workspace activity</h2>
-      </div>
+    <section className={[SECTION_CARD, SECTION_CARD_PADDING].join(" ")}>
+      <h2 className={SECTION_TITLE}>Workspace activity</h2>
       <div className="mt-3 flex flex-wrap gap-1">
         {FILTERS.map((f) => (
           <button
@@ -78,9 +80,9 @@ export default function WorkspaceActivityFeed() {
             type="button"
             onClick={() => setFilter(f.id)}
             className={[
-              "rounded-md px-2 py-1 text-[10px] font-medium transition-colors",
+              "rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
               filter === f.id
-                ? "bg-[#1A1630] text-[#C4B5FD]"
+                ? "bg-[#1A1630] text-[#C4B5FD] ring-1 ring-[#8B5CF6]/25"
                 : "text-[#71717A] hover:text-[#A1A1AA]",
             ].join(" ")}
           >
@@ -89,13 +91,13 @@ export default function WorkspaceActivityFeed() {
         ))}
       </div>
       {loading ? (
-        <p className="mt-4 text-[12px] text-[#71717A]">Loading activity…</p>
+        <p className="mt-4 text-[13px] text-[#71717A]">Loading activity…</p>
       ) : filtered.length === 0 ? (
-        <p className="mt-4 rounded-lg border border-dashed border-[#232330] px-3 py-6 text-center text-[12px] text-[#71717A]">
+        <p className="mt-4 rounded-lg border border-dashed border-[#3F3F46] px-4 py-8 text-center text-[13px] text-[#A1A1AA]">
           No activity yet. Task moves, invites, and event updates appear here.
         </p>
       ) : (
-        <ul className="mt-3 max-h-[420px] space-y-1 overflow-y-auto">
+        <ul className="mt-4 max-h-[420px] space-y-1 overflow-y-auto">
           {filtered.map((entry) => (
             <ActivityFeedItem
               key={entry.id}

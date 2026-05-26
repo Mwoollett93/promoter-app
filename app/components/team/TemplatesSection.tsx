@@ -12,6 +12,7 @@ import {
   listEventTemplates,
   listTaskTemplates,
 } from "@/lib/collaboration/templates";
+import { LINK_ACCENT, SECTION_CARD, SECTION_CARD_PADDING, SECTION_DESCRIPTION, SECTION_TITLE } from "@/lib/ui/page-surfaces";
 import type { EventTemplate, TaskTemplate } from "@/lib/types/collaboration";
 
 export default function TemplatesSection() {
@@ -41,18 +42,32 @@ export default function TemplatesSection() {
   }
 
   return (
-    <section className="rounded-xl border border-[#232330]/90 bg-[#0F0F17]/60 p-4">
-      <h2 className="text-[16px] font-semibold text-[#F5F5F7]">Workflow templates</h2>
-      <p className="mt-1 text-[12px] text-[#71717A]">
-        Reusable task presets and event blueprints for faster show planning.
-      </p>
+    <section className={[SECTION_CARD, SECTION_CARD_PADDING].join(" ")}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className={SECTION_TITLE}>Workflow templates</h2>
+          <p className={SECTION_DESCRIPTION}>
+            Reusable task presets and event blueprints for faster show planning.
+          </p>
+        </div>
+        <button
+          type="button"
+          className={LINK_ACCENT}
+          onClick={() => {
+            document.getElementById("team-templates")?.scrollIntoView({ behavior: "smooth" });
+          }}
+        >
+          Browse all templates →
+        </button>
+      </div>
+
       {message ? (
-        <p className="mt-3 rounded-lg border border-[#14532D]/40 bg-[#14532D]/20 px-3 py-2 text-[12px] text-[#86EFAC]">
+        <p className="mt-3 rounded-lg border border-[#14532D]/40 bg-[#14532D]/15 px-3 py-2 text-[13px] text-[#86EFAC]">
           {message}
         </p>
       ) : null}
 
-      <div className="mt-5">
+      <div id="team-templates" className="mt-5">
         <h3 className="text-[12px] font-semibold uppercase tracking-wide text-[#71717A]">
           Task presets
         </h3>
@@ -76,7 +91,7 @@ export default function TemplatesSection() {
         <h3 className="text-[12px] font-semibold uppercase tracking-wide text-[#71717A]">
           Event templates
         </h3>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {eventTemplates.map((template) => (
             <TemplateCard
               key={template.id}
