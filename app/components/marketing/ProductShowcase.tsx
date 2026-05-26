@@ -35,8 +35,9 @@ export default function ProductShowcase({ variant = "hero" }: { variant?: "hero"
             <ul className="mt-4 space-y-2 text-[11px] text-[#A1A1AA]">
               <li className="rounded-md bg-[#2D2640] px-2 py-1.5 text-[#F5F5F7]">Dashboard</li>
               <li className="px-2 py-1.5">Events</li>
-              <li className="px-2 py-1.5">Venues</li>
+              <li className="px-2 py-1.5">Tasks</li>
               <li className="px-2 py-1.5">Artists</li>
+              <li className="px-2 py-1.5">Venues</li>
             </ul>
           </div>
 

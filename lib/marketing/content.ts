@@ -5,8 +5,8 @@ import {
   CalendarDays,
   ClipboardList,
   DollarSign,
-  LayoutDashboard,
   Mic2,
+  Sparkles,
   Users,
   Zap,
 } from "lucide-react";
@@ -15,7 +15,7 @@ export const site = {
   name: "PromoSync",
   tagline: "The operating system for underground events.",
   description:
-    "PromoSync centralizes event creation, lineup scheduling, artist CRM, venue ops, and finance forecasting — built for promoters, collectives, and venues who run the night.",
+    "PromoSync centralizes event creation, lineup scheduling, artist CRM, venue ops, finance forecasting, and operational task boards — built for promoters, collectives, and venues who run the night.",
   audience: "Promoters, collectives & venues",
 };
 
@@ -49,19 +49,19 @@ export const coreFeatures = [
   {
     icon: Mic2,
     title: "Artist CRM",
-    description: "Profiles, fees, contacts, deposits, and booking notes — your roster in one place.",
+    description: "AI-assisted roster building — portraits, bios, contacts, and CSV import in minutes.",
     href: "/features#artists",
   },
   {
     icon: ClipboardList,
-    title: "Task Boards",
-    description: "Team workflows and operational checklists (coming soon).",
-    href: "/features#team",
+    title: "Operational Tasks",
+    description: "Kanban boards with event context, overdue metrics, and intelligence from your shows.",
+    href: "/features#tasks",
   },
   {
     icon: Building2,
     title: "Venue Management",
-    description: "Capacities, hire fees, contracts, and venue specs when you need them.",
+    description: "Capacities, hire fees, contracts, and AI extraction from venue PDFs.",
     href: "/features#venues",
   },
 ] as const;
@@ -98,7 +98,13 @@ export const pricingPlans = [
     price: "$0",
     period: "forever",
     description: "Get your first events organized without the spreadsheet chaos.",
-    features: ["3 active events", "1 team member", "Core wizard + dashboard", "Artist & venue basics"],
+    features: [
+      "3 active events",
+      "1 team member",
+      "Event wizard + dashboard",
+      "Artist & venue CRM",
+      "Kanban task board",
+    ],
     cta: "Start free",
     highlighted: false,
   },
@@ -107,13 +113,13 @@ export const pricingPlans = [
     audience: "Growing teams",
     price: "$49",
     period: "/ month",
-    description: "For promoters running regular nights and needing full forecasting.",
+    description: "For promoters running regular nights who need forecasting and team scale.",
     features: [
       "Unlimited events",
       "Up to 5 team members",
       "Finance forecasting",
-      "Priority support",
-      "Export & reporting (soon)",
+      "AI artist lookup & venue extraction",
+      "Stripe billing — upgrade in-app",
     ],
     cta: "Start free",
     highlighted: true,
@@ -123,17 +129,27 @@ export const pricingPlans = [
     audience: "Multi-user orgs",
     price: "Custom",
     period: "",
-    description: "For collectives and venue groups with complex permissions.",
+    description: "For collectives and venue groups with complex permissions and onboarding.",
     features: [
       "Unlimited team members",
       "Shared workspaces",
-      "Advanced permissions",
+      "Role-based access",
       "Dedicated onboarding",
       "Custom integrations",
     ],
     cta: "Book demo",
     highlighted: false,
   },
+] as const;
+
+export const pricingComparisonRows = [
+  ["Active events", "3", "Unlimited", "Unlimited"],
+  ["Team members", "1", "5", "Unlimited"],
+  ["Finance forecasting", "—", "✓", "✓"],
+  ["Kanban task board", "✓", "✓", "✓"],
+  ["Team workspace & comments", "✓", "✓", "✓"],
+  ["AI artist & venue assist", "—", "✓", "✓"],
+  ["Dedicated onboarding", "—", "—", "✓"],
 ] as const;
 
 export const testimonials = [
@@ -198,9 +214,9 @@ export const featureSections: FeatureSection[] = [
     title: "Artist CRM",
     subtitle: "Roster intelligence for booking and rebooking.",
     bullets: [
-      "Profiles with genres, reach, and reliability",
-      "Typical fees, deposits, and booking notes",
-      "Contact and agency details in one record",
+      "AI lookup: bio, portrait candidates, and contact hints in seconds",
+      "Typical fees, deposits, and booking notes per artist",
+      "CSV import for migrating an existing roster",
     ],
   },
   {
@@ -210,19 +226,41 @@ export const featureSections: FeatureSection[] = [
     subtitle: "Specs and commercial terms where they belong.",
     bullets: [
       "Capacity, hire fees, and minimum spend",
-      "Deposit terms and payment schedules",
-      "Documents and internal ops notes",
+      "AI document extraction from venue spec PDFs",
+      "Deposit terms and internal ops notes",
+    ],
+  },
+  {
+    id: "tasks",
+    icon: ClipboardList,
+    title: "Operational Tasks",
+    subtitle: "A task board that understands your season — not a generic todo app.",
+    bullets: [
+      "Kanban workflow: backlog → to do → in progress → waiting → complete",
+      "Event pills, due dates, assignees, and priority on every card",
+      "Operational intelligence: suggested tasks from lineup, venue, and margin gaps",
     ],
   },
   {
     id: "team",
     icon: Users,
     title: "Team Collaboration",
-    subtitle: "Everyone on the same page — coming soon.",
+    subtitle: "Your crew on one workspace — live today.",
     bullets: [
-      "Shared event workspaces",
-      "Task assignments and due dates",
-      "Notifications tuned for show week",
+      "Shared event workspaces with role-based permissions",
+      "Task assignments, due dates, checklists, and comment threads",
+      "Invites, MFA security, and in-app notifications for show week",
+    ],
+  },
+  {
+    id: "ai",
+    icon: Sparkles,
+    title: "AI-Assisted Ops",
+    subtitle: "Less admin, more time on the floor.",
+    bullets: [
+      "Fast artist profile preview before you commit to a roster entry",
+      "Portrait evidence scoring — real photos, not random album art",
+      "Venue spec extraction from uploaded documents",
     ],
   },
   {
@@ -231,9 +269,9 @@ export const featureSections: FeatureSection[] = [
     title: "Reporting & Insights",
     subtitle: "Portfolio-level learning across your seasons.",
     bullets: [
-      "Event status distribution and trends",
+      "Event status distribution and trends on the dashboard",
       "Revenue and cost rollups across shows",
-      "Exportable summaries for stakeholders",
+      "Exportable summaries for stakeholders (expanding)",
     ],
   },
 ];
@@ -247,4 +285,11 @@ export const sceneTags = [
   "Club",
   "Festival",
   "Pop-up",
+] as const;
+
+/** Live collaboration capabilities for marketing sections */
+export const collaborationHighlights = [
+  "Kanban boards with event filters and overdue metrics",
+  "Comments and @mentions on tasks",
+  "Workspace invites with role-based access",
 ] as const;

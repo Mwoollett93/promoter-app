@@ -3,11 +3,12 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 
 import { PrimaryCta, Section, SectionHeader } from "@/app/components/marketing/marketing-ui";
-import { pricingPlans } from "@/lib/marketing/content";
+import { pricingComparisonRows, pricingPlans } from "@/lib/marketing/content";
 
 export const metadata: Metadata = {
   title: "Pricing",
-  description: "PromoSync pricing: Free for small promoters, Pro for growing teams, Collective for multi-user orgs.",
+  description:
+    "PromoSync pricing: Free for small promoters, Pro with in-app Stripe billing, Collective for multi-user orgs.",
 };
 
 export default function PricingPage() {
@@ -17,7 +18,7 @@ export default function PricingPage() {
         <SectionHeader
           eyebrow="Pricing"
           title="Plans that grow with your scene"
-          description="Placeholder pricing — full billing integration is on the roadmap. All tiers include the core wizard and dashboard today."
+          description="Start on Free, then upgrade to Pro in Settings when you need unlimited events, team seats, and AI-assisted tools. Collective plans are custom."
         />
         <div className="mt-14 grid gap-8 lg:grid-cols-3">
           {pricingPlans.map((plan) => (
@@ -82,13 +83,7 @@ export default function PricingPage() {
               </tr>
             </thead>
             <tbody className="text-[#E4E4E7]">
-              {[
-                ["Active events", "3", "Unlimited", "Unlimited"],
-                ["Team members", "1", "5", "Unlimited"],
-                ["Finance forecasting", "—", "✓", "✓"],
-                ["Analytics (soon)", "—", "✓", "✓"],
-                ["Dedicated onboarding", "—", "—", "✓"],
-              ].map(([label, free, pro, collective]) => (
+              {pricingComparisonRows.map(([label, free, pro, collective]) => (
                 <tr key={label} className="border-b border-[#232330]/80">
                   <td className="px-5 py-3 text-[#A1A1AA]">{label}</td>
                   <td className="px-5 py-3">{free}</td>

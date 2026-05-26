@@ -11,6 +11,7 @@ import {
   SectionHeader,
 } from "@/app/components/marketing/marketing-ui";
 import {
+  collaborationHighlights,
   coreFeatures,
   howItWorks,
   painPoints,
@@ -19,6 +20,7 @@ import {
   site,
   testimonials,
 } from "@/lib/marketing/content";
+import TaskBoardShowcase from "@/app/components/marketing/TaskBoardShowcase";
 
 export default function HomePage() {
   return (
@@ -134,8 +136,8 @@ export default function HomePage() {
               PromoSync centralizes your event operations.
             </p>
             <p className="mt-4 text-[15px] leading-7 text-[#A1A1AA]">
-              One dark, fast workspace for creation, lineup, finance, artists, and venues — built
-              for the underground, not the boardroom.
+              One dark, fast workspace for creation, lineup, finance, artists, venues, and
+              operational tasks — built for the underground, not the boardroom.
             </p>
             <Link
               href="/features"
@@ -209,37 +211,81 @@ export default function HomePage() {
         </div>
       </Section>
 
-      {/* Collaboration */}
+      {/* Tasks & collaboration */}
       <Section>
         <div className="grid items-center gap-12 lg:grid-cols-2">
           <div className="order-2 lg:order-1">
-            <div className="rounded-2xl border border-[#232330] bg-[#11111A] p-6">
-              <div className="flex items-center gap-3">
-                <Users className="size-5 text-[#8B5CF6]" />
-                <p className="text-[14px] font-semibold text-[#F5F5F7]">Team workspace</p>
-              </div>
-              <ul className="mt-4 space-y-3">
-                {["Assign pre-show tasks", "Lineup change notifications", "Role-based access (soon)"].map(
-                  (task) => (
-                    <li
-                      key={task}
-                      className="flex items-center justify-between rounded-lg border border-[#232330] bg-[#0B0B10] px-4 py-3 text-[13px] text-[#E4E4E7]"
-                    >
-                      {task}
-                      <span className="text-[11px] text-[#71717A]">Soon</span>
-                    </li>
-                  ),
-                )}
-              </ul>
-            </div>
+            <TaskBoardShowcase />
           </div>
           <div className="order-1 lg:order-2">
             <SectionHeader
               align="left"
-              eyebrow="Collaboration"
-              title="Your collective on one timeline"
-              description="Task boards and permissions are on the roadmap — built for crews who split the work."
+              eyebrow="Operations"
+              title="Tasks that know your events"
+              description="Kanban boards with event context, overdue metrics, and suggestions pulled from lineup and finance gaps — not another generic todo app."
             />
+            <ul className="mt-8 space-y-3">
+              {collaborationHighlights.map((item) => (
+                <li key={item} className="flex items-center gap-2 text-[14px] text-[#E4E4E7]">
+                  <Check className="size-4 shrink-0 text-[#86EFAC]" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/features#tasks"
+              className="mt-6 inline-flex items-center gap-2 text-[14px] font-medium text-[#C4B5FD] hover:text-[#E9D5FF]"
+            >
+              See task board
+              <ArrowRight className="size-4" />
+            </Link>
+          </div>
+        </div>
+      </Section>
+
+      {/* Team workspace */}
+      <Section className="bg-[#08080C]/60">
+        <div className="grid items-center gap-12 lg:grid-cols-2">
+          <div>
+            <SectionHeader
+              align="left"
+              eyebrow="Collaboration"
+              title="Your collective on one workspace"
+              description="Invite your crew, assign work, and keep comments on the task — permissions and MFA included."
+            />
+            <ul className="mt-8 space-y-3">
+              {[
+                "Shared event workspaces per show",
+                "Role-based access for promoters, marketing, and finance",
+                "Stripe billing when you are ready to scale",
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-2 text-[14px] text-[#E4E4E7]">
+                  <Check className="size-4 shrink-0 text-[#86EFAC]" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-2xl border border-[#232330] bg-[#11111A] p-6">
+            <div className="flex items-center gap-3">
+              <Users className="size-5 text-[#8B5CF6]" />
+              <p className="text-[14px] font-semibold text-[#F5F5F7]">Team workspace</p>
+            </div>
+            <ul className="mt-4 space-y-3">
+              {[
+                { label: "Assign pre-show tasks", status: "Live" },
+                { label: "Comment threads on tasks", status: "Live" },
+                { label: "Workspace invites & roles", status: "Live" },
+              ].map((task) => (
+                <li
+                  key={task.label}
+                  className="flex items-center justify-between rounded-lg border border-[#232330] bg-[#0B0B10] px-4 py-3 text-[13px] text-[#E4E4E7]"
+                >
+                  {task.label}
+                  <span className="text-[11px] font-medium text-[#86EFAC]">{task.status}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </Section>
@@ -268,7 +314,7 @@ export default function HomePage() {
         <SectionHeader
           eyebrow="Pricing"
           title="Start free, scale with your season"
-          description="Placeholder tiers — billing integration coming later."
+          description="Upgrade to Pro in-app when you need unlimited events, team seats, and AI-assisted roster tools."
         />
         <div className="mt-14 grid gap-6 lg:grid-cols-3">
           {pricingPlans.map((plan) => (

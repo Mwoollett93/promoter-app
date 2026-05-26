@@ -39,7 +39,8 @@ export default function AboutPage() {
             </p>
             <p className="mt-4 text-[16px] leading-7 text-[#A1A1AA]">
               Melbourne&apos;s independent promoters helped shape the product: event wizard flows,
-              finance forecasting, and artist CRM that match how nights actually get booked.
+              finance forecasting, AI-assisted artist CRM, operational task boards, and team
+              workspaces that match how nights actually get booked.
             </p>
           </div>
           <div className="rounded-2xl border border-[#232330] bg-[#11111A] p-8">
@@ -69,7 +70,7 @@ export default function AboutPage() {
             },
             {
               title: "Collectives",
-              body: "Shared roster, shared costs, shared accountability (team features expanding).",
+              body: "Shared roster, shared costs, and a live workspace with tasks, comments, and roles.",
             },
             {
               title: "Venues & rooms",

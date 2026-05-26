@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import ProductShowcase from "@/app/components/marketing/ProductShowcase";
+import TaskBoardShowcase from "@/app/components/marketing/TaskBoardShowcase";
 import WizardShowcase from "@/app/components/marketing/WizardShowcase";
 import { PrimaryCta, Section, SectionHeader } from "@/app/components/marketing/marketing-ui";
 import { featureSections } from "@/lib/marketing/content";
@@ -10,7 +11,7 @@ import { featureSections } from "@/lib/marketing/content";
 export const metadata: Metadata = {
   title: "Features",
   description:
-    "Deep dive into PromoSync: event wizard, artist CRM, venue management, finance forecasting, and team collaboration.",
+    "Deep dive into PromoSync: event wizard, operational tasks, AI-assisted artist CRM, venue extraction, finance forecasting, and team workspaces.",
 };
 
 export default function FeaturesPage() {
@@ -26,7 +27,8 @@ export default function FeaturesPage() {
           </h1>
           <p className="mt-5 text-[17px] leading-7 text-[#A1A1AA]">
             PromoSync is not a generic project tool — it&apos;s operational intelligence for
-            underground events, from the first venue email to post-show reporting.
+            underground events, from the first venue email through show-week tasks to post-show
+            reporting.
           </p>
           <div className="mt-8">
             <PrimaryCta href="/login?view=signup">Start free</PrimaryCta>
@@ -68,8 +70,12 @@ export default function FeaturesPage() {
                 </ul>
               </div>
               <div>
-                {section.id === "events" || section.id === "lineup" || section.id === "finance" ? (
+                {section.id === "events" ||
+                section.id === "lineup" ||
+                section.id === "finance" ? (
                   <WizardShowcase />
+                ) : section.id === "tasks" ? (
+                  <TaskBoardShowcase />
                 ) : (
                   <ProductShowcase variant="compact" />
                 )}
