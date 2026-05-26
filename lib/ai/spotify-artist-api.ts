@@ -106,9 +106,7 @@ export async function fetchSpotifyArtistPortrait(
 
   const token = await getSpotifyAccessToken();
   if (!token) {
-    if (knownSpotifyUrl) {
-      return fetchSpotifyOEmbedPortrait(knownSpotifyUrl, artistName);
-    }
+    // oEmbed thumbnails are often latest-release artwork, not artist press photos.
     return null;
   }
 

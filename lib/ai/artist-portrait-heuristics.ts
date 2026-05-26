@@ -70,9 +70,8 @@ export function scorePortraitHeuristics(
   }
 
   if (isSpotifyOembedThumbnail(lower)) {
-    scoreDelta -= 28;
-    warnings.push("Spotify embed thumbnail may be release artwork");
-    if (isSpotifyAlbumStyleUrl(lower)) reject = true;
+    reject = true;
+    warnings.push("Spotify embed thumbnail is usually release artwork");
   }
 
   if (isSpotifyAlbumStyleUrl(lower) && source === "spotify_artist") {

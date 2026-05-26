@@ -58,7 +58,7 @@ export default function ArtistContactConfirmModal({
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {loading ? (
             <SoftGlowLoader>
-              <p className="border border-[#8B5CF6]/25 bg-[#1A1630]/30 px-4 py-10 text-center text-[13px] text-[#C4B5FD] shadow-[inset_0_0_32px_rgba(139,92,246,0.06)]">
+              <p className="border border-[#8B5CF6]/20 px-4 py-10 text-center text-[13px] text-[#C4B5FD]">
                 <SearchingEllipsisText text="Scanning official websites and public profiles" />
               </p>
             </SoftGlowLoader>

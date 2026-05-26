@@ -137,23 +137,41 @@ body {
   }
 }
 
-@keyframes promosync-soft-glow-spin {
+@keyframes promosync-border-glow-spin {
   to {
     transform: rotate(360deg);
   }
 }
 
-.promosync-soft-glow-ring {
+/* Rotating border glow — gradient sits in 1px padding ring only */
+.promosync-border-glow-wrap {
+  position: relative;
+  border-radius: 0.5rem;
+  padding: 1px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.promosync-border-glow-wrap::before {
+  content: "";
+  position: absolute;
+  inset: -120%;
   background: conic-gradient(
     from 0deg,
     transparent 0deg,
-    rgba(139, 92, 246, 0.08) 40deg,
-    rgba(139, 92, 246, 0.45) 110deg,
-    rgba(167, 139, 250, 0.65) 140deg,
-    rgba(139, 92, 246, 0.35) 200deg,
-    transparent 300deg,
+    rgba(139, 92, 246, 0.12) 70deg,
+    rgba(139, 92, 246, 0.35) 120deg,
+    rgba(167, 139, 250, 0.22) 160deg,
+    transparent 240deg,
     transparent 360deg
   );
-  animation: promosync-soft-glow-spin 2.8s linear infinite;
-  filter: blur(10px);
+  animation: promosync-border-glow-spin 3.2s linear infinite;
+  z-index: 0;
+}
+
+.promosync-border-glow-inner {
+  position: relative;
+  z-index: 1;
+  border-radius: calc(0.5rem - 1px);
+  background: #1a1630;
 }

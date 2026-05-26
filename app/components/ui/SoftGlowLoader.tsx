@@ -7,17 +7,11 @@ type SoftGlowLoaderProps = {
   className?: string;
 };
 
-/** Rotating purple soft glow around content — matches PromoSync accent styling. */
+/** Subtle rotating glow on the outer border only (not inside the panel). */
 export function SoftGlowLoader({ children, className = "" }: SoftGlowLoaderProps) {
   return (
-    <div className={`relative overflow-hidden rounded-lg ${className}`}>
-      <div
-        className="pointer-events-none absolute -inset-[2px] rounded-lg opacity-90"
-        aria-hidden
-      >
-        <div className="promosync-soft-glow-ring absolute inset-[-40%] rounded-full" />
-      </div>
-      <div className="relative rounded-lg">{children}</div>
+    <div className={`promosync-border-glow-wrap ${className}`}>
+      <div className="promosync-border-glow-inner">{children}</div>
     </div>
   );
 }

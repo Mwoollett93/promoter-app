@@ -6,7 +6,10 @@ import type {
 import { fetchBandcampArtistPortrait } from "@/lib/ai/bandcamp-artist-api";
 import { fetchDeezerArtistPortrait, isDeezerArtistPhotoUrl } from "@/lib/ai/deezer-artist-api";
 import type { ArtistExternalLinks } from "@/lib/ai/artist-musicbrainz-links";
-import { scorePortraitHeuristics } from "@/lib/ai/artist-portrait-heuristics";
+import {
+  isSpotifyOembedThumbnail,
+  scorePortraitHeuristics,
+} from "@/lib/ai/artist-portrait-heuristics";
 import { fetchSpotifyArtistPortrait } from "@/lib/ai/spotify-artist-api";
 
 const MUSICBRAINZ_UA = "PromoSync/1.0 (promoter-app; contact@promosync.app)";
@@ -42,7 +45,7 @@ const TRUSTED_PORTRAIT_HOSTS = [
   "f4.bcbits.com",
 ];
 
-const PRESS_PATHS = ["/press", "/media", "/epk", "/photos", "/bio", "/about", "/"];
+const PRESS_PATHS = ["/press", "/media", "/epk", "/photos", "/bio", "/about", "/contact"];
 
 type ImageCandidate = {
   url: string;
@@ -168,6 +171,33 @@ function scoreToConfidence(score: number): ArtistImageConfidence {
   if (score >= 40) return "high";
   if (score >= 20) return "medium";
   return "low";
+}
+
+const TRUSTED_PRESS_SOURCES: ArtistImageSource[] = ["bandcamp_artist", "deezer_artist"];
+
+function pickBestPortraitCandidate(candidates: ImageCandidate[]): ImageCandidate | null {
+  if (candidates.length === 0) return null;
+
+  const trusted = candidates.filter(
+    (c) =>
+      TRUSTED_PRESS_SOURCES.includes(c.source) ||
+      (c.source === "spotify_artist" && !isSpotifyOembedThumbnail(c.url)),
+  );
+  if (trusted.length > 0) {
+    return [...trusted].sort((a, b) => b.score - a.score)[0];
+  }
+
+  const fallback = candidates.filter(
+    (c) =>
+      c.source !== "official_site" &&
+      !isSpotifyOembedThumbnail(c.url) &&
+      !c.warnings.some((w) => w.includes("release artwork") || w.includes("illustration")),
+  );
+  if (fallback.length > 0) {
+    return [...fallback].sort((a, b) => b.score - a.score)[0];
+  }
+
+  return null;
 }
 
 function addCandidate(list: ImageCandidate[], candidate: ImageCandidate) {
@@ -370,20 +400,6 @@ async function buildCandidates(input: {
 }): Promise<ImageCandidate[]> {
   const candidates: ImageCandidate[] = [];
 
-  const spotifyUrl = input.spotify ?? input.externalLinks?.spotify;
-  const spotify = await fetchSpotifyArtistPortrait(input.artistName, spotifyUrl);
-  if (spotify?.imageUrl) {
-    const heuristic = scorePortraitHeuristics(spotify.imageUrl, "spotify_artist");
-    if (!heuristic.reject) {
-      addCandidate(candidates, {
-        url: spotify.imageUrl,
-        source: "spotify_artist",
-        score: (spotify.fromOembed ? 36 : 50) + heuristic.scoreDelta,
-        warnings: heuristic.warnings,
-      });
-    }
-  }
-
   const bandcampUrl = input.externalLinks?.bandcamp;
   if (bandcampUrl) {
     const bandcampImage = await fetchBandcampArtistPortrait(bandcampUrl);
@@ -425,6 +441,20 @@ async function buildCandidates(input: {
   if (siteUrl) {
     const press = await officialSitePortrait(siteUrl);
     if (press) addCandidate(candidates, applyScorePenalties(press));
+  }
+
+  const spotifyUrl = input.spotify ?? input.externalLinks?.spotify;
+  const spotify = await fetchSpotifyArtistPortrait(input.artistName, spotifyUrl);
+  if (spotify?.imageUrl && !spotify.fromOembed) {
+    const heuristic = scorePortraitHeuristics(spotify.imageUrl, "spotify_artist");
+    if (!heuristic.reject) {
+      addCandidate(candidates, {
+        url: spotify.imageUrl,
+        source: "spotify_artist",
+        score: 50 + heuristic.scoreDelta,
+        warnings: heuristic.warnings,
+      });
+    }
   }
 
   if (input.instagram) {
@@ -509,8 +539,18 @@ export async function resolveArtistPortraitImage(input: {
     };
   }
 
-  validated.sort((a, b) => b.score - a.score);
-  const best = validated[0];
+  const best = pickBestPortraitCandidate(validated);
+  if (!best) {
+    return {
+      imageSource: "manual_required",
+      imageConfidence: "low",
+      imageWarnings: [
+        ...warnings,
+        "Only release artwork or low-trust images were found. Upload a press photo manually.",
+      ],
+    };
+  }
+
   const confidence = scoreToConfidence(best.score);
 
   if (confidence === "low") {
