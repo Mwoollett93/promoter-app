@@ -16,6 +16,7 @@ const ALBUM_HOST_OR_PATH =
 
 function isBlockedCatalogueUrl(url: string): boolean {
   if (/dzcdn\.net\/images\/artist\//i.test(url)) return false;
+  if (/bcbits\.com\/img\/\d+_\d+\./i.test(url) && !/bcbits\.com\/img\/a\d+/i.test(url)) return false;
   if (/dzcdn\.net|deezer\.com/i.test(url)) return true;
   return ALBUM_HOST_OR_PATH.test(url);
 }

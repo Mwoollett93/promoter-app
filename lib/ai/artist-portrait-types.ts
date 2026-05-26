@@ -4,6 +4,7 @@ export type ArtistImageSource =
   | "official_site"
   | "instagram"
   | "deezer_artist"
+  | "bandcamp_artist"
   | "manual_required";
 
 export type ArtistImageConfidence = "low" | "medium" | "high";

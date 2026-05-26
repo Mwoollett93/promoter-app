@@ -64,6 +64,8 @@ export type SpotifyArtistMatch = {
   name: string;
   imageUrl?: string;
   externalUrl?: string;
+  /** True when image came from oEmbed (often release art, not artist photo). */
+  fromOembed?: boolean;
 };
 
 /** Public oEmbed — no API keys; only works when a full artist profile URL is known. */
@@ -88,6 +90,7 @@ async function fetchSpotifyOEmbedPortrait(
       name: artistName,
       imageUrl: data.thumbnail_url,
       externalUrl: artistUrl,
+      fromOembed: true,
     };
   } catch {
     return null;

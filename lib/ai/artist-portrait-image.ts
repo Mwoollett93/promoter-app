@@ -3,8 +3,10 @@ import type {
   ArtistImageResult,
   ArtistImageSource,
 } from "@/lib/ai/artist-portrait-types";
+import { fetchBandcampArtistPortrait } from "@/lib/ai/bandcamp-artist-api";
 import { fetchDeezerArtistPortrait, isDeezerArtistPhotoUrl } from "@/lib/ai/deezer-artist-api";
 import type { ArtistExternalLinks } from "@/lib/ai/artist-musicbrainz-links";
+import { scorePortraitHeuristics } from "@/lib/ai/artist-portrait-heuristics";
 import { fetchSpotifyArtistPortrait } from "@/lib/ai/spotify-artist-api";
 
 const MUSICBRAINZ_UA = "PromoSync/1.0 (promoter-app; contact@promosync.app)";
@@ -36,6 +38,8 @@ const TRUSTED_PORTRAIT_HOSTS = [
   "cdninstagram.com",
   "fbcdn.net",
   "cdn-images.dzcdn.net",
+  "bcbits.com",
+  "f4.bcbits.com",
 ];
 
 const PRESS_PATHS = ["/press", "/media", "/epk", "/photos", "/bio", "/about", "/"];
@@ -47,6 +51,7 @@ type ImageCandidate = {
   warnings: string[];
   attribution?: string;
   pageUrl?: string;
+  filename?: string;
 };
 
 function normalizeUrl(url: string): string | undefined {
@@ -64,7 +69,11 @@ function normalizeUrl(url: string): string | undefined {
 
 function applyScorePenalties(candidate: ImageCandidate): ImageCandidate {
   const lower = candidate.url.toLowerCase();
-  if (candidate.source === "deezer_artist" || isDeezerArtistPhotoUrl(lower)) {
+  if (
+    candidate.source === "deezer_artist" ||
+    candidate.source === "bandcamp_artist" ||
+    isDeezerArtistPhotoUrl(lower)
+  ) {
     return candidate;
   }
   if (lower.includes("coverartarchive.org")) {
@@ -90,7 +99,9 @@ function applyScorePenalties(candidate: ImageCandidate): ImageCandidate {
 function urlLooksLikeAlbumArt(url: string, source: ArtistImageSource): boolean {
   const lower = url.toLowerCase();
   if (source === "manual_required") return true;
-  if (source === "deezer_artist" || isDeezerArtistPhotoUrl(lower)) return false;
+  if (source === "deezer_artist" || source === "bandcamp_artist" || isDeezerArtistPhotoUrl(lower)) {
+    return false;
+  }
   if (lower.includes("coverartarchive.org")) return true;
   if (lower.includes("dzcdn.net") || lower.includes("deezer")) return true;
   if (lower.includes("mzstatic.com") || lower.includes("itunes.apple")) return true;
@@ -175,21 +186,49 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T | null> 
   }
 }
 
-async function wikimediaCommonsImageUrl(filename: string): Promise<string | undefined> {
+type WikimediaImage = {
+  url: string;
+  filename: string;
+  width?: number;
+  height?: number;
+};
+
+async function wikimediaCommonsImage(filename: string): Promise<WikimediaImage | undefined> {
   const fileTitle = `File:${filename.replace(/ /g, "_")}`;
-  const api = `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(fileTitle)}&prop=imageinfo&iiprop=url&iiurlwidth=800&format=json`;
+  const api = `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(fileTitle)}&prop=imageinfo&iiprop=url|size&iiurlwidth=800&format=json`;
 
   const data = await fetchJson<{
     query?: {
-      pages?: Record<string, { imageinfo?: Array<{ thumburl?: string; url?: string }> }>;
+      pages?: Record<
+        string,
+        {
+          imageinfo?: Array<{
+            thumburl?: string;
+            url?: string;
+            thumbwidth?: number;
+            thumbheight?: number;
+            width?: number;
+            height?: number;
+          }>;
+        }
+      >;
     };
   }>(api, { headers: { "User-Agent": MUSICBRAINZ_UA } });
 
   const page = data?.query?.pages ? Object.values(data.query.pages)[0] : undefined;
-  return page?.imageinfo?.[0]?.thumburl ?? page?.imageinfo?.[0]?.url;
+  const info = page?.imageinfo?.[0];
+  const url = info?.thumburl ?? info?.url;
+  if (!info || !url) return undefined;
+
+  return {
+    url,
+    filename,
+    width: info.thumbwidth ?? info.width,
+    height: info.thumbheight ?? info.height,
+  };
 }
 
-async function wikidataPortrait(wikidataId: string): Promise<{ url?: string; attribution?: string }> {
+async function wikidataPortraitCandidates(wikidataId: string): Promise<ImageCandidate[]> {
   const entity = await fetchJson<{
     entities?: Record<
       string,
@@ -203,19 +242,35 @@ async function wikidataPortrait(wikidataId: string): Promise<{ url?: string; att
     >
   }>(`https://www.wikidata.org/wiki/Special:EntityData/${wikidataId}.json`);
 
-  const claims = entity?.entities?.[wikidataId]?.claims?.P18;
-  const filename = claims?.[0]?.mainsnak?.datavalue?.value;
-  if (!filename || typeof filename !== "string") return {};
+  const claims = entity?.entities?.[wikidataId]?.claims?.P18 ?? [];
+  const filenames = claims
+    .map((c) => c.mainsnak?.datavalue?.value)
+    .filter((f): f is string => typeof f === "string" && f.length > 0);
 
-  const directUrl = await wikimediaCommonsImageUrl(filename);
-  const url =
-    directUrl ??
-    `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(filename.replace(/ /g, "_"))}?width=800`;
+  const candidates: ImageCandidate[] = [];
 
-  return {
-    url,
-    attribution: `Wikimedia Commons — ${filename} (CC; verify on apply)`,
-  };
+  for (const filename of filenames) {
+    const image = await wikimediaCommonsImage(filename);
+    if (!image) continue;
+
+    const heuristic = scorePortraitHeuristics(image.url, "wikimedia", {
+      filename,
+      width: image.width,
+      height: image.height,
+    });
+    if (heuristic.reject) continue;
+
+    candidates.push({
+      url: image.url,
+      source: "wikimedia",
+      score: 45 + heuristic.scoreDelta,
+      warnings: heuristic.warnings,
+      attribution: `Wikimedia Commons — ${filename} (CC; verify on apply)`,
+      filename,
+    });
+  }
+
+  return candidates.sort((a, b) => b.score - a.score);
 }
 
 function extractOgImage(html: string): string | undefined {
@@ -318,38 +373,53 @@ async function buildCandidates(input: {
   const spotifyUrl = input.spotify ?? input.externalLinks?.spotify;
   const spotify = await fetchSpotifyArtistPortrait(input.artistName, spotifyUrl);
   if (spotify?.imageUrl) {
-    addCandidate(candidates, {
-      url: spotify.imageUrl,
-      source: "spotify_artist",
-      score: 50,
-      warnings: [],
-    });
+    const heuristic = scorePortraitHeuristics(spotify.imageUrl, "spotify_artist");
+    if (!heuristic.reject) {
+      addCandidate(candidates, {
+        url: spotify.imageUrl,
+        source: "spotify_artist",
+        score: (spotify.fromOembed ? 36 : 50) + heuristic.scoreDelta,
+        warnings: heuristic.warnings,
+      });
+    }
+  }
+
+  const bandcampUrl = input.externalLinks?.bandcamp;
+  if (bandcampUrl) {
+    const bandcampImage = await fetchBandcampArtistPortrait(bandcampUrl);
+    if (bandcampImage) {
+      const heuristic = scorePortraitHeuristics(bandcampImage, "bandcamp_artist");
+      if (!heuristic.reject) {
+        addCandidate(candidates, {
+          url: bandcampImage,
+          source: "bandcamp_artist",
+          score: 49 + heuristic.scoreDelta,
+          warnings: heuristic.warnings,
+        });
+      }
+    }
+  }
+
+  const deezerUrl = await fetchDeezerArtistPortrait(input.artistName);
+  if (deezerUrl) {
+    const heuristic = scorePortraitHeuristics(deezerUrl, "deezer_artist");
+    if (!heuristic.reject) {
+      addCandidate(candidates, {
+        url: deezerUrl,
+        source: "deezer_artist",
+        score: 48 + heuristic.scoreDelta,
+        warnings: heuristic.warnings,
+      });
+    }
   }
 
   const wikidataId = input.externalLinks?.wikidataId;
   const siteUrl = input.website ?? input.externalLinks?.website;
 
   if (wikidataId) {
-    const wiki = await wikidataPortrait(wikidataId);
-    if (wiki.url) {
-      addCandidate(candidates, {
-        url: wiki.url,
-        source: "wikimedia",
-        score: 45,
-        warnings: [],
-        attribution: wiki.attribution,
-      });
+    for (const wiki of await wikidataPortraitCandidates(wikidataId)) {
+      addCandidate(candidates, wiki);
     }
-  }
-
-  const deezerUrl = await fetchDeezerArtistPortrait(input.artistName);
-  if (deezerUrl) {
-    addCandidate(candidates, {
-      url: deezerUrl,
-      source: "deezer_artist",
-      score: 42,
-      warnings: [],
-    });
   }
 
   if (siteUrl) {
@@ -409,6 +479,12 @@ export async function resolveArtistPortraitImage(input: {
       continue;
     }
 
+    const heuristic = scorePortraitHeuristics(c.url, c.source, { filename: c.filename });
+    if (heuristic.reject) {
+      warnings.push(`Rejected ${c.source}: likely release/graphic artwork`);
+      continue;
+    }
+
     const check = await validateImageUrl(c.url, c.source);
     if (!check.ok) {
       warnings.push(`Rejected ${c.source}: ${check.warning ?? "invalid"}`);
@@ -417,7 +493,8 @@ export async function resolveArtistPortraitImage(input: {
 
     validated.push({
       ...c,
-      warnings: [...c.warnings, ...(check.warning ? [check.warning] : [])],
+      score: c.score + heuristic.scoreDelta,
+      warnings: [...c.warnings, ...heuristic.warnings, ...(check.warning ? [check.warning] : [])],
     });
   }
 
@@ -448,10 +525,29 @@ export async function resolveArtistPortraitImage(input: {
     };
   }
 
+  const portraitSources: ArtistImageSource[] = [
+    "bandcamp_artist",
+    "deezer_artist",
+    "spotify_artist",
+    "wikimedia",
+    "official_site",
+    "instagram",
+  ];
+  const hasPressPhotoSource = validated.some(
+    (c) =>
+      portraitSources.includes(c.source) &&
+      c.score >= 40 &&
+      !c.warnings.some((w) => w.includes("release artwork") || w.includes("embed thumbnail")),
+  );
+
   return {
     imageUrl: best.url,
     imageSource: best.source,
-    imageConfidence: confidence,
+    imageConfidence:
+      best.warnings.some((w) => w.includes("embed thumbnail") || w.includes("release artwork")) &&
+      !hasPressPhotoSource
+        ? "medium"
+        : confidence,
     imageWarnings: [...new Set([...warnings, ...best.warnings])],
     imageAttribution: best.attribution,
   };
