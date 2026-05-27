@@ -15,7 +15,7 @@ export default function DashboardWorkflowBanner() {
         <div>
           <h2 className="text-[15px] font-semibold text-[#F5F5F7]">Streamline your workflow</h2>
           <p className="mt-0.5 text-[13px] text-[#A1A1AA]">
-            Use templates and season planning to save time on repetitive show-week tasks.
+            Use templates and the run overview to stay on top of upcoming shows and finances.
           </p>
         </div>
       </div>
@@ -25,9 +25,9 @@ export default function DashboardWorkflowBanner() {
             Browse templates
           </Button>
         </Link>
-        <Link href="/season">
+        <Link href="/run">
           <Button type="button" variant="primary" size="sm">
-            Season planning
+            Run overview
           </Button>
         </Link>
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { ArrowRight, Info } from "lucide-react";
 
 import Stepper from "@/app/components/ui/Stepper";
@@ -15,9 +15,7 @@ import Button from "@/app/components/ui/Button";
 import EventSummaryCard from "@/app/components/ui/EventSummaryCard";
 import TipCard from "@/app/components/ui/TipCard";
 import { loadWizardEventDraft, saveWizardEventDraft } from "@/lib/data";
-import { ensureDefaultSeason, loadSeasons } from "@/lib/data/seasons";
 import { hasWizardProgress } from "@/lib/event-wizard/persist-wizard-draft";
-import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import { useWizardFlush } from "@/lib/event-wizard/use-wizard-flush";
 import { getStoredSession, getSupabaseConfig } from "@/lib/supabase/browser";
 import * as SupabaseBrowser from "@/lib/supabase/browser";
@@ -104,7 +102,6 @@ type EventDraft = {
   startTime: string;
   venueId: string;
   description: string;
-  seasonId: string;
 };
 
 const venues: Venue[] = [
@@ -153,30 +150,14 @@ function formatTimeLabel(time24?: string) {
 
 export default function EventBasicsPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { workspace } = useWorkspace();
   const [availableVenues, setAvailableVenues] = React.useState<Venue[]>(venues);
-  const [seasonOptions, setSeasonOptions] = React.useState<{ id: string; name: string }[]>([]);
   const [draft, setDraft] = React.useState<EventDraft>({
     eventName: "ABYSSAL 007",
     date: new Date(2026, 4, 5),
     startTime: "22:00",
     venueId: venues[0]?.id ?? "",
     description: "",
-    seasonId: "",
   });
-
-  React.useEffect(() => {
-    if (!workspace) return;
-    const list = loadSeasons(workspace.id);
-    const fallback = list[0]?.id ?? ensureDefaultSeason(workspace.id).id;
-    const fromUrl = searchParams.get("seasonId");
-    setSeasonOptions(list.map((s) => ({ id: s.id, name: s.name })));
-    setDraft((current) => ({
-      ...current,
-      seasonId: fromUrl && list.some((s) => s.id === fromUrl) ? fromUrl : current.seasonId || fallback,
-    }));
-  }, [workspace, searchParams]);
 
   React.useEffect(() => {
     const stored = getStoredSession();
@@ -216,7 +197,6 @@ export default function EventBasicsPage() {
       startTime: stored.startTime || current.startTime,
       venueId: stored.venueId ?? current.venueId,
       description: stored.description ?? current.description,
-      seasonId: stored.seasonId ?? current.seasonId,
     }));
   }, []);
 
@@ -230,7 +210,6 @@ export default function EventBasicsPage() {
       venueName: selectedVenue.name,
       venueCapacity: selectedVenue.capacity,
       description: draft.description,
-      seasonId: draft.seasonId || undefined,
     });
   }, [draft, selectedVenue]);
 
@@ -305,32 +284,6 @@ export default function EventBasicsPage() {
               onChange={(id) => setDraft((prev) => ({ ...prev, venueId: id }))}
               options={availableVenues.map((v) => ({ value: v.id, label: v.cityLabel }))}
             />
-
-            {seasonOptions.length > 0 ? (
-              <div>
-                <label className="mb-1 block text-[12px] font-medium text-[#A1A1AA]">
-                  Season / run
-                </label>
-                <select
-                  value={draft.seasonId}
-                  onChange={(e) => setDraft((prev) => ({ ...prev, seasonId: e.target.value }))}
-                  className="w-full rounded-lg border border-[#3F3F46] bg-[#0B0B10] px-3 py-2 text-[13px] text-[#F5F5F7] outline-none focus:border-[#8B5CF6]"
-                >
-                  {seasonOptions.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-[11px] text-[#71717A]">
-                  Plan this show as part of a season — view the calendar on{" "}
-                  <a href="/season" className="text-[#8B5CF6] hover:text-[#A855F7]">
-                    Season planning
-                  </a>
-                  .
-                </p>
-              </div>
-            ) : null}
 
             <EventCard
               venueName={selectedVenue.name}

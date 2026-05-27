@@ -47,7 +47,7 @@ type NavItem = {
 const mainNavItems: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { label: "Events", icon: CalendarPlus, href: "/events" },
-  { label: "Season", icon: CalendarRange, href: "/season" },
+  { label: "Run", icon: CalendarRange, href: "/run" },
   { label: "Tasks", icon: CheckSquare, href: "/tasks" },
   { label: "Team", icon: Users, href: "/team" },
   { label: "Venues", icon: MapPin, href: "/venues" },

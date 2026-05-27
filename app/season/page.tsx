@@ -1,10 +1,5 @@
-import DashboardShell from "@/app/components/layout/DashboardShell";
-import SeasonPageContent from "@/app/components/season/SeasonPageContent";
+import { redirect } from "next/navigation";
 
-export default function SeasonPage() {
-  return (
-    <DashboardShell>
-      <SeasonPageContent />
-    </DashboardShell>
-  );
+export default function SeasonPageRedirect() {
+  redirect("/run");
 }
