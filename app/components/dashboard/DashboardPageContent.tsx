@@ -175,7 +175,7 @@ export default function DashboardPageContent() {
     };
   }, [refreshSnapshot, ops.refreshTasks]);
 
-  const upcoming = snapshot.upcomingEvents.slice(0, 3);
+  const upcoming = snapshot.upcomingEvents;
   const loading = !workspaceReady || !ops.ready;
 
   return (
@@ -226,7 +226,9 @@ export default function DashboardPageContent() {
                     <ArrowRight className="size-4" strokeWidth={2} aria-hidden />
                   </Link>
                 </div>
-                <ul className={`flex min-h-0 flex-1 flex-col ${PAGE_STACK_GAP} overflow-hidden`}>
+                <ul
+                  className={`flex min-h-0 flex-1 flex-col ${PAGE_STACK_GAP} overflow-y-auto overscroll-contain pr-1`}
+                >
                   {upcoming.length > 0 ? (
                     upcoming.map((ev) => (
                       <li key={ev.title} className="shrink-0">
