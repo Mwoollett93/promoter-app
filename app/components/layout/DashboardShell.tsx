@@ -10,7 +10,14 @@ import { SettingsProvider } from "@/lib/settings/SettingsProvider";
 import { isAccountActive, loadSettings, reactivateAccount } from "@/lib/settings/settings";
 import { getStoredSession } from "@/lib/supabase/browser";
 
-export default function DashboardShell({ children }: { children: React.ReactNode }) {
+export default function DashboardShell({
+  children,
+  viewportLock = false,
+}: {
+  children: React.ReactNode;
+  /** Dashboard: no page scroll — content fits one viewport */
+  viewportLock?: boolean;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
@@ -50,9 +57,18 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen((v) => !v)} />
 
         <section
-          className={`relative z-0 box-border min-h-0 min-w-0 w-full overflow-x-hidden overflow-y-auto bg-[#0B0B10] ${SHELL_PADDING_X} ${SHELL_PADDING_Y}`}
+          className={[
+            "relative z-0 box-border min-h-0 min-w-0 w-full overflow-x-hidden bg-[#0B0B10]",
+            viewportLock
+              ? "flex h-full flex-col overflow-hidden py-3 px-5"
+              : `overflow-y-auto ${SHELL_PADDING_X} ${SHELL_PADDING_Y}`,
+          ].join(" ")}
         >
-          {children}
+          {viewportLock ? (
+            <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+          ) : (
+            children
+          )}
         </section>
       </div>
     </div>

@@ -28,11 +28,17 @@ export default function UpcomingEventRow({
   dateLabel,
   relativeLabel,
   imageSrc,
-}: UpcomingEventRowProps) {
+  compact = false,
+}: UpcomingEventRowProps & { compact?: boolean }) {
   const inner = (
     <>
-      <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
-        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md border border-[#3F3F46] bg-[#18181F] sm:h-[72px] sm:w-[77px]">
+      <div className={["flex min-w-0 flex-1 items-center", compact ? "gap-2" : "gap-3 sm:gap-4"].join(" ")}>
+        <div
+          className={[
+            "relative shrink-0 overflow-hidden rounded-md border border-[#3F3F46] bg-[#18181F]",
+            compact ? "h-10 w-10" : "h-14 w-14 sm:h-[72px] sm:w-[77px]",
+          ].join(" ")}
+        >
           {imageSrc ? (
             <img src={imageSrc} alt="" className="h-full w-full object-cover" />
           ) : (
@@ -41,39 +47,51 @@ export default function UpcomingEventRow({
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-semibold leading-5 text-[#F5F5F7]">
+          <p
+            className={[
+              "truncate font-semibold text-[#F5F5F7]",
+              compact ? "text-[13px] leading-4" : "text-[15px] leading-5",
+            ].join(" ")}
+          >
             {title}
           </p>
-          <p className="mt-0.5 truncate text-[12px] leading-4 text-[#A1A1AA]">
+          <p className={["truncate text-[#A1A1AA]", compact ? "text-[10px] leading-3" : "mt-0.5 text-[12px] leading-4"].join(" ")}>
             {venueLabel}
+            {compact ? ` · ${timeRangeLabel}` : null}
           </p>
-          <p className="mt-0.5 truncate text-[12px] leading-4 text-[#D4D4D8]">
-            {timeRangeLabel}
-          </p>
+          {!compact ? (
+            <p className="mt-0.5 truncate text-[12px] leading-4 text-[#D4D4D8]">
+              {timeRangeLabel}
+            </p>
+          ) : null}
         </div>
       </div>
 
-      <div className="flex shrink-0 flex-col items-center gap-2 sm:flex-row sm:gap-6">
+      <div className={["flex shrink-0 items-center", compact ? "gap-2" : "flex-col gap-2 sm:flex-row sm:gap-6"].join(" ")}>
         <EventStatusBadge status={status} />
 
-        <div className="hidden text-right sm:block">
-          <p className="text-[13px] font-medium tabular-nums text-[#F5F5F7]">
+        <div className={compact ? "text-right" : "hidden text-right sm:block"}>
+          <p className={["font-medium tabular-nums text-[#F5F5F7]", compact ? "text-[11px]" : "text-[13px]"].join(" ")}>
             {dateLabel}
           </p>
-          <p className="text-[11px] text-[#A1A1AA]">{relativeLabel}</p>
+          {!compact ? <p className="text-[11px] text-[#A1A1AA]">{relativeLabel}</p> : null}
         </div>
 
-        <ChevronRight
-          className="size-5 shrink-0 text-[#71717A]"
-          strokeWidth={2}
-          aria-hidden
-        />
+        {!compact ? (
+          <ChevronRight
+            className="size-5 shrink-0 text-[#71717A]"
+            strokeWidth={2}
+            aria-hidden
+          />
+        ) : null}
       </div>
     </>
   );
 
-  const shell =
-    "flex w-full items-center justify-between gap-3 rounded-xl border border-[#232330] bg-[#11111A] px-3 py-3 transition-colors hover:border-[#3F3F46] sm:gap-4 sm:px-4";
+  const shell = [
+    "flex w-full items-center justify-between rounded-lg border border-[#232330] bg-[#0B0B10] transition-colors hover:border-[#3F3F46]",
+    compact ? "gap-2 px-2 py-1.5" : "gap-3 rounded-xl bg-[#11111A] px-3 py-3 sm:gap-4 sm:px-4",
+  ].join(" ");
 
   if (href && href !== "#") {
     return (

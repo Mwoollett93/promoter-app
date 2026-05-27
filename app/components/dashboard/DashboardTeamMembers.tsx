@@ -8,7 +8,6 @@ import { getWorkspaceMemberLabel } from "@/lib/collaboration/member-display";
 import type { MemberWorkload } from "@/lib/team/member-workload";
 import { resolveMemberPresence } from "@/lib/team/presence";
 import { memberInitials } from "@/lib/tasks/task-board-utils";
-import { SECTION_CARD, SECTION_CARD_PADDING, SECTION_TITLE, LINK_ACCENT } from "@/lib/ui/page-surfaces";
 import type { WorkspaceMember } from "@/lib/types/collaboration";
 
 const WORKLOAD_COLOR: Record<MemberWorkload["workloadLevel"], string> = {
@@ -28,22 +27,22 @@ export default function DashboardTeamMembers({
   members,
   workloads,
   currentUserId,
-  limit = 3,
+  limit = 2,
 }: DashboardTeamMembersProps) {
   const visible = members.slice(0, limit);
 
   return (
-    <section className={[SECTION_CARD, SECTION_CARD_PADDING].join(" ")}>
-      <div className="flex items-center justify-between gap-2">
-        <h2 className={SECTION_TITLE}>Team members</h2>
-        <Link href="/team?tab=members" className={LINK_ACCENT}>
+    <section className="flex h-full min-h-0 flex-col rounded-xl border border-[#232330] bg-[#11111A] p-3 shadow-[0px_8px_24px_rgba(0,0,0,0.35)]">
+      <div className="flex shrink-0 items-center justify-between gap-2">
+        <h2 className="text-[13px] font-semibold text-[#F5F5F7]">Team members</h2>
+        <Link href="/team?tab=members" className="text-[11px] font-medium text-[#8B5CF6] hover:text-[#A855F7]">
           View all →
         </Link>
       </div>
       {visible.length === 0 ? (
-        <p className="mt-3 text-[13px] text-[#71717A]">Invite your crew from the Team page.</p>
+        <p className="mt-2 text-[11px] text-[#71717A]">Invite your crew from Team.</p>
       ) : (
-        <ul className="mt-3 space-y-3">
+        <ul className="mt-2 min-h-0 flex-1 space-y-2 overflow-hidden">
           {visible.map((member) => {
             const name = getWorkspaceMemberLabel(member);
             const workload =
@@ -67,11 +66,11 @@ export default function DashboardTeamMembers({
             return (
               <li
                 key={member.id}
-                className="rounded-lg border border-[#232330] bg-[#0B0B10] p-3"
+                className="rounded-lg border border-[#232330] bg-[#0B0B10] px-2 py-1.5"
               >
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2">
                   <div className="relative shrink-0">
-                    <div className="flex size-9 items-center justify-center rounded-full border border-[#3F3F46] bg-[#1A1630] text-[11px] font-bold text-[#C4B5FD]">
+                    <div className="flex size-7 items-center justify-center rounded-full border border-[#3F3F46] bg-[#1A1630] text-[9px] font-bold text-[#C4B5FD]">
                       {memberInitials(name)}
                     </div>
                     <span className="absolute -bottom-0.5 -right-0.5 rounded-full border border-[#0F0F17] bg-[#0F0F17]">
@@ -79,40 +78,32 @@ export default function DashboardTeamMembers({
                     </span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-medium text-[#F5F5F7]">{name}</p>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                      <RoleBadge role={member.role} size="sm" />
-                    </div>
+                    <p className="truncate text-[11px] font-medium text-[#F5F5F7]">{name}</p>
+                    <RoleBadge role={member.role} size="sm" />
                   </div>
                 </div>
-                <dl className="mt-2.5 grid grid-cols-3 gap-2 text-center">
+                <div className="mt-1.5 grid grid-cols-3 gap-1 text-center text-[9px]">
                   <div>
-                    <dt className="text-[10px] uppercase tracking-wide text-[#71717A]">Tasks</dt>
-                    <dd className="text-[14px] font-semibold tabular-nums text-[#F5F5F7]">
+                    <span className="text-[#71717A]">Tasks</span>
+                    <p className="font-semibold tabular-nums text-[#F5F5F7]">
                       {workload.activeTasks}
                       {workload.overdueTasks > 0 ? (
-                        <span className="ml-1 text-[10px] font-normal text-[#FCA5A5]">
-                          ({workload.overdueTasks} overdue)
-                        </span>
+                        <span className="text-[#FCA5A5]"> ({workload.overdueTasks})</span>
                       ) : null}
-                    </dd>
+                    </p>
                   </div>
                   <div>
-                    <dt className="text-[10px] uppercase tracking-wide text-[#71717A]">Events</dt>
-                    <dd className="text-[14px] font-semibold tabular-nums text-[#F5F5F7]">
-                      {workload.assignedEvents}
-                    </dd>
+                    <span className="text-[#71717A]">Events</span>
+                    <p className="font-semibold tabular-nums text-[#F5F5F7]">{workload.assignedEvents}</p>
                   </div>
                   <div>
-                    <dt className="text-[10px] uppercase tracking-wide text-[#71717A]">Workload</dt>
-                    <dd className="text-[11px] font-medium capitalize text-[#E4E4E7]">
-                      {workload.workloadLevel}
-                    </dd>
+                    <span className="text-[#71717A]">Load</span>
+                    <p className="font-medium capitalize text-[#E4E4E7]">{workload.workloadLevel}</p>
                   </div>
-                </dl>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#232330]">
+                </div>
+                <div className="mt-1 h-1 overflow-hidden rounded-full bg-[#232330]">
                   <div
-                    className={`h-full rounded-full transition-all ${WORKLOAD_COLOR[workload.workloadLevel]}`}
+                    className={`h-full rounded-full ${WORKLOAD_COLOR[workload.workloadLevel]}`}
                     style={{ width: `${barPct}%` }}
                   />
                 </div>

@@ -16,11 +16,17 @@ const ICONS = [CalendarDays, CheckCircle2, ClipboardList, PauseCircle, AlertTria
 
 type DashboardOpsStatsRowProps = {
   stats: DashboardOpsStat[];
+  dense?: boolean;
 };
 
-export default function DashboardOpsStatsRow({ stats }: DashboardOpsStatsRowProps) {
+export default function DashboardOpsStatsRow({ stats, dense = false }: DashboardOpsStatsRowProps) {
   return (
-    <section className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 ${GRID_CARD_GAP}`}>
+    <section
+      className={[
+        "grid shrink-0 grid-cols-2 md:grid-cols-3 xl:grid-cols-5",
+        dense ? "gap-2" : GRID_CARD_GAP,
+      ].join(" ")}
+    >
       {stats.map((stat, index) => (
         <StatMiniCard
           key={stat.label}
@@ -29,6 +35,7 @@ export default function DashboardOpsStatsRow({ stats }: DashboardOpsStatsRowProp
           value={stat.value}
           trend={stat.trend}
           trendUp={stat.trendUp}
+          dense={dense}
         />
       ))}
     </section>

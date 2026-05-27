@@ -34,6 +34,7 @@ type WorkspaceActivityFeedProps = {
   limit?: number;
   onViewAll?: () => void;
   fullPage?: boolean;
+  embedded?: boolean;
 };
 
 export default function WorkspaceActivityFeed({
@@ -41,6 +42,7 @@ export default function WorkspaceActivityFeed({
   limit,
   onViewAll,
   fullPage = false,
+  embedded = false,
 }: WorkspaceActivityFeedProps) {
   const { session, workspace, members } = useWorkspace();
   const [entries, setEntries] = React.useState<ActivityLogEntry[]>([]);
@@ -93,18 +95,24 @@ export default function WorkspaceActivityFeed({
   }, [entries, filter, limit, fullPage]);
 
   return (
-    <section className={[SECTION_CARD, SECTION_CARD_PADDING].join(" ")}>
-      <div className="flex items-center justify-between gap-2">
-        <h2 className={SECTION_TITLE}>
-          {compact ? "Recent workspace activity" : "Workspace activity"}
+    <section
+      className={[
+        embedded
+          ? "flex h-full min-h-0 flex-col rounded-xl border border-[#232330] bg-[#11111A] p-3 shadow-[0px_8px_24px_rgba(0,0,0,0.35)]"
+          : [SECTION_CARD, SECTION_CARD_PADDING].join(" "),
+      ].join(" ")}
+    >
+      <div className="flex shrink-0 items-center justify-between gap-2">
+        <h2 className={embedded ? "text-[13px] font-semibold text-[#F5F5F7]" : SECTION_TITLE}>
+          {compact || embedded ? "Recent activity" : "Workspace activity"}
         </h2>
-        {compact && onViewAll ? (
-          <button type="button" onClick={onViewAll} className={LINK_ACCENT}>
+        {(compact || embedded) && onViewAll ? (
+          <button type="button" onClick={onViewAll} className={embedded ? "text-[11px] font-medium text-[#8B5CF6]" : LINK_ACCENT}>
             View all →
           </button>
         ) : null}
       </div>
-      {(fullPage || !compact) && (
+      {(fullPage || (!compact && !embedded)) && (
         <div className="mt-3 flex flex-wrap gap-1">
           {FILTERS.map((f) => (
             <button
@@ -124,16 +132,26 @@ export default function WorkspaceActivityFeed({
         </div>
       )}
       {loading ? (
-        <p className="mt-3 text-[13px] text-[#71717A]">Loading activity…</p>
+        <p className={embedded ? "mt-2 text-[11px] text-[#71717A]" : "mt-3 text-[13px] text-[#71717A]"}>
+          Loading activity…
+        </p>
       ) : filtered.length === 0 ? (
-        <p className="mt-3 rounded-lg border border-dashed border-[#3F3F46] px-4 py-6 text-center text-[13px] text-[#A1A1AA]">
-          No activity yet. Task moves, invites, and event updates appear here.
+        <p
+          className={
+            embedded
+              ? "mt-2 text-[11px] text-[#71717A]"
+              : "mt-3 rounded-lg border border-dashed border-[#3F3F46] px-4 py-6 text-center text-[13px] text-[#A1A1AA]"
+          }
+        >
+          No activity yet.
         </p>
       ) : (
         <ul
           className={[
-            "mt-3 overflow-y-auto",
-            fullPage ? "max-h-none" : compact ? "max-h-[220px]" : "max-h-[420px]",
+            embedded
+              ? "mt-2 min-h-0 flex-1 space-y-0 overflow-hidden"
+              : "mt-3 overflow-y-auto",
+            !embedded && (fullPage ? "max-h-none" : compact ? "max-h-[220px]" : "max-h-[420px]"),
             "space-y-0",
           ].join(" ")}
         >
@@ -143,7 +161,7 @@ export default function WorkspaceActivityFeed({
               entry={entry}
               actorName={memberNames.get(entry.actorId) ?? "Team member"}
               href={activityHref(entry)}
-              compact={compact}
+              compact={compact || embedded}
             />
           ))}
         </ul>
