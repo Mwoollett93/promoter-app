@@ -1,22 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import * as React from "react";
-import {
-  ArrowRight,
-  CalendarDays,
-  DollarSign,
-  LayoutDashboard,
-  Plus,
-  TrendingUp,
-  Users,
-} from "lucide-react";
+import { ArrowRight, Plus } from "lucide-react";
 
 import PageContent from "@/app/components/layout/PageContent";
-import EventStatusBadge from "@/app/components/ui/EventStatusBadge";
+import DashboardOpsStatsRow from "@/app/components/dashboard/DashboardOpsStatsRow";
+import DashboardTeamMembers from "@/app/components/dashboard/DashboardTeamMembers";
+import DashboardWorkflowBanner from "@/app/components/dashboard/DashboardWorkflowBanner";
 import UpcomingEventRow from "@/app/components/dashboard/UpcomingEventRow";
-import StatMiniCard from "@/app/components/dashboard/StatMiniCard";
 import CurrencyText from "@/app/components/ui/CurrencyText";
+import TeamNotificationsPanel from "@/app/components/team/TeamNotificationsPanel";
+import WorkspaceActivityFeed from "@/app/components/team/WorkspaceActivityFeed";
 import {
   buildDashboardSnapshot,
   type DashboardFinanceScope,
@@ -26,6 +22,7 @@ import { useSettings } from "@/lib/settings/SettingsProvider";
 import { getProfileFirstName } from "@/lib/settings/settings";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import { loadManagedEvents } from "@/lib/data/events";
+import { useDashboardOpsData } from "@/lib/team/use-dashboard-ops-data";
 import { GRID_CARD_GAP, PAGE_STACK_GAP } from "@/lib/layout/page-layout";
 import { getStoredSession, getSupabaseConfig, listArtists } from "@/lib/supabase/browser";
 import { listVenueSummaries } from "@/lib/supabase/venue-summaries";
@@ -73,52 +70,8 @@ function FinancialSparkline({ values }: { values: number[] }) {
   );
 }
 
-function StatusDonut({ slices }: { slices: DashboardSnapshot["eventStatusDistribution"] }) {
-  let acc = 0;
-  const gradientStops = slices
-    .map((s) => {
-      const colors: Record<string, string> = {
-        active: "#8B5CF6",
-        confirmed: "#8B5CF6",
-        planning: "#F59E0B",
-        draft: "#71717A",
-        cancelled: "#EF4444",
-        canceled: "#EF4444",
-        completed: "#10B981",
-      };
-      const start = acc;
-      acc += s.pct;
-      return `${colors[s.status] ?? "#71717A"} ${start}% ${acc}%`;
-    })
-    .join(", ");
-
-  return (
-    <div className="rounded-xl border border-[#232330] bg-[#11111A] p-4 shadow-[0px_8px_24px_rgba(0,0,0,0.35)]">
-      <h3 className="text-[15px] font-semibold text-[#F5F5F7]">Event Status</h3>
-      <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-        <div
-          className="size-36 shrink-0 rounded-full ring-4 ring-[#18181F]"
-          style={{ background: slices.length > 0 ? `conic-gradient(${gradientStops})` : "#27272F" }}
-          aria-hidden
-        />
-        <ul className="min-w-0 flex-1 space-y-2 text-[12px]">
-          {slices.map((s) => (
-            <li key={s.status} className="flex items-center justify-between gap-2">
-              <EventStatusBadge status={s.status} />
-              <span className="tabular-nums text-[#A1A1AA]">
-                {s.count} ({s.pct}%)
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
-
 const EMPTY_SNAPSHOT = buildDashboardSnapshot({ events: [] });
 
-/** ~3 upcoming event rows visible before the list scrolls (row height + 12px gaps). */
 const UPCOMING_EVENTS_LIST_MAX_HEIGHT =
   "max-h-[264px] overflow-y-auto overscroll-contain sm:max-h-[312px]";
 
@@ -133,11 +86,12 @@ const venuesCache: {
 } = { sessionId: null, venues: [] };
 
 export default function DashboardPageContent() {
+  const router = useRouter();
   const { settings } = useSettings();
   const { events: workspaceEvents, ready: workspaceReady } = useWorkspace();
+  const ops = useDashboardOpsData();
   const [financeScope, setFinanceScope] = React.useState<DashboardFinanceScope>("portfolio");
   const [snapshot, setSnapshot] = React.useState<DashboardSnapshot>(EMPTY_SNAPSHOT);
-  const icons = [CalendarDays, Users, DollarSign, TrendingUp];
 
   const refreshSnapshot = React.useCallback(async () => {
     const events = loadManagedEvents();
@@ -200,11 +154,15 @@ export default function DashboardPageContent() {
 
     const onEventsUpdated = () => {
       void refreshSnapshot();
+      void ops.refreshTasks();
     };
 
     const onFocus = () => {
       if (focusTimer) clearTimeout(focusTimer);
-      focusTimer = setTimeout(() => void refreshSnapshot(), 500);
+      focusTimer = setTimeout(() => {
+        void refreshSnapshot();
+        void ops.refreshTasks();
+      }, 500);
     };
 
     window.addEventListener("storage", onStorage);
@@ -217,7 +175,9 @@ export default function DashboardPageContent() {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("promosync:events-updated", onEventsUpdated);
     };
-  }, [refreshSnapshot]);
+  }, [refreshSnapshot, ops.refreshTasks]);
+
+  const loading = !workspaceReady || !ops.ready;
 
   return (
     <PageContent fill>
@@ -242,161 +202,173 @@ export default function DashboardPageContent() {
         </Link>
       </header>
 
-      <section className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 ${GRID_CARD_GAP}`}>
-        {snapshot.stats.map((s, i) => (
-          <StatMiniCard
-            key={s.label}
-            icon={icons[i] ?? LayoutDashboard}
-            label={s.label}
-            value={
-              s.currencyAmount != null ? (
-                <CurrencyText value={s.currencyAmount} />
-              ) : (
-                s.value
-              )
-            }
-            trend={s.trend}
-            trendUp={s.trendUp}
-          />
-        ))}
-      </section>
+      {loading ? (
+        <p className="text-[14px] text-[#A1A1AA]">Loading dashboard…</p>
+      ) : (
+        <div className={`flex flex-col ${PAGE_STACK_GAP}`}>
+          <DashboardOpsStatsRow stats={ops.opsStats} />
 
-      <section className={`grid grid-cols-1 lg:grid-cols-3 lg:items-stretch ${GRID_CARD_GAP}`}>
-        <div className="flex flex-col rounded-xl border border-[#232330] bg-[#11111A] p-4 shadow-[0px_8px_24px_rgba(0,0,0,0.35)] lg:col-span-2">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-[16px] font-semibold text-[#F5F5F7]">Upcoming Events</h2>
-            <Link
-              href="/events"
-              className="inline-flex items-center gap-1 text-[13px] font-medium text-[#8B5CF6] hover:text-[#A855F7]"
-            >
-              View all events
-              <ArrowRight className="size-4" strokeWidth={2} aria-hidden />
-            </Link>
-          </div>
-          <ul className={`flex flex-col ${PAGE_STACK_GAP} ${UPCOMING_EVENTS_LIST_MAX_HEIGHT}`}>
-            {snapshot.upcomingEvents.length > 0 ? (
-              snapshot.upcomingEvents.map((ev) => (
-                <li key={ev.title}>
-                  <UpcomingEventRow {...ev} />
-                </li>
-              ))
-            ) : (
-              <li className="rounded-lg border border-dashed border-[#3F3F46] px-4 py-8 text-center text-[13px] text-[#A1A1AA]">
-                No upcoming events yet. Create one to see it here.
-              </li>
-            )}
-          </ul>
-          <Link
-            href="/event-wizard/event-basics"
-            className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg border border-dashed border-[#8B5CF6]/50 bg-transparent py-2.5 text-[14px] font-medium text-[#8B5CF6] transition-colors hover:border-[#8B5CF6] hover:bg-[#8B5CF6]/5"
-          >
-            <Plus className="size-4" strokeWidth={2} aria-hidden />
-            Create New Event
-          </Link>
-        </div>
-
-        <div className="flex min-h-0 flex-col rounded-xl border border-[#232330] bg-[#11111A] p-4 shadow-[0px_8px_24px_rgba(0,0,0,0.35)]">
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
-            <h2 className="text-[16px] font-semibold text-[#F5F5F7]">Financial Overview</h2>
-            <label className="sr-only" htmlFor="fin-range">
-              Range
-            </label>
-            <select
-              id="fin-range"
-              value={financeScope}
-              onChange={(e) => setFinanceScope(e.target.value as DashboardFinanceScope)}
-              className="rounded-md border border-[#3F3F46] bg-[#0B0B10] px-2 py-1.5 text-[12px] text-[#E4E4E7] outline-none focus:border-[#8B5CF6]"
-            >
-              <option value="portfolio">All Events</option>
-              <option value="active">Active Only</option>
-            </select>
-          </div>
-          <ul className="mt-4 shrink-0 space-y-2 text-[13px]">
-            {snapshot.financialRows.map((row) => (
-              <li
-                key={row.label}
-                className="flex items-center justify-between gap-2 border-b border-[#232330] pb-2 last:border-0"
-              >
-                <span className="text-[#A1A1AA]">{row.label}</span>
-                <span
-                  className={`font-semibold tabular-nums ${row.highlight ? "text-emerald-400" : "text-[#F5F5F7]"}`}
+          <section className={`grid grid-cols-1 lg:grid-cols-3 lg:items-stretch ${GRID_CARD_GAP}`}>
+            <div className="flex flex-col rounded-xl border border-[#232330] bg-[#11111A] p-4 shadow-[0px_8px_24px_rgba(0,0,0,0.35)] lg:col-span-2">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-[16px] font-semibold text-[#F5F5F7]">Upcoming Events</h2>
+                <Link
+                  href="/events"
+                  className="inline-flex items-center gap-1 text-[13px] font-medium text-[#8B5CF6] hover:text-[#A855F7]"
                 >
-                  {row.currencyAmount != null ? (
-                    <CurrencyText value={row.currencyAmount} />
+                  View all events
+                  <ArrowRight className="size-4" strokeWidth={2} aria-hidden />
+                </Link>
+              </div>
+              <ul className={`flex flex-col ${PAGE_STACK_GAP} ${UPCOMING_EVENTS_LIST_MAX_HEIGHT}`}>
+                {snapshot.upcomingEvents.length > 0 ? (
+                  snapshot.upcomingEvents.map((ev) => (
+                    <li key={ev.title}>
+                      <UpcomingEventRow {...ev} />
+                    </li>
+                  ))
+                ) : (
+                  <li className="rounded-lg border border-dashed border-[#3F3F46] px-4 py-8 text-center text-[13px] text-[#A1A1AA]">
+                    No upcoming events yet. Create one to see it here.
+                  </li>
+                )}
+              </ul>
+              <Link
+                href="/event-wizard/event-basics"
+                className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg border border-dashed border-[#8B5CF6]/50 bg-transparent py-2.5 text-[14px] font-medium text-[#8B5CF6] transition-colors hover:border-[#8B5CF6] hover:bg-[#8B5CF6]/5"
+              >
+                <Plus className="size-4" strokeWidth={2} aria-hidden />
+                Create New Event
+              </Link>
+            </div>
+
+            <TeamNotificationsPanel
+              items={ops.notifications}
+              limit={4}
+              onViewAll={() => router.push("/team?tab=activity")}
+            />
+          </section>
+
+          <section className={`grid grid-cols-1 lg:grid-cols-3 ${GRID_CARD_GAP}`}>
+            <DashboardTeamMembers
+              members={ops.activeMembers}
+              workloads={ops.workloads}
+              currentUserId={ops.session?.user.id}
+              limit={3}
+            />
+
+            <WorkspaceActivityFeed
+              compact
+              limit={6}
+              onViewAll={() => router.push("/team?tab=activity")}
+            />
+
+            <div className="flex flex-col gap-3">
+              <div className="rounded-xl border border-[#232330] bg-[#11111A] p-4 shadow-[0px_8px_24px_rgba(0,0,0,0.35)]">
+                <h3 className="text-[15px] font-semibold text-[#F5F5F7]">Top Venues</h3>
+                <ul className="mt-4 space-y-3">
+                  {snapshot.topVenues.length > 0 ? (
+                    snapshot.topVenues.map((v) => (
+                      <li key={v.name} className="flex items-center gap-3">
+                        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-md border border-[#3F3F46] bg-[#18181F]">
+                          {v.thumb ? <img src={v.thumb} alt="" className="h-full w-full object-cover" /> : null}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[13px] font-medium text-[#F5F5F7]">{v.name}</p>
+                          <p className="text-[11px] text-[#A1A1AA]">{v.events} events</p>
+                        </div>
+                      </li>
+                    ))
                   ) : (
-                    row.value
+                    <li className="text-[13px] text-[#A1A1AA]">No venues in your portfolio yet.</li>
                   )}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <FinancialSparkline values={snapshot.sparklineValues} />
-        </div>
-      </section>
+                </ul>
+              </div>
 
-      <section className={`grid grid-cols-1 lg:grid-cols-3 ${GRID_CARD_GAP}`}>
-        <StatusDonut slices={snapshot.eventStatusDistribution} />
-
-        <div className="rounded-xl border border-[#232330] bg-[#11111A] p-4 shadow-[0px_8px_24px_rgba(0,0,0,0.35)]">
-          <h3 className="text-[15px] font-semibold text-[#F5F5F7]">Top Venues</h3>
-          <ul className="mt-4 space-y-3">
-            {snapshot.topVenues.length > 0 ? (
-              snapshot.topVenues.map((v) => (
-                <li key={v.name} className="flex items-center gap-3">
-                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-md border border-[#3F3F46] bg-[#18181F]">
-                    {v.thumb ? <img src={v.thumb} alt="" className="h-full w-full object-cover" /> : null}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-medium text-[#F5F5F7]">{v.name}</p>
-                    <p className="text-[11px] text-[#A1A1AA]">{v.events} events</p>
-                  </div>
-                </li>
-              ))
-            ) : (
-              <li className="text-[13px] text-[#A1A1AA]">No venues in your event portfolio yet.</li>
-            )}
-          </ul>
-        </div>
-
-        <div className="rounded-xl border border-[#232330] bg-[#11111A] p-4 shadow-[0px_8px_24px_rgba(0,0,0,0.35)]">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-[15px] font-semibold text-[#F5F5F7]">Top Artists</h3>
-            <Link
-              href="/artists"
-              className="inline-flex items-center gap-1 text-[13px] font-medium text-[#8B5CF6] hover:text-[#A855F7]"
-            >
-              View all artists
-              <ArrowRight className="size-4" strokeWidth={2} aria-hidden />
-            </Link>
-          </div>
-          <ul className="mt-4 space-y-3">
-            {snapshot.topArtists.length > 0 ? (
-              snapshot.topArtists.map((a) => (
-                <li key={a.name}>
+              <div className="rounded-xl border border-[#232330] bg-[#11111A] p-4 shadow-[0px_8px_24px_rgba(0,0,0,0.35)]">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-[15px] font-semibold text-[#F5F5F7]">Top Artists</h3>
                   <Link
                     href="/artists"
-                    className="flex items-center gap-3 rounded-lg transition-colors hover:bg-[#181824]"
+                    className="inline-flex items-center gap-1 text-[13px] font-medium text-[#8B5CF6] hover:text-[#A855F7]"
                   >
-                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#3F3F46] ring-2 ring-[#18181F]">
-                      {a.avatar ? (
-                        <img src={a.avatar} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="h-full w-full bg-gradient-to-br from-[#2D2640] to-[#11111A]" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-medium text-[#F5F5F7]">{a.name}</p>
-                      <p className="text-[11px] text-[#A1A1AA]">{a.events} bookings</p>
-                    </div>
+                    View all
+                    <ArrowRight className="size-4" strokeWidth={2} aria-hidden />
                   </Link>
-                </li>
-              ))
-            ) : (
-              <li className="text-[13px] text-[#A1A1AA]">Add artists to populate this list.</li>
-            )}
-          </ul>
+                </div>
+                <ul className="mt-4 space-y-3">
+                  {snapshot.topArtists.length > 0 ? (
+                    snapshot.topArtists.map((a) => (
+                      <li key={a.name}>
+                        <Link
+                          href="/artists"
+                          className="flex items-center gap-3 rounded-lg transition-colors hover:bg-[#181824]"
+                        >
+                          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#3F3F46] ring-2 ring-[#18181F]">
+                            {a.avatar ? (
+                              <img src={a.avatar} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              <div className="h-full w-full bg-gradient-to-br from-[#2D2640] to-[#11111A]" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[13px] font-medium text-[#F5F5F7]">{a.name}</p>
+                            <p className="text-[11px] text-[#A1A1AA]">{a.events} bookings</p>
+                          </div>
+                        </Link>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="text-[13px] text-[#A1A1AA]">Add artists to populate this list.</li>
+                  )}
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-[#232330] bg-[#11111A] p-4 shadow-[0px_8px_24px_rgba(0,0,0,0.35)]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-[16px] font-semibold text-[#F5F5F7]">Financial Overview</h2>
+              <label className="sr-only" htmlFor="fin-range">
+                Range
+              </label>
+              <select
+                id="fin-range"
+                value={financeScope}
+                onChange={(e) => setFinanceScope(e.target.value as DashboardFinanceScope)}
+                className="rounded-md border border-[#3F3F46] bg-[#0B0B10] px-2 py-1.5 text-[12px] text-[#E4E4E7] outline-none focus:border-[#8B5CF6]"
+              >
+                <option value="portfolio">All Events</option>
+                <option value="active">Active Only</option>
+              </select>
+            </div>
+            <div className={`mt-4 grid grid-cols-1 lg:grid-cols-2 ${GRID_CARD_GAP}`}>
+              <ul className="space-y-2 text-[13px]">
+                {snapshot.financialRows.map((row) => (
+                  <li
+                    key={row.label}
+                    className="flex items-center justify-between gap-2 border-b border-[#232330] pb-2 last:border-0"
+                  >
+                    <span className="text-[#A1A1AA]">{row.label}</span>
+                    <span
+                      className={`font-semibold tabular-nums ${row.highlight ? "text-emerald-400" : "text-[#F5F5F7]"}`}
+                    >
+                      {row.currencyAmount != null ? (
+                        <CurrencyText value={row.currencyAmount} />
+                      ) : (
+                        row.value
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <FinancialSparkline values={snapshot.sparklineValues} />
+            </div>
+          </section>
+
+          <DashboardWorkflowBanner />
         </div>
-      </section>
+      )}
     </PageContent>
   );
 }

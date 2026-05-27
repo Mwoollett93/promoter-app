@@ -57,6 +57,7 @@ export type CreateEventPayload = {
   projectedProfit: number;
   scheduleJson?: unknown[];
   financeJson?: Record<string, unknown>;
+  seasonId?: string | null;
 };
 
 function mapRow(row: EventRow): WorkspaceEvent {
@@ -88,6 +89,10 @@ function mapRow(row: EventRow): WorkspaceEvent {
 }
 
 export function workspaceEventToManaged(event: WorkspaceEvent): ManagedEventRecord {
+  const seasonId =
+    typeof event.planningJson?.seasonId === "string"
+      ? event.planningJson.seasonId
+      : undefined;
   return {
     id: event.id,
     name: event.name,
@@ -97,6 +102,7 @@ export function workspaceEventToManaged(event: WorkspaceEvent): ManagedEventReco
     venueId: event.venueId ?? undefined,
     venueName: event.venueName,
     description: event.description ?? undefined,
+    seasonId,
     artistCount: event.artistCount,
     slotCount: event.slotCount,
     b2bCount: event.b2bCount,
@@ -107,6 +113,11 @@ export function workspaceEventToManaged(event: WorkspaceEvent): ManagedEventReco
     createdAt: event.createdAt,
     updatedAt: event.updatedAt,
   };
+}
+
+function buildPlanningJson(seasonId?: string | null): Record<string, unknown> {
+  if (!seasonId) return {};
+  return { seasonId };
 }
 
 function buildStartsAt(dateKey?: string, startTime?: string) {
@@ -197,7 +208,7 @@ export async function createWorkspaceEvent(
       projectedProfit: payload.projectedProfit,
       scheduleJson: payload.scheduleJson ?? [],
       financeJson: payload.financeJson ?? {},
-      planningJson: {},
+      planningJson: buildPlanningJson(payload.seasonId),
       createdAt: now,
       updatedAt: now,
     };
@@ -227,6 +238,7 @@ export async function createWorkspaceEvent(
     projected_profit: payload.projectedProfit,
     schedule_json: payload.scheduleJson ?? [],
     finance_json: payload.financeJson ?? {},
+    planning_json: buildPlanningJson(payload.seasonId),
   };
 
   try {
@@ -259,7 +271,7 @@ export async function createWorkspaceEvent(
       projectedProfit: payload.projectedProfit,
       scheduleJson: payload.scheduleJson ?? [],
       financeJson: payload.financeJson ?? {},
-      planningJson: {},
+      planningJson: buildPlanningJson(payload.seasonId),
       createdAt: now,
       updatedAt: now,
     };
@@ -306,6 +318,10 @@ export async function updateWorkspaceEvent(
       projectedProfit: patch.projectedProfit ?? current.projectedProfit,
       scheduleJson: patch.scheduleJson ?? current.scheduleJson,
       financeJson: patch.financeJson ?? current.financeJson,
+      planningJson:
+        patch.seasonId !== undefined
+          ? buildPlanningJson(patch.seasonId)
+          : current.planningJson,
       updatedAt: now,
     };
     events[index] = updated;
@@ -336,6 +352,7 @@ export async function updateWorkspaceEvent(
   if (patch.projectedProfit !== undefined) body.projected_profit = patch.projectedProfit;
   if (patch.scheduleJson !== undefined) body.schedule_json = patch.scheduleJson;
   if (patch.financeJson !== undefined) body.finance_json = patch.financeJson;
+  if (patch.seasonId !== undefined) body.planning_json = buildPlanningJson(patch.seasonId);
 
   const rows = await supabaseRest<EventRow[]>(`events?id=eq.${eventId}`, session, {
     method: "PATCH",

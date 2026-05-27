@@ -9,6 +9,8 @@ export type ManagedEventRecord = {
   venueId?: string;
   venueName: string;
   description?: string;
+  /** Season / run this event belongs to (local + planning_json sync). */
+  seasonId?: string;
   artistCount: number;
   slotCount: number;
   b2bCount: number;
@@ -72,6 +74,7 @@ function parseManagedEventRecord(raw: unknown): ManagedEventRecord | null {
     venueId: isNonEmptyString(value.venueId) ? value.venueId.trim() : undefined,
     venueName: value.venueName.trim(),
     description: isNonEmptyString(value.description) ? value.description.trim() : undefined,
+    seasonId: isNonEmptyString(value.seasonId) ? value.seasonId.trim() : undefined,
     artistCount: sanitizeWholeNumber(value.artistCount),
     slotCount: sanitizeWholeNumber(value.slotCount),
     b2bCount: sanitizeWholeNumber(value.b2bCount),

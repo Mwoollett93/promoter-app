@@ -9,6 +9,10 @@ import {
 import { buildFinanceDraft, calculateFinanceSummary } from "@/lib/data/wizard-finance-logic";
 import { upsertManagedEvent } from "@/lib/data/events";
 import {
+  ensureDefaultSeason,
+  findSeasonForDate,
+} from "@/lib/data/seasons";
+import {
   clearWizardScheduleSlots,
   loadWizardScheduleSlots,
 } from "@/lib/data/wizard-schedule-persist";
@@ -77,6 +81,13 @@ export async function saveWizardProgressAsDraft(
   const artistFees = scheduleSlots.reduce((sum, slot) => sum + slot.feeCents, 0) / 100;
   const financeSummary = calculateFinanceSummary(financeDraft, { artistFees, venueFee: 0 });
 
+  const seasonId =
+    eventDraft.seasonId ??
+    (eventDraft.dateKey
+      ? findSeasonForDate(workspaceId, eventDraft.dateKey)?.id
+      : undefined) ??
+    ensureDefaultSeason(workspaceId).id;
+
   const payload = {
     workspaceId,
     name: eventDraft.eventName.trim(),
@@ -86,6 +97,7 @@ export async function saveWizardProgressAsDraft(
     description: eventDraft.description,
     dateKey: eventDraft.dateKey,
     startTime: eventDraft.startTime,
+    seasonId,
     artistCount: countUniqueArtists(scheduleSlots),
     slotCount: scheduleSlots.length,
     b2bCount: countB2b(scheduleSlots),
@@ -107,7 +119,7 @@ export async function saveWizardProgressAsDraft(
     clearWizardScheduleSlots();
     clearWizardFinanceDraft();
     clearWizardEditingEventId();
-    upsertManagedEvent(workspaceEventToManaged(saved));
+    upsertManagedEvent({ ...workspaceEventToManaged(saved), seasonId });
 
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event("promosync:events-updated"));

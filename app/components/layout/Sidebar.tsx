@@ -7,6 +7,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Bell,
   CalendarPlus,
+  CalendarRange,
   ChevronDown,
   CreditCard,
   Globe,
@@ -46,6 +47,7 @@ type NavItem = {
 const mainNavItems: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { label: "Events", icon: CalendarPlus, href: "/events" },
+  { label: "Season", icon: CalendarRange, href: "/season" },
   { label: "Tasks", icon: CheckSquare, href: "/tasks" },
   { label: "Team", icon: Users, href: "/team" },
   { label: "Venues", icon: MapPin, href: "/venues" },

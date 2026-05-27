@@ -23,7 +23,19 @@ export type WizardEventDraftV2 = {
   description?: string;
 };
 
-export type WizardEventDraft = WizardEventDraftV2;
+export type WizardEventDraftV3 = {
+  v: 3;
+  dateKey: string;
+  startTime: string;
+  eventName?: string;
+  venueId?: string;
+  venueName?: string;
+  venueCapacity?: number;
+  description?: string;
+  seasonId?: string;
+};
+
+export type WizardEventDraft = WizardEventDraftV3;
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -67,16 +79,18 @@ export function saveWizardEventDraft(input: {
   venueName?: string;
   venueCapacity?: number;
   description?: string;
+  seasonId?: string;
 }): void {
   if (typeof window === "undefined" || !input.date) return;
-  const payload: WizardEventDraftV2 = {
-    v: 2,
+  const payload: WizardEventDraftV3 = {
+    v: 3,
     dateKey: dateKeyFromLocalDate(input.date),
     startTime: input.startTime.trim(),
     eventName: input.eventName?.trim() || undefined,
     venueId: input.venueId?.trim() || undefined,
     venueName: input.venueName?.trim() || undefined,
     description: input.description?.trim() || undefined,
+    seasonId: input.seasonId?.trim() || undefined,
     venueCapacity:
       typeof input.venueCapacity === "number" && Number.isFinite(input.venueCapacity)
         ? Math.max(0, Math.round(input.venueCapacity))
@@ -98,24 +112,29 @@ export function loadWizardEventDraft(): WizardEventDraft | null {
     if (typeof parsed.dateKey !== "string" || typeof parsed.startTime !== "string") return null;
 
     if (parsed.v === 1) {
-      return { v: 2, dateKey: parsed.dateKey, startTime: parsed.startTime };
+      return { v: 3, dateKey: parsed.dateKey, startTime: parsed.startTime };
     }
 
-    if (parsed.v !== 2) return null;
+    const seasonId = typeof parsed.seasonId === "string" ? parsed.seasonId : undefined;
 
-    return {
-      v: 2,
-      dateKey: parsed.dateKey,
-      startTime: parsed.startTime,
-      eventName: typeof parsed.eventName === "string" ? parsed.eventName : undefined,
-      venueId: typeof parsed.venueId === "string" ? parsed.venueId : undefined,
-      venueName: typeof parsed.venueName === "string" ? parsed.venueName : undefined,
-      description: typeof parsed.description === "string" ? parsed.description : undefined,
-      venueCapacity:
-        typeof parsed.venueCapacity === "number" && Number.isFinite(parsed.venueCapacity)
-          ? Math.max(0, Math.round(parsed.venueCapacity))
-          : undefined,
-    };
+    if (parsed.v === 2 || parsed.v === 3) {
+      return {
+        v: 3,
+        dateKey: parsed.dateKey,
+        startTime: parsed.startTime,
+        eventName: typeof parsed.eventName === "string" ? parsed.eventName : undefined,
+        venueId: typeof parsed.venueId === "string" ? parsed.venueId : undefined,
+        venueName: typeof parsed.venueName === "string" ? parsed.venueName : undefined,
+        description: typeof parsed.description === "string" ? parsed.description : undefined,
+        seasonId,
+        venueCapacity:
+          typeof parsed.venueCapacity === "number" && Number.isFinite(parsed.venueCapacity)
+            ? Math.max(0, Math.round(parsed.venueCapacity))
+            : undefined,
+      };
+    }
+
+    return null;
   } catch {
     return null;
   }
