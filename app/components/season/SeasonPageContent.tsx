@@ -6,8 +6,12 @@ import { ChevronDown, Plus } from "lucide-react";
 
 import PageContent from "@/app/components/layout/PageContent";
 import CreateSeasonModal from "@/app/components/season/CreateSeasonModal";
+import SeasonAnalyticsView from "@/app/components/season/SeasonAnalyticsView";
+import SeasonCalendarPanel from "@/app/components/season/SeasonCalendarPanel";
 import SeasonInsightsSidebar from "@/app/components/season/SeasonInsightsSidebar";
+import SeasonSummaryStrip from "@/app/components/season/SeasonSummaryStrip";
 import SeasonTimelineRoadmap from "@/app/components/season/SeasonTimelineRoadmap";
+import type { SeasonViewMode } from "@/app/components/season/SeasonViewToggle";
 import Button from "@/app/components/ui/Button";
 import { loadManagedEvents } from "@/lib/data/events";
 import {
@@ -29,6 +33,7 @@ export default function SeasonPageContent() {
   const { workspace, events, ready } = useWorkspace();
   const [seasons, setSeasons] = React.useState<SeasonRecord[]>([]);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [viewMode, setViewMode] = React.useState<SeasonViewMode>("timeline");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [newName, setNewName] = React.useState("");
   const [newStart, setNewStart] = React.useState("");
@@ -88,6 +93,11 @@ export default function SeasonPageContent() {
     return buildSeasonInsights(managedEvents, selected);
   }, [managedEvents, selected]);
 
+  const seasonEvents = React.useMemo(() => {
+    if (!selected) return [];
+    return managedEvents.filter((e) => e.seasonId === selected.id);
+  }, [managedEvents, selected]);
+
   function bumpEvents() {
     setRefreshKey((k) => k + 1);
   }
@@ -140,12 +150,15 @@ export default function SeasonPageContent() {
 
   return (
     <PageContent fill>
-      <div className="flex min-h-0 flex-1 flex-col gap-3">
-        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#232330] pb-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-2.5">
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#232330] pb-2.5">
           <div className="flex min-w-0 flex-wrap items-center gap-3">
             <div>
               <p className={PAGE_EYEBROW}>Season command center</p>
-              <p className="text-[13px] text-[#71717A]">
+              <h1 className="text-[18px] font-semibold tracking-tight text-[#F5F5F7]">
+                {selected?.name ?? "Season"}
+              </h1>
+              <p className="text-[12px] text-[#71717A]">
                 {selected ? formatSeasonDateRange(selected) : "Select a season"}
               </p>
             </div>
@@ -191,24 +204,51 @@ export default function SeasonPageContent() {
         </header>
 
         {selected && insights ? (
-          <div
-            className={`grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px] ${GRID_CARD_GAP}`}
-          >
-            <SeasonTimelineRoadmap
-              monthGroups={insights.monthGroups}
-              unscheduled={insights.unscheduled}
-              seasons={seasons}
-              venueLookup={venueLookup}
-              onSeasonChange={bumpEvents}
-            />
+          <>
+            <SeasonSummaryStrip snapshot={insights.snapshot} />
 
-            <SeasonInsightsSidebar
-              snapshot={insights.snapshot}
-              alerts={insights.alerts}
-              trendValues={insights.trendValues}
-              targetProfit={selected.targetProfit}
-            />
-          </div>
+            <div
+              className={`grid min-h-0 flex-1 grid-cols-1 gap-2.5 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px] ${GRID_CARD_GAP}`}
+            >
+              {viewMode === "timeline" ? (
+                <SeasonTimelineRoadmap
+                  monthGroups={insights.monthGroups}
+                  unscheduled={insights.unscheduled}
+                  seasons={seasons}
+                  venueLookup={venueLookup}
+                  viewMode={viewMode}
+                  onViewModeChange={setViewMode}
+                  onSeasonChange={bumpEvents}
+                />
+              ) : null}
+
+              {viewMode === "calendar" && selected ? (
+                <SeasonCalendarPanel
+                  season={selected}
+                  events={seasonEvents}
+                  viewMode={viewMode}
+                  onViewModeChange={setViewMode}
+                />
+              ) : null}
+
+              {viewMode === "analytics" ? (
+                <SeasonAnalyticsView
+                  snapshot={insights.snapshot}
+                  months={insights.months}
+                  trendMonths={insights.trendMonths}
+                  viewMode={viewMode}
+                  onViewModeChange={setViewMode}
+                />
+              ) : null}
+
+              <SeasonInsightsSidebar
+                snapshot={insights.snapshot}
+                alerts={insights.alerts}
+                trendMonths={insights.trendMonths}
+                targetProfit={selected.targetProfit}
+              />
+            </div>
+          </>
         ) : null}
       </div>
 

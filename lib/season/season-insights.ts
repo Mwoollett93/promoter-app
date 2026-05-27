@@ -11,6 +11,16 @@ export type SeasonAlert = {
   tone: "danger" | "warning" | "info";
   title: string;
   detail: string;
+  suggestedAction?: string;
+  eventId?: string;
+};
+
+export type TrendMonthPoint = {
+  monthKey: string;
+  label: string;
+  shortLabel: string;
+  profit: number;
+  eventCount: number;
 };
 
 export type SeasonSnapshot = {
@@ -39,6 +49,7 @@ export type SeasonInsights = {
   unscheduled: ManagedEventRecord[];
   alerts: SeasonAlert[];
   trendValues: number[];
+  trendMonths: TrendMonthPoint[];
 };
 
 const MONTH_NAMES = [
@@ -62,6 +73,66 @@ function monthLabel(monthKey: string) {
   return `${MONTH_NAMES[m - 1] ?? monthKey} ${y}`;
 }
 
+function formatCurrency(n: number) {
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(n);
+}
+
+function buildEventRiskAlerts(events: ManagedEventRecord[]): SeasonAlert[] {
+  const alerts: SeasonAlert[] = [];
+
+  for (const event of events) {
+    if (event.projectedProfit >= 0) continue;
+    const shortfall = Math.abs(event.projectedProfit);
+    const ticketBump =
+      event.ticketInventory > 0 ? Math.ceil(shortfall / event.ticketInventory) : 0;
+    alerts.push({
+      id: `be-${event.id}`,
+      tone: "danger",
+      title: `${event.name} below break-even`,
+      detail: `Projected loss of ${formatCurrency(shortfall)} on current forecast.`,
+      suggestedAction:
+        ticketBump > 0
+          ? `Increase ticket price by $${ticketBump} or reduce costs by ${formatCurrency(shortfall)}.`
+          : `Reduce costs by ${formatCurrency(shortfall)} or add ticket inventory.`,
+      eventId: event.id,
+    });
+  }
+
+  for (const event of events) {
+    if (event.artistCount >= 1 && event.slotCount >= 1) continue;
+    alerts.push({
+      id: `lineup-${event.id}`,
+      tone: "warning",
+      title: `${event.name} — lineup incomplete`,
+      detail: "Artists or slots are missing from the running order.",
+      suggestedAction: "Open the event workspace and finalize lineup before on-sale.",
+      eventId: event.id,
+    });
+  }
+
+  for (const event of events) {
+    if (event.expectedRevenue <= 0 || event.totalCosts / event.expectedRevenue <= 0.85) continue;
+    const excess = Math.round(event.totalCosts - event.expectedRevenue * 0.75);
+    alerts.push({
+      id: `margin-${event.id}`,
+      tone: "warning",
+      title: `${event.name} — margin under pressure`,
+      detail: "Artist and venue costs are consuming most of projected revenue.",
+      suggestedAction:
+        excess > 0
+          ? `Trim costs by ${formatCurrency(excess)} or raise forecast ticket revenue.`
+          : "Review artist fees and venue hire in finance.",
+      eventId: event.id,
+    });
+  }
+
+  return alerts.slice(0, 6);
+}
+
 function detectOverlaps(events: ManagedEventRecord[]): SeasonAlert[] {
   const byDate = new Map<string, ManagedEventRecord[]>();
   for (const event of events) {
@@ -79,6 +150,7 @@ function detectOverlaps(events: ManagedEventRecord[]): SeasonAlert[] {
       tone: "warning",
       title: "Operational overlap detected",
       detail: `${list.length} shows on ${date} — ${list.map((e) => e.name).join(", ")}`,
+      suggestedAction: "Stagger load-in times or reassign crew across shows.",
     });
   }
   return alerts;
@@ -119,47 +191,10 @@ export function buildSeasonInsights(
         )
       : 0;
 
-  const belowBreakEven = seasonEvents.filter((e) => e.projectedProfit < 0).length;
-  const highCostRatio = seasonEvents.filter(
-    (e) => e.expectedRevenue > 0 && e.totalCosts / e.expectedRevenue > 0.85,
-  ).length;
-  const lineupGaps = seasonEvents.filter(
-    (e) => e.artistCount < 1 || e.slotCount < 1,
-  ).length;
-
   const alerts: SeasonAlert[] = [
+    ...buildEventRiskAlerts(seasonEvents),
     ...detectOverlaps(scheduled),
-    ...(belowBreakEven > 0
-      ? [
-          {
-            id: "below-be",
-            tone: "danger" as const,
-            title: `${belowBreakEven} event${belowBreakEven === 1 ? "" : "s"} below break-even`,
-            detail: "Review fees and ticket inventory before announcing.",
-          },
-        ]
-      : []),
-    ...(highCostRatio > 0
-      ? [
-          {
-            id: "margin",
-            tone: "warning" as const,
-            title: "Artist costs exceed margin target",
-            detail: `${highCostRatio} show${highCostRatio === 1 ? "" : "s"} have costs above 85% of projected revenue.`,
-          },
-        ]
-      : []),
-    ...(lineupGaps > 0
-      ? [
-          {
-            id: "lineup",
-            tone: "info" as const,
-            title: `${lineupGaps} lineup${lineupGaps === 1 ? "" : "s"} incomplete`,
-            detail: "Finalize artists and slots on affected events.",
-          },
-        ]
-      : []),
-  ];
+  ].slice(0, 8);
 
   if (alerts.length === 0) {
     alerts.push({
@@ -167,8 +202,17 @@ export function buildSeasonInsights(
       tone: "info",
       title: "Season looks on track",
       detail: "No critical operational risks detected for this run.",
+      suggestedAction: "Keep monitoring ticket sell-through as shows approach.",
     });
   }
+
+  const trendMonths: TrendMonthPoint[] = months.map((m) => ({
+    monthKey: m.monthKey,
+    label: monthLabel(m.monthKey),
+    shortLabel: m.label.split(" ")[0] ?? m.label,
+    profit: m.profit,
+    eventCount: m.eventCount,
+  }));
 
   const trendValues = months.map((m) => m.profit);
 
@@ -188,6 +232,7 @@ export function buildSeasonInsights(
     unscheduled,
     alerts,
     trendValues,
+    trendMonths,
   };
 }
 
