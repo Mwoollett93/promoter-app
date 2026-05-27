@@ -18,9 +18,13 @@ export const MANAGEMENT_TABLE_PAGE_SIZE_ARTISTS = 10;
 
 
 
-export function pageContentClass(extra?: string) {
-
-  return ["flex w-full min-w-0 flex-col pb-10", PAGE_STACK_GAP, extra].filter(Boolean).join(" ");
-
+export function pageContentClass(extra?: string, options?: { fill?: boolean }) {
+  const parts = ["flex w-full min-w-0 flex-col", PAGE_STACK_GAP, extra];
+  if (options?.fill) {
+    parts.push("h-full min-h-0 pb-0");
+  } else {
+    parts.push("pb-10");
+  }
+  return parts.filter(Boolean).join(" ");
 }
 

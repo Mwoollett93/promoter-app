@@ -60,7 +60,7 @@ export default function DashboardShell({
           className={[
             "relative z-0 box-border min-h-0 min-w-0 w-full overflow-x-hidden bg-[#0B0B10]",
             viewportLock
-              ? "flex h-full flex-col overflow-hidden py-3 px-5"
+              ? `flex h-full flex-col overflow-hidden ${SHELL_PADDING_X} ${SHELL_PADDING_Y}`
               : `overflow-y-auto ${SHELL_PADDING_X} ${SHELL_PADDING_Y}`,
           ].join(" ")}
         >

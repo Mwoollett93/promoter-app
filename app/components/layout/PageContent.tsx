@@ -22,7 +22,10 @@ export default function PageContent({
 
   return (
     <div
-      className={pageContentClass(fill ? `w-full max-w-none ${className}`.trim() : className)}
+      className={pageContentClass(
+        fill ? `w-full max-w-none ${className}`.trim() : className,
+        { fill },
+      )}
       style={style}
     >
       {children}
