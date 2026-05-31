@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 
 import AuthField from "@/app/components/auth/AuthField";
+import MfaLoginChallenge from "@/app/components/auth/MfaLoginChallenge";
+import { getMfaLoginRequirement, verifyTotpLogin } from "@/lib/auth/mfa";
 import { getLandingPagePath, reactivateAccount } from "@/lib/settings/settings";
 import { validatePasswordPolicy } from "@/lib/auth/password-policy";
 import { bootstrapSettingsFromAuth } from "@/lib/settings/user-bootstrap";
@@ -27,6 +29,7 @@ import {
 import {
   DEMO_LOGIN_EMAIL,
   DEMO_LOGIN_PASSWORD,
+  establishSessionIndicator,
   getStoredSession,
   getSupabaseConfig,
   isDemoAuthEnabled,
@@ -54,11 +57,13 @@ const teamSizeOptions = [
 type AuthLandingPageProps = {
   initialView?: AuthView;
   signout?: boolean;
+  mfaStep?: boolean;
 };
 
 export default function AuthLandingPage({
   initialView = "login",
   signout = false,
+  mfaStep = false,
 }: AuthLandingPageProps) {
   const router = useRouter();
 
@@ -77,6 +82,7 @@ export default function AuthLandingPage({
   const [companyName, setCompanyName] = React.useState("");
   const [teamSize, setTeamSize] = React.useState(teamSizeOptions[0]);
   const [acceptedTerms, setAcceptedTerms] = React.useState(false);
+  const [mfaFactorId, setMfaFactorId] = React.useState<string | null>(null);
 
   const hasSupabase = Boolean(getSupabaseConfig());
   const demoAuthEnabled = isDemoAuthEnabled();
@@ -110,6 +116,43 @@ export default function AuthLandingPage({
     setView(initialView);
   }, [initialView]);
 
+  React.useEffect(() => {
+    if (!mfaStep || !hasSupabase) return;
+
+    async function resumeMfaStep() {
+      const session = getStoredSession();
+      if (!session) return;
+
+      try {
+        const mfa = await getMfaLoginRequirement(session);
+        if (mfa.required && mfa.factorId) {
+          setMfaFactorId(mfa.factorId);
+          setExistingSession(false);
+        }
+      } catch {
+        /* session may have expired */
+      }
+    }
+
+    void resumeMfaStep();
+  }, [mfaStep, hasSupabase]);
+
+  async function completeAuthenticatedSession(session: ReturnType<typeof getStoredSession>) {
+    if (!session) return;
+
+    if (!isDemoSession(session)) {
+      bootstrapSettingsFromAuth({
+        userId: session.user.id,
+        email: session.user.email,
+        metadata: session.user.metadata,
+      });
+    }
+
+    await establishSessionIndicator(session);
+    reactivateAccount();
+    router.push(getLandingPagePath());
+  }
+
   function switchView(next: AuthView) {
     setView(next);
     setError(null);
@@ -127,21 +170,46 @@ export default function AuthLandingPage({
 
     try {
       const session = await signInWithPassword(email, password);
-      if (!isDemoSession(session)) {
-        bootstrapSettingsFromAuth({
-          userId: session.user.id,
-          email: session.user.email,
-          metadata: session.user.metadata,
-        });
-      }
       window.localStorage.setItem(REMEMBER_KEY, rememberMe ? "true" : "false");
-      reactivateAccount();
-      router.push(getLandingPagePath());
+
+      const mfa = await getMfaLoginRequirement(session);
+      if (mfa.required && mfa.factorId) {
+        setMfaFactorId(mfa.factorId);
+        setError(null);
+        return;
+      }
+
+      await completeAuthenticatedSession(session);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in.");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleMfaVerify(code: string) {
+    if (!mfaFactorId) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const session = await verifyTotpLogin(mfaFactorId, code);
+      setMfaFactorId(null);
+      await completeAuthenticatedSession(session);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid authentication code.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleMfaCancel() {
+    setMfaFactorId(null);
+    setError(null);
+    await signOutOfSupabase();
+    setExistingSession(false);
+    router.replace("/login", { scroll: false });
   }
 
   async function handleDemoSignIn() {
@@ -248,7 +316,7 @@ export default function AuthLandingPage({
       <div className="w-full max-w-[480px]">
         <AuthBrand />
 
-        {bootstrapping ? null : existingSession ? (
+        {bootstrapping ? null : existingSession && !mfaFactorId ? (
           <div className="mt-6 flex flex-col gap-3 rounded-xl border border-[#8B5CF6]/30 bg-[#151320] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-[13px] leading-5 text-[#D4D4D8]">
               You&apos;re already signed in. Continue to your dashboard or sign out to use a
@@ -284,7 +352,7 @@ export default function AuthLandingPage({
           </div>
         ) : null}
 
-        {error ? (
+        {error && !mfaFactorId ? (
           <div className="mt-6 rounded-xl border border-[#7F1D1D] bg-[#2B0F14] px-4 py-3 text-[13px] text-[#FCA5A5]">
             {error}
           </div>
@@ -296,7 +364,16 @@ export default function AuthLandingPage({
           </div>
         ) : null}
 
-        {view === "login" ? (
+        {mfaFactorId ? (
+          <MfaLoginChallenge
+            loading={loading}
+            error={error}
+            onSubmit={handleMfaVerify}
+            onCancel={() => void handleMfaCancel()}
+          />
+        ) : null}
+
+        {!mfaFactorId && view === "login" ? (
           <LoginPanel
             email={email}
             password={password}
@@ -315,7 +392,7 @@ export default function AuthLandingPage({
           />
         ) : null}
 
-        {view === "signup" ? (
+        {!mfaFactorId && view === "signup" ? (
           <SignUpPanel
             fullName={fullName}
             email={email}
@@ -340,7 +417,7 @@ export default function AuthLandingPage({
           />
         ) : null}
 
-        {view === "reset" ? (
+        {!mfaFactorId && view === "reset" ? (
           <ResetPanel
             email={email}
             loading={loading}

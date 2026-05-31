@@ -328,7 +328,12 @@ export async function startOAuthSignIn(provider: OAuthProvider) {
   });
 
   if (error) throw new Error(error.message);
-  if (data.url) window.location.href = data.url;
+  if (!data.url) {
+    throw new Error(
+      "Unable to start social sign in. Confirm Google/Apple providers are enabled in Supabase.",
+    );
+  }
+  window.location.href = data.url;
 }
 
 export function startGithubSignIn() {
@@ -433,6 +438,35 @@ export async function completeSupabaseHashSession(hash: string): Promise<Supabas
   if (!data.session) throw new Error("Unable to complete Supabase sign in.");
 
   return persistSessionFromSupabase(data.session);
+}
+
+/** Complete OAuth return — handles PKCE (?code=) and legacy hash tokens. */
+export async function completeSupabaseOAuthCallback(
+  search: string,
+  hash: string,
+): Promise<SupabaseSession> {
+  const supabase = createBrowserAuthClient();
+  const searchParams = new URLSearchParams(search.replace(/^\?/, ""));
+
+  const oauthError = searchParams.get("error");
+  if (oauthError) {
+    const description = searchParams.get("error_description") ?? oauthError;
+    throw new Error(description);
+  }
+
+  const code = searchParams.get("code");
+  if (code) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) throw new Error(error.message);
+    if (!data.session) throw new Error("Unable to complete Supabase sign in.");
+    return persistSessionFromSupabase(data.session);
+  }
+
+  if (hash && hash.includes("access_token")) {
+    return completeSupabaseHashSession(hash);
+  }
+
+  throw new Error("Supabase did not return an authorization code.");
 }
 
 export async function establishSessionIndicator(session: SupabaseSession) {

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 type LoginPageProps = {
-  searchParams: Promise<{ view?: string; signout?: string }>;
+  searchParams: Promise<{ view?: string; signout?: string; step?: string }>;
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
@@ -17,6 +17,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     params.view === "signup" || params.view === "reset" ? params.view : "login";
 
   return (
-    <AuthLandingPage initialView={initialView} signout={params.signout === "1"} />
+    <AuthLandingPage
+      initialView={initialView}
+      signout={params.signout === "1"}
+      mfaStep={params.step === "mfa"}
+    />
   );
 }

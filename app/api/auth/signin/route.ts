@@ -14,7 +14,6 @@ import {
   rateLimitResponse,
   recordSignInFailure,
 } from "@/lib/security/rate-limit";
-import { attachSessionIndicator } from "@/lib/security/session-cookie";
 import { getSupabaseServerConfig, serverSignIn } from "@/lib/supabase/server-auth";
 
 export async function POST(request: Request) {
@@ -50,8 +49,7 @@ export async function POST(request: Request) {
 
     try {
       const session = await serverSignIn({ email: normalizedEmail, password });
-      const response = NextResponse.json({ session });
-      return attachSessionIndicator(response, request);
+      return NextResponse.json({ session });
     } catch (signInError) {
       await recordSignInFailure(request, normalizedEmail);
       await randomFailedSignInDelay();
