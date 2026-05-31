@@ -29,9 +29,19 @@ export default function DashboardLoadingSkeleton() {
             <SkeletonBar className="h-4 w-36" />
             <SkeletonBar className="h-4 w-24" />
           </div>
-          <div className={`flex min-h-0 flex-1 flex-col ${PAGE_STACK_GAP}`}>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
             {Array.from({ length: 3 }).map((_, index) => (
-              <SkeletonBar key={index} className="h-[72px] w-full shrink-0 rounded-lg" />
+              <div
+                key={index}
+                className="animate-pulse rounded-lg bg-[#232330]"
+                style={{
+                  height: 88,
+                  marginTop: index === 0 ? 0 : -52,
+                  position: "relative",
+                  zIndex: index + 1,
+                }}
+                aria-hidden
+              />
             ))}
           </div>
         </div>

@@ -9,7 +9,8 @@ import StartNewEventLink from "@/app/components/events/StartNewEventLink";
 import PageContent from "@/app/components/layout/PageContent";
 import DashboardLoadingSkeleton from "@/app/components/dashboard/DashboardLoadingSkeleton";
 import DashboardOpsStatsRow from "@/app/components/dashboard/DashboardOpsStatsRow";
-import UpcomingEventRow from "@/app/components/dashboard/UpcomingEventRow";
+import FinancialSparkline from "@/app/components/dashboard/FinancialSparkline";
+import UpcomingEventsStack from "@/app/components/dashboard/UpcomingEventsStack";
 import CurrencyText from "@/app/components/ui/CurrencyText";
 import TeamNotificationsPanel from "@/app/components/team/TeamNotificationsPanel";
 import {
@@ -31,49 +32,6 @@ import {
 } from "@/lib/ui/page-surfaces";
 import { getStoredSession, getSupabaseConfig, listArtists } from "@/lib/supabase/browser";
 import { listVenueSummaries } from "@/lib/supabase/venue-summaries";
-
-function FinancialSparkline({ values }: { values: number[] }) {
-  const width = 400;
-  const height = 100;
-  const max = Math.max(...values, 1);
-  const min = Math.min(...values, 0);
-  const range = Math.max(max - min, 1);
-
-  const points = values.map((value, index) => {
-    const x = values.length === 1 ? width / 2 : (index / (values.length - 1)) * width;
-    const y = height - ((value - min) / range) * (height - 12) - 6;
-    return { x, y };
-  });
-
-  const line = points.map((point) => `${point.x},${point.y}`).join(" L ");
-  const area = `M0,${height} L ${line} L ${width},${height} Z`;
-
-  return (
-    <div className="relative h-[100px] w-full overflow-hidden rounded-lg bg-[#0B0B10] ring-1 ring-[#232330]">
-      <svg viewBox={`0 0 ${width} ${height}`} className="absolute inset-0 h-full w-full" preserveAspectRatio="none" aria-hidden>
-        <defs>
-          <linearGradient id="dash-fin-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0" />
-          </linearGradient>
-          <linearGradient id="dash-fin-line" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#6D28D9" />
-            <stop offset="100%" stopColor="#A855F7" />
-          </linearGradient>
-        </defs>
-        <path d={area} fill="url(#dash-fin-fill)" />
-        <path
-          d={`M ${line}`}
-          fill="none"
-          stroke="url(#dash-fin-line)"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </div>
-  );
-}
 
 const EMPTY_SNAPSHOT = buildDashboardSnapshot({ events: [] });
 
@@ -232,21 +190,9 @@ export default function DashboardPageContent() {
                     <ArrowRight className="size-4" strokeWidth={2} aria-hidden />
                   </Link>
                 </div>
-                <ul
-                  className={`flex min-h-0 flex-1 flex-col ${PAGE_STACK_GAP} overflow-y-auto overscroll-contain pr-1`}
-                >
-                  {upcoming.length > 0 ? (
-                    upcoming.map((ev) => (
-                      <li key={ev.title} className="shrink-0">
-                        <UpcomingEventRow {...ev} />
-                      </li>
-                    ))
-                  ) : (
-                    <li className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-[#3F3F46] px-4 py-8 text-center text-[13px] text-[#A1A1AA]">
-                      No upcoming events yet. Create one to see it here.
-                    </li>
-                  )}
-                </ul>
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+                  <UpcomingEventsStack events={upcoming} />
+                </div>
                 <StartNewEventLink
                   className="mt-4 inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-dashed border-[#8B5CF6]/50 py-2.5 text-[14px] font-medium text-[#8B5CF6] transition-colors hover:border-[#8B5CF6] hover:bg-[#8B5CF6]/5"
                 >

@@ -29,7 +29,8 @@ export default function UpcomingEventRow({
   relativeLabel,
   imageSrc,
   compact = false,
-}: UpcomingEventRowProps & { compact?: boolean }) {
+  className = "",
+}: UpcomingEventRowProps & { compact?: boolean; className?: string }) {
   const inner = (
     <>
       <div className={["flex min-w-0 flex-1 items-center", compact ? "gap-2" : "gap-3 sm:gap-4"].join(" ")}>
@@ -67,10 +68,10 @@ export default function UpcomingEventRow({
         </div>
       </div>
 
-      <div className={["flex shrink-0 items-center", compact ? "gap-2" : "flex-col gap-2 sm:flex-row sm:gap-6"].join(" ")}>
+      <div className={["flex shrink-0 items-center", compact ? "gap-2" : "gap-4 sm:gap-6"].join(" ")}>
         <EventStatusBadge status={status} />
 
-        <div className={compact ? "text-right" : "hidden text-right sm:block"}>
+        <div className="text-right">
           <p className={["font-medium tabular-nums text-[#F5F5F7]", compact ? "text-[11px]" : "text-[13px]"].join(" ")}>
             {dateLabel}
           </p>
@@ -89,8 +90,9 @@ export default function UpcomingEventRow({
   );
 
   const shell = [
-    "flex w-full items-center justify-between rounded-lg border border-[#232330] bg-[#0B0B10] transition-colors hover:border-[#3F3F46]",
-    compact ? "gap-2 px-2 py-1.5" : "gap-3 rounded-xl bg-[#11111A] px-3 py-3 sm:gap-4 sm:px-4",
+    "flex w-full min-w-0 items-center justify-between rounded-lg border border-[#232330] bg-[#0B0B10] transition-colors hover:border-[#3F3F46]",
+    compact ? "gap-2 px-2 py-1.5" : "min-h-[88px] gap-3 rounded-xl bg-[#11111A] px-3 py-3 sm:gap-4 sm:px-4",
+    className,
   ].join(" ");
 
   if (href && href !== "#") {
