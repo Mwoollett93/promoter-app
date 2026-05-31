@@ -9,20 +9,20 @@ import EventPermissionsPanel from "@/app/components/collaboration/EventPermissio
 import EventActivityFeed from "@/app/components/collaboration/EventActivityFeed";
 import EventPresence from "@/app/components/collaboration/EventPresence";
 import PageContent from "@/app/components/layout/PageContent";
+import SalesTrackerTab from "@/app/components/ticket-sales/SalesTrackerTab";
 import EventStatusBadge from "@/app/components/ui/EventStatusBadge";
 import KanbanBoard from "@/app/components/tasks/KanbanBoard";
+import {
+  EVENT_WORKSPACE_TABS,
+  parseEventWorkspaceTab,
+} from "@/lib/collaboration/event-workspace-tabs";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import { getWorkspaceEvent } from "@/lib/supabase/events";
 import type { WorkspaceEvent } from "@/lib/types/collaboration";
 
-const tabs = ["overview", "activity", "tasks", "comments"] as const;
-
 export default function EventWorkspaceContent({ eventId }: { eventId: string }) {
   const searchParams = useSearchParams();
-  const tabParam = searchParams.get("tab");
-  const tab = tabs.includes(tabParam as (typeof tabs)[number])
-    ? (tabParam as (typeof tabs)[number])
-    : "overview";
+  const tab = parseEventWorkspaceTab(searchParams.get("tab"));
 
   const { session, workspace, capabilities } = useWorkspace();
   const [event, setEvent] = React.useState<WorkspaceEvent | null>(null);
@@ -56,18 +56,18 @@ export default function EventWorkspaceContent({ eventId }: { eventId: string }) 
         </div>
 
         <nav className="flex flex-wrap gap-2 border-b border-[#232330] pb-2">
-          {tabs.map((t) => (
+          {EVENT_WORKSPACE_TABS.map((t) => (
             <Link
-              key={t}
-              href={`/events/${eventId}/workspace?tab=${t}`}
+              key={t.id}
+              href={`/events/${eventId}/workspace?tab=${t.id}`}
               className={[
-                "rounded-lg px-4 py-2 text-[13px] font-medium capitalize",
-                tab === t
+                "rounded-lg px-4 py-2 text-[13px] font-medium",
+                tab === t.id
                   ? "bg-[#2D2640] text-[#C4B5FD]"
                   : "text-[#A1A1AA] hover:text-[#F5F5F7]",
               ].join(" ")}
             >
-              {t}
+              {t.label}
             </Link>
           ))}
         </nav>
@@ -81,6 +81,11 @@ export default function EventWorkspaceContent({ eventId }: { eventId: string }) 
             </div>
             {capabilities.canManageTeam ? <EventPermissionsPanel eventId={eventId} /> : null}
           </div>
+        ) : null}
+
+        {tab === "sales" && event ? <SalesTrackerTab eventId={eventId} event={event} /> : null}
+        {tab === "sales" && !event ? (
+          <p className="text-[13px] text-[#A1A1AA]">Loading event data…</p>
         ) : null}
 
         {tab === "activity" ? <EventActivityFeed eventId={eventId} /> : null}
