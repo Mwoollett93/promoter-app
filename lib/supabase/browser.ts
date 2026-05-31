@@ -354,7 +354,7 @@ export async function startOAuthSignIn(provider: OAuthProvider) {
   if (error) throw new Error(error.message);
   if (!data.url) {
     throw new Error(
-      "Unable to start social sign in. Confirm Google/Apple providers are enabled in Supabase.",
+      "Unable to start social sign in. Confirm Google is enabled in Supabase Authentication → Providers.",
     );
   }
   window.location.href = data.url;
