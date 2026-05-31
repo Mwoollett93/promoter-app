@@ -175,12 +175,12 @@ export default function DashboardPageContent() {
             <DashboardOpsStatsRow stats={ops.opsStats} />
 
             <section
-              className={`grid shrink-0 grid-cols-1 lg:grid-cols-3 lg:items-start ${GRID_CARD_GAP}`}
+              className={`grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-3 lg:items-stretch ${GRID_CARD_GAP}`}
             >
               <div
-                className={`flex max-h-[min(420px,42vh)] min-h-[220px] flex-col overflow-hidden rounded-xl border border-[#232330] bg-[#11111A] p-4 shadow-[0px_8px_24px_rgba(0,0,0,0.35)] lg:col-span-2`}
+                className={`flex min-h-0 flex-col overflow-hidden rounded-xl border border-[#232330] bg-[#11111A] p-4 shadow-[0px_8px_24px_rgba(0,0,0,0.35)] lg:col-span-2`}
               >
-                <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-2">
+                <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
                   <h2 className="text-[16px] font-semibold text-[#F5F5F7]">Upcoming Events</h2>
                   <Link
                     href="/events"
@@ -194,7 +194,7 @@ export default function DashboardPageContent() {
                   <UpcomingEventsList events={upcoming} />
                 </div>
                 <StartNewEventLink
-                  className="mt-4 inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-dashed border-[#8B5CF6]/50 py-2.5 text-[14px] font-medium text-[#8B5CF6] transition-colors hover:border-[#8B5CF6] hover:bg-[#8B5CF6]/5"
+                  className="mt-3 inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-dashed border-[#8B5CF6]/50 py-2 text-[14px] font-medium text-[#8B5CF6] transition-colors hover:border-[#8B5CF6] hover:bg-[#8B5CF6]/5"
                 >
                   <Plus className="size-4" strokeWidth={2} aria-hidden />
                   Create New Event
@@ -208,11 +208,13 @@ export default function DashboardPageContent() {
               />
             </section>
 
-            <section className={`grid shrink-0 grid-cols-1 lg:grid-cols-3 ${GRID_CARD_GAP}`}>
+            <section
+              className={`grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-3 lg:items-stretch ${GRID_CARD_GAP}`}
+            >
               <div
-                className={`rounded-xl border border-[#232330] bg-[#11111A] p-4 shadow-[0px_8px_24px_rgba(0,0,0,0.35)] lg:col-span-2`}
+                className={`flex min-h-0 flex-col rounded-xl border border-[#232330] bg-[#11111A] p-4 shadow-[0px_8px_24px_rgba(0,0,0,0.35)] lg:col-span-2`}
               >
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
                   <h2 className="text-[16px] font-semibold text-[#F5F5F7]">Financial Overview</h2>
                   <select
                     value={financeScope}
@@ -224,12 +226,12 @@ export default function DashboardPageContent() {
                     <option value="active">Active Only</option>
                   </select>
                 </div>
-                <div className={`mt-4 grid grid-cols-1 sm:grid-cols-2 ${GRID_CARD_GAP}`}>
-                  <ul className="space-y-2 text-[13px]">
+                <div className={`mt-3 grid min-h-0 flex-1 grid-cols-1 sm:grid-cols-2 ${GRID_CARD_GAP}`}>
+                  <ul className="space-y-1.5 text-[13px]">
                     {snapshot.financialRows.map((row) => (
                       <li
                         key={row.label}
-                        className="flex items-center justify-between gap-2 border-b border-[#232330] pb-2 last:border-0"
+                        className="flex items-center justify-between gap-2 border-b border-[#232330] pb-1.5 last:border-0"
                       >
                         <span className="text-[#A1A1AA]">{row.label}</span>
                         <span
@@ -248,14 +250,14 @@ export default function DashboardPageContent() {
                 </div>
               </div>
 
-              <div className={`flex flex-col ${PAGE_STACK_GAP}`}>
-                <section className={[SECTION_CARD, SECTION_CARD_PADDING, "flex-1"].join(" ")}>
+              <div className={`grid min-h-0 grid-cols-1 grid-rows-2 ${GRID_CARD_GAP}`}>
+                <section className={[SECTION_CARD, SECTION_CARD_PADDING, "flex min-h-0 flex-col"].join(" ")}>
                   <h3 className={SECTION_TITLE}>Top Venues</h3>
-                  <ul className="mt-4 space-y-3">
+                  <ul className="mt-3 min-h-0 flex-1 space-y-2">
                     {snapshot.topVenues.length > 0 ? (
                       snapshot.topVenues.map((v) => (
-                        <li key={v.name} className="flex items-center gap-3">
-                          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-md border border-[#3F3F46] bg-[#18181F]">
+                        <li key={v.name} className="flex items-center gap-2.5">
+                          <div className="h-9 w-9 shrink-0 overflow-hidden rounded-md border border-[#3F3F46] bg-[#18181F]">
                             {v.thumb ? (
                               <img src={v.thumb} alt="" className="h-full w-full object-cover" />
                             ) : null}
@@ -272,8 +274,8 @@ export default function DashboardPageContent() {
                   </ul>
                 </section>
 
-                <section className={[SECTION_CARD, SECTION_CARD_PADDING, "flex-1"].join(" ")}>
-                  <div className="flex items-center justify-between gap-2">
+                <section className={[SECTION_CARD, SECTION_CARD_PADDING, "flex min-h-0 flex-col"].join(" ")}>
+                  <div className="flex shrink-0 items-center justify-between gap-2">
                     <h3 className={SECTION_TITLE}>Top Artists</h3>
                     <Link
                       href="/artists"
@@ -283,15 +285,15 @@ export default function DashboardPageContent() {
                       <ArrowRight className="size-4" strokeWidth={2} aria-hidden />
                     </Link>
                   </div>
-                  <ul className="mt-4 space-y-3">
+                  <ul className="mt-3 min-h-0 flex-1 space-y-2">
                     {snapshot.topArtists.length > 0 ? (
                       snapshot.topArtists.map((a) => (
                         <li key={a.name}>
                           <Link
                             href="/artists"
-                            className="flex items-center gap-3 rounded-lg transition-colors hover:bg-[#181824]"
+                            className="flex items-center gap-2.5 rounded-lg transition-colors hover:bg-[#181824]"
                           >
-                            <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#3F3F46] ring-2 ring-[#18181F]">
+                            <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-[#3F3F46] ring-2 ring-[#18181F]">
                               {a.avatar ? (
                                 <img src={a.avatar} alt="" className="h-full w-full object-cover" />
                               ) : (

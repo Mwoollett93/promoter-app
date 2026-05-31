@@ -1,5 +1,18 @@
 type Point = { x: number; y: number };
 
+/** Pad sparse sales series so area charts curve smoothly (matches dashboard sparkline). */
+export function normalizeChartValues(values: number[]): number[] {
+  if (values.length === 0) return [];
+  if (values.length === 1) {
+    const value = values[0];
+    return [Math.round(value * 0.65), value];
+  }
+  if (values.length === 2) {
+    return [0, values[0], values[1]];
+  }
+  return values;
+}
+
 export function buildSmoothLinePath(points: Point[]): string {
   if (points.length === 0) return "";
   if (points.length === 1) return `M ${points[0].x},${points[0].y}`;

@@ -77,19 +77,25 @@ export default function CsvImportPanel({
   const preview = rows.length > 0 ? mapCsvRows(rows.slice(0, 3), mapping) : [];
   const canImport = rows.length > 0 && Boolean(mapping.ticketsSold);
 
+  const onImportRef = React.useRef(onImport);
+  onImportRef.current = onImport;
+
   const triggerImport = React.useCallback(() => {
     if (!canImport) return;
-    onImport({
+    onImportRef.current({
       provider,
       filename: filename || "import.csv",
       rawRows: rows,
       mappedFields: mapping,
     });
-  }, [canImport, onImport, provider, filename, rows, mapping]);
+  }, [canImport, provider, filename, rows, mapping]);
+
+  const onStateChangeRef = React.useRef(onStateChange);
+  onStateChangeRef.current = onStateChange;
 
   React.useEffect(() => {
-    onStateChange?.({ canImport, triggerImport });
-  }, [canImport, triggerImport, onStateChange]);
+    onStateChangeRef.current?.({ canImport, triggerImport });
+  }, [canImport, triggerImport]);
 
   return (
     <div className="space-y-3">

@@ -46,6 +46,7 @@ export default function TeamNotificationsPanel({
         embedded
           ? "flex h-full min-h-0 flex-col rounded-xl border border-[#232330] bg-[#11111A] p-3 shadow-[0px_8px_24px_rgba(0,0,0,0.35)]"
           : [SECTION_CARD, SECTION_CARD_PADDING].join(" "),
+        "flex h-full min-h-0 flex-col",
       ].join(" ")}
     >
       <div className="flex shrink-0 items-center justify-between gap-2">

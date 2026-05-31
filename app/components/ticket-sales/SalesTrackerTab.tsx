@@ -68,17 +68,23 @@ export default function SalesTrackerTab({ eventId, event }: SalesTrackerTabProps
     setCsvOpen(true);
   }
 
-  function handleCheckpoint(input: ManualCheckpointInput) {
-    ticketSalesRepository.addManualCheckpoint(eventId, input);
-    refresh();
-    setCheckpointOpen(false);
-  }
+  const handleCheckpoint = React.useCallback(
+    (input: ManualCheckpointInput) => {
+      ticketSalesRepository.addManualCheckpoint(eventId, input);
+      refresh();
+      setCheckpointOpen(false);
+    },
+    [eventId, refresh],
+  );
 
-  function handleCsvImport(input: CsvImportInput) {
-    ticketSalesRepository.importTicketSalesCsv(eventId, input);
-    refresh();
-    setCsvOpen(false);
-  }
+  const handleCsvImport = React.useCallback(
+    (input: CsvImportInput) => {
+      ticketSalesRepository.importTicketSalesCsv(eventId, input);
+      refresh();
+      setCsvOpen(false);
+    },
+    [eventId, refresh],
+  );
 
   const handleCsvStateChange = React.useCallback((state: CsvImportPanelState) => {
     setCsvState(state);
@@ -179,35 +185,37 @@ export default function SalesTrackerTab({ eventId, event }: SalesTrackerTabProps
         />
       </SalesTrackerModal>
 
-      <SalesTrackerModal
-        open={csvOpen}
-        onOpenChange={setCsvOpen}
-        title="Import ticket sales report"
-        description="Upload a CSV export from your ticketing platform. Map columns if headers differ."
-        size="lg"
-        footer={
-          <>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setCsvOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              disabled={!csvState.canImport}
-              onClick={() => csvState.triggerImport()}
-            >
-              Import &amp; create checkpoint
-            </Button>
-          </>
-        }
-      >
-        <CsvImportPanel
-          resetKey={modalResetKey}
-          onImport={handleCsvImport}
-          onStateChange={handleCsvStateChange}
-        />
-      </SalesTrackerModal>
+      {csvOpen ? (
+        <SalesTrackerModal
+          open={csvOpen}
+          onOpenChange={setCsvOpen}
+          title="Import ticket sales report"
+          description="Upload a CSV export from your ticketing platform. Map columns if headers differ."
+          size="lg"
+          footer={
+            <>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setCsvOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                disabled={!csvState.canImport}
+                onClick={() => csvState.triggerImport()}
+              >
+                Import &amp; create checkpoint
+              </Button>
+            </>
+          }
+        >
+          <CsvImportPanel
+            resetKey={modalResetKey}
+            onImport={handleCsvImport}
+            onStateChange={handleCsvStateChange}
+          />
+        </SalesTrackerModal>
+      ) : null}
 
       <CheckpointHistoryModal
         open={historyOpen}

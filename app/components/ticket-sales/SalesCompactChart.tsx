@@ -1,6 +1,11 @@
 "use client";
 
-import { buildAreaPath, buildSmoothLinePath, seriesToPoints } from "@/lib/ticket-sales/chart-paths";
+import {
+  buildAreaPath,
+  buildSmoothLinePath,
+  normalizeChartValues,
+  seriesToPoints,
+} from "@/lib/ticket-sales/chart-paths";
 import { SECTION_CARD, SECTION_TITLE } from "@/lib/ui/page-surfaces";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +32,8 @@ export default function SalesCompactChart({
   const width = 320;
   const chartHeight = height;
   const hasData = values.length > 0;
-  const points = seriesToPoints(values, width, chartHeight);
+  const chartValues = normalizeChartValues(values);
+  const points = seriesToPoints(chartValues, width, chartHeight);
   const linePath = buildSmoothLinePath(points);
   const areaPath = buildAreaPath(linePath, width, chartHeight);
 
@@ -70,8 +76,9 @@ export default function SalesCompactChart({
                 d={linePath}
                 fill="none"
                 stroke={`url(#${gradientId}-line)`}
-                strokeWidth="2"
+                strokeWidth="2.5"
                 strokeLinecap="round"
+                strokeLinejoin="round"
               />
             ) : null}
           </svg>
