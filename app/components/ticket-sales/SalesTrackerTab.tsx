@@ -120,7 +120,7 @@ export default function SalesTrackerTab({ eventId, event }: SalesTrackerTabProps
 
   return (
     <>
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden lg:max-h-[calc(100vh-220px)]">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden sm:gap-3 lg:max-h-[calc(100vh-220px)]">
         {/* Header row */}
         <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 space-y-2">

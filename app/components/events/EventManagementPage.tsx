@@ -28,6 +28,7 @@ import {
   ManagementTableViewport,
   managementTableRowClass,
 } from "@/app/components/management/ManagementTable";
+import ManagementDetailOverlay from "@/app/components/management/ManagementDetailOverlay";
 import CurrencyText from "@/app/components/ui/CurrencyText";
 import { formatDateLabel, formatTimeLabel } from "@/lib/data/format";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
@@ -41,6 +42,7 @@ import {
   type ManagedEventStatus,
 } from "@/lib/data/events";
 import { GRID_CARD_GAP, MANAGEMENT_TABLE_PAGE_SIZE_EVENTS, PAGE_STACK_GAP } from "@/lib/layout/page-layout";
+import { MANAGEMENT_SEARCH_BAR, PAGE_DESCRIPTION, PAGE_TITLE } from "@/lib/ui/page-surfaces";
 
 const showSeedAction = process.env.NODE_ENV !== "production";
 const managedEventSeedCount = getManagedEventSeedCount();
@@ -182,8 +184,8 @@ export default function EventManagementPage() {
     <PageContent>
       <header className={`flex flex-col ${PAGE_STACK_GAP} lg:flex-row lg:items-start lg:justify-between`}>
         <div>
-          <h1 className="text-[32px] font-bold leading-9 tracking-tight text-[#F5F5F7]">Events</h1>
-          <p className="mt-1 text-[14px] leading-5 text-[#A1A1AA]">
+          <h1 className={PAGE_TITLE}>Events</h1>
+          <p className={`${PAGE_DESCRIPTION} max-w-2xl`}>
             Track every draft, active, canceled, and completed event from one place.
           </p>
         </div>
@@ -200,7 +202,7 @@ export default function EventManagementPage() {
             </button>
           ) : null}
           <StartNewEventLink
-            className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-[8px] border border-[rgba(139,92,246,0.45)] bg-[#7C3AED] px-6 text-[16px] font-medium leading-5 tracking-[0.08px] text-white transition-all hover:border-[#A855F7] hover:bg-[linear-gradient(178.683deg,#7C3AED_4.7705%,rgba(71,33,135,0.76)_96.232%)] hover:shadow-[0_0_24px_0_rgba(139,92,246,0.3)]"
+            className="hidden h-11 shrink-0 items-center justify-center gap-2 rounded-[8px] border border-[rgba(139,92,246,0.45)] bg-[#7C3AED] px-6 text-[16px] font-medium leading-5 tracking-[0.08px] text-white transition-all hover:border-[#A855F7] hover:bg-[linear-gradient(178.683deg,#7C3AED_4.7705%,rgba(71,33,135,0.76)_96.232%)] hover:shadow-[0_0_24px_0_rgba(139,92,246,0.3)] md:inline-flex"
           >
             <CalendarPlus className="size-5 shrink-0" strokeWidth={2} aria-hidden />
             Create New Event
@@ -233,7 +235,7 @@ export default function EventManagementPage() {
       <section className={`grid xl:grid-cols-[minmax(0,1fr)_340px] ${GRID_CARD_GAP}`}>
         <ManagementTableCard>
           <div className="mb-4 flex flex-col gap-3 border-b border-[#232330] pb-4 lg:flex-row lg:items-center lg:justify-between">
-            <label className="flex min-w-0 items-center gap-2 rounded-[12px] border border-[#3F3F46] bg-[#0B0B10] px-3 py-2 text-[13px] text-[#A1A1AA] lg:w-[320px]">
+            <label className={`${MANAGEMENT_SEARCH_BAR} lg:max-w-xs`}>
               <Search className="size-4 shrink-0 text-[#71717A]" strokeWidth={2} aria-hidden />
               <input
                 type="text"
@@ -272,6 +274,45 @@ export default function EventManagementPage() {
             </div>
           </div>
 
+          <div className="space-y-2 md:hidden">
+            {paginatedEvents.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-[#3F3F46] px-4 py-8 text-center text-[13px] text-[#A1A1AA]">
+                No events match those filters. Try clearing your search or create a new event.
+              </p>
+            ) : (
+              paginatedEvents.map((event) => {
+                const isSelected = event.id === selectedEvent?.id;
+                return (
+                  <button
+                    key={event.id}
+                    type="button"
+                    onClick={() => setSelectedId(event.id)}
+                    className={[
+                      "flex w-full min-h-[44px] flex-col gap-1 rounded-xl border px-4 py-3 text-left transition-colors",
+                      isSelected
+                        ? "border-[#8B5CF6]/50 bg-[#2D2640]/40"
+                        : "border-[#232330] bg-[#0F0F17] hover:border-[#3F3F46]",
+                    ].join(" ")}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-semibold text-[#F5F5F7]">{event.name}</p>
+                      <EventStatusBadge status={event.status} />
+                    </div>
+                    <p className="text-[12px] text-[#A1A1AA]">
+                      {event.venueName} · {formatDateLabel(event.dateKey)}
+                    </p>
+                    <p
+                      className={`text-[13px] font-semibold ${event.projectedProfit >= 0 ? "text-[#86EFAC]" : "text-[#FCA5A5]"}`}
+                    >
+                      <CurrencyText value={event.projectedProfit} />
+                    </p>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          <div className="hidden md:block">
           <ManagementTableViewport minWidth={880}>
             <colgroup>
               <col className="w-[32%]" />
@@ -336,6 +377,7 @@ export default function EventManagementPage() {
               )}
             </tbody>
           </ManagementTableViewport>
+          </div>
 
           <ManagementTablePagination
             page={page}
@@ -349,9 +391,12 @@ export default function EventManagementPage() {
         </ManagementTableCard>
 
 
-        <aside className="rounded-xl border border-[#232330] bg-[#11111A] p-5 shadow-[0px_10px_40px_0px_rgba(0,0,0,0.35)]">
-          {selectedEvent ? (
-            <>
+        {selectedEvent ? (
+          <ManagementDetailOverlay
+            title={selectedEvent.name}
+            onClose={() => setSelectedId(null)}
+          >
+            <aside className="rounded-xl border border-[#232330] bg-[#11111A] p-5 shadow-[0px_10px_40px_0px_rgba(0,0,0,0.35)]">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[12px] uppercase tracking-[0.08em] text-[#71717A]">Selected Event</p>
@@ -375,21 +420,9 @@ export default function EventManagementPage() {
               </p>
 
               <div className="mt-4 space-y-3">
-                <DetailRow
-                  icon={MapPin}
-                  label="Venue"
-                  value={selectedEvent.venueName}
-                />
-                <DetailRow
-                  icon={CalendarDays}
-                  label="Date"
-                  value={formatDateLabel(selectedEvent.dateKey)}
-                />
-                <DetailRow
-                  icon={Clock3}
-                  label="Start Time"
-                  value={formatTimeLabel(selectedEvent.startTime)}
-                />
+                <DetailRow icon={MapPin} label="Venue" value={selectedEvent.venueName} />
+                <DetailRow icon={CalendarDays} label="Date" value={formatDateLabel(selectedEvent.dateKey)} />
+                <DetailRow icon={Clock3} label="Start Time" value={formatTimeLabel(selectedEvent.startTime)} />
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-3">
@@ -445,16 +478,18 @@ export default function EventManagementPage() {
                 <CalendarPlus className="size-4" strokeWidth={2} aria-hidden />
                 Create Another Event
               </StartNewEventLink>
-            </>
-          ) : (
+            </aside>
+          </ManagementDetailOverlay>
+        ) : (
+          <aside className="hidden rounded-xl border border-[#232330] bg-[#11111A] p-5 shadow-[0px_10px_40px_0px_rgba(0,0,0,0.35)] xl:block">
             <div className="rounded-[16px] border border-dashed border-[#3F3F46] bg-[#0F0F17] px-5 py-10 text-center">
               <p className="text-[16px] font-semibold text-[#F5F5F7]">No event selected</p>
               <p className="mt-2 text-[13px] leading-5 text-[#A1A1AA]">
                 Select an event from the list to review its status, venue, and forecast summary.
               </p>
             </div>
-          )}
-        </aside>
+          </aside>
+        )}
       </section>
     </PageContent>
   );

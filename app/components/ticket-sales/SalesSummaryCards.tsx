@@ -23,7 +23,7 @@ function StatCard({ label, value }: { label: string; value: ReactNode }) {
 /** Top KPI row — six at-a-glance metrics for the sales cockpit. */
 export default function SalesSummaryCards({ metrics, breakEvenPct }: SalesSummaryCardsProps) {
   return (
-    <div className={`grid grid-cols-3 gap-2 sm:grid-cols-6`}>
+    <div className={`grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6`}>
       <StatCard label="Tickets sold" value={metrics.ticketsSold.toLocaleString()} />
       <StatCard label="Capacity" value={`${metrics.capacityPct}%`} />
       <StatCard label="Net revenue" value={<CurrencyText value={metrics.netRevenue} />} />

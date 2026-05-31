@@ -40,7 +40,7 @@ export default function EventWorkspaceContent({ eventId }: { eventId: string }) 
             <Link href="/events" className="text-[12px] text-[#8B5CF6] hover:text-[#C4B5FD]">
               ← Events
             </Link>
-            <h1 className="mt-2 text-[28px] font-bold text-[#F5F5F7]">
+            <h1 className="mt-2 text-[22px] font-bold text-[#F5F5F7] sm:text-[28px]">
               {event?.name ?? "Event workspace"}
             </h1>
             {event ? (
@@ -55,13 +55,13 @@ export default function EventWorkspaceContent({ eventId }: { eventId: string }) 
           </div>
         </div>
 
-        <nav className="flex flex-wrap gap-2 border-b border-[#232330] pb-2">
+        <nav className="-mx-1 flex gap-2 overflow-x-auto border-b border-[#232330] pb-2 scrollbar-none">
           {EVENT_WORKSPACE_TABS.map((t) => (
             <Link
               key={t.id}
               href={`/events/${eventId}/workspace?tab=${t.id}`}
               className={[
-                "rounded-lg px-4 py-2 text-[13px] font-medium",
+                "shrink-0 rounded-lg px-4 py-2 text-[13px] font-medium",
                 tab === t.id
                   ? "bg-[#2D2640] text-[#C4B5FD]"
                   : "text-[#A1A1AA] hover:text-[#F5F5F7]",

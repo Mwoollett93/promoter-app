@@ -12,6 +12,8 @@ import { newId } from "@/lib/collaboration/local-store";
 import type { ManagedEventRecord } from "@/lib/data/events";
 import { KANBAN_COLUMN_THEME } from "@/lib/tasks/kanban-column-theme";
 import type { Task, TaskChecklistItem, WorkspaceMember } from "@/lib/types/collaboration";
+import { useIsMobile } from "@/lib/ui/use-breakpoint";
+import { cn } from "@/lib/utils";
 
 const fieldClassName =
   "mt-1 w-full rounded-lg border border-[#3F3F46] bg-[#0B0B10] px-3 py-2 text-[#F5F5F7] outline-none transition-colors focus:border-[#8B5CF6] focus:ring-0 focus-visible:outline-none focus-visible:border-[#8B5CF6]";
@@ -40,6 +42,7 @@ export default function TaskDetailDrawer({
   onUpdated,
 }: TaskDetailDrawerProps) {
   const { session, workspace } = useWorkspace();
+  const isMobile = useIsMobile();
   const [title, setTitle] = React.useState(task.title);
   const [description, setDescription] = React.useState(task.description ?? "");
   const [eventId, setEventId] = React.useState(task.eventId ?? "");
@@ -129,11 +132,17 @@ export default function TaskDetailDrawer({
     <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-[2px]">
       <button
         type="button"
-        className="flex-1"
+        className={cn("flex-1", isMobile && "hidden")}
         aria-label="Close task panel"
         onClick={onClose}
       />
-      <div className="flex h-full w-full max-w-lg flex-col border-l border-[#8B5CF6]/15 bg-gradient-to-b from-[#14141F] to-[#0F0F17] shadow-[-8px_0_48px_rgba(0,0,0,0.45)]">
+      <div
+        className={cn(
+          "flex h-full w-full flex-col border-l border-[#8B5CF6]/15 bg-gradient-to-b from-[#14141F] to-[#0F0F17] shadow-[-8px_0_48px_rgba(0,0,0,0.45)]",
+          isMobile ? "max-w-none rounded-none" : "max-w-lg",
+        )}
+        style={isMobile ? { paddingTop: "env(safe-area-inset-top)" } : undefined}
+      >
         <div className="border-b border-[#232330]/90 px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <div>

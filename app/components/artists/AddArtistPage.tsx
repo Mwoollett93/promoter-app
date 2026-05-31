@@ -440,20 +440,20 @@ export default function AddArtistPage() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-40px)] min-h-0 w-full max-w-none flex-col gap-3 overflow-hidden">
-      <header className="shrink-0 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <div className="flex min-h-0 w-full max-w-none flex-1 flex-col gap-3 overflow-hidden">
+      <header className="flex shrink-0 flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <div className="mb-2 flex items-center gap-2 text-sm text-[#A1A1AA]">
+          <div className="mb-2 flex items-center gap-2 text-sm text-[#A1A1AA] max-md:hidden">
             <Link href="/artists" className="hover:text-white">
               Artists
             </Link>
             <span>/</span>
             <span>{editingArtistId ? "Edit Artist" : "Add Artist"}</span>
           </div>
-          <h1 className="text-[32px] font-bold leading-9 tracking-tight text-[#F5F5F7]">
+          <h1 className="page-hero text-[28px] font-bold leading-8 tracking-tight text-[#F5F5F7] sm:text-[32px] sm:leading-9">
             {editingArtistId ? "Edit Artist" : "Add Artist"}
           </h1>
-          <p className="mt-1 text-[14px] leading-5 text-[#A1A1AA]">
+          <p className="page-hero-desc mt-1 text-[14px] leading-5 text-[#A1A1AA]">
             {editingArtistId
               ? "Update this artist profile and save the latest details."
               : "Create a new artist profile. You can always add more details later."}

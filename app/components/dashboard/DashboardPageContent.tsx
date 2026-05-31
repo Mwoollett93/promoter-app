@@ -25,6 +25,7 @@ import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import { loadManagedEvents } from "@/lib/data/events";
 import { useDashboardOpsData } from "@/lib/team/use-dashboard-ops-data";
 import { GRID_CARD_GAP, PAGE_STACK_GAP } from "@/lib/layout/page-layout";
+import { useIsLargeDesktop, useIsMobile } from "@/lib/ui/use-breakpoint";
 import {
   LINK_ACCENT,
   SECTION_CARD,
@@ -143,14 +144,18 @@ export default function DashboardPageContent() {
 
   const upcoming = snapshot.upcomingEvents;
   const loading = !snapshotReady;
+  const viewportLock = useIsLargeDesktop();
+  const isMobile = useIsMobile();
 
   return (
-    <PageContent fill>
-      <div className={`flex h-full min-h-0 flex-col ${PAGE_STACK_GAP} overflow-hidden`}>
+    <PageContent fill={viewportLock}>
+      <div
+        className={`flex flex-col ${PAGE_STACK_GAP} ${viewportLock ? "h-full min-h-0 overflow-hidden" : ""}`}
+      >
         <header
           className={`flex shrink-0 flex-col ${PAGE_STACK_GAP} sm:flex-row sm:items-start sm:justify-between`}
         >
-          <div>
+          <div className={isMobile ? "sr-only" : undefined}>
             <h1 className="text-[28px] font-bold leading-8 tracking-tight text-[#F5F5F7] sm:text-[32px] sm:leading-9">
               Welcome back, {getProfileFirstName(settings)}{" "}
               <span className="inline-block" aria-hidden>
@@ -162,7 +167,7 @@ export default function DashboardPageContent() {
             </p>
           </div>
           <StartNewEventLink
-            className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-[8px] border border-[rgba(139,92,246,0.45)] bg-[#7C3AED] px-6 text-[16px] font-medium leading-5 tracking-[0.08px] text-white transition-all hover:border-[#A855F7] hover:bg-[linear-gradient(178.683deg,#7C3AED_4.7705%,rgba(71,33,135,0.76)_96.232%)] hover:shadow-[0_0_24px_0_rgba(139,92,246,0.3)] active:bg-[rgba(124,58,237,0.44)]"
+            className="hidden h-11 shrink-0 items-center justify-center gap-2 rounded-[8px] border border-[rgba(139,92,246,0.45)] bg-[#7C3AED] px-6 text-[16px] font-medium leading-5 tracking-[0.08px] text-white transition-all hover:border-[#A855F7] hover:bg-[linear-gradient(178.683deg,#7C3AED_4.7705%,rgba(71,33,135,0.76)_96.232%)] hover:shadow-[0_0_24px_0_rgba(139,92,246,0.3)] active:bg-[rgba(124,58,237,0.44)] md:inline-flex"
           >
             <Plus className="size-5 shrink-0" strokeWidth={2} aria-hidden />
             Create Event
@@ -172,14 +177,16 @@ export default function DashboardPageContent() {
         {loading ? (
           <DashboardLoadingSkeleton />
         ) : (
-          <div className={`flex min-h-0 flex-1 flex-col ${PAGE_STACK_GAP} overflow-hidden`}>
-            <DashboardOpsStatsRow stats={ops.opsStats} />
+          <div
+            className={`flex flex-col ${PAGE_STACK_GAP} ${viewportLock ? "min-h-0 flex-1 overflow-hidden" : ""}`}
+          >
+            {!isMobile ? <DashboardOpsStatsRow stats={ops.opsStats} /> : null}
 
             <section
-              className={`grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-3 lg:items-stretch ${GRID_CARD_GAP}`}
+              className={`grid grid-cols-1 ${viewportLock ? "min-h-0 flex-1 lg:grid-cols-3 lg:items-stretch" : ""} ${GRID_CARD_GAP} ${isMobile ? "order-first" : ""}`}
             >
               <div
-                className={`flex min-h-0 flex-col overflow-hidden rounded-xl border border-[#232330] bg-[#11111A] p-4 shadow-[0px_8px_24px_rgba(0,0,0,0.35)] lg:col-span-2`}
+                className={`flex flex-col overflow-hidden rounded-xl border border-[#232330] bg-[#11111A] p-4 shadow-[0px_8px_24px_rgba(0,0,0,0.35)] ${viewportLock ? "min-h-0 lg:col-span-2" : ""}`}
               >
                 <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
                   <h2 className="text-[16px] font-semibold text-[#F5F5F7]">Upcoming Events</h2>
@@ -195,7 +202,7 @@ export default function DashboardPageContent() {
                   <UpcomingEventsList events={upcoming} />
                 </ScrollFadeContainer>
                 <StartNewEventLink
-                  className="mt-3 inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-dashed border-[#8B5CF6]/50 py-2 text-[14px] font-medium text-[#8B5CF6] transition-colors hover:border-[#8B5CF6] hover:bg-[#8B5CF6]/5"
+                  className="mt-3 hidden shrink-0 items-center justify-center gap-2 rounded-lg border border-dashed border-[#8B5CF6]/50 py-2 text-[14px] font-medium text-[#8B5CF6] transition-colors hover:border-[#8B5CF6] hover:bg-[#8B5CF6]/5 md:inline-flex"
                 >
                   <Plus className="size-4" strokeWidth={2} aria-hidden />
                   Create New Event
@@ -208,11 +215,13 @@ export default function DashboardPageContent() {
               />
             </section>
 
+            {isMobile ? <DashboardOpsStatsRow stats={ops.opsStats} /> : null}
+
             <section
-              className={`grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-3 lg:items-stretch ${GRID_CARD_GAP}`}
+              className={`grid grid-cols-1 ${viewportLock ? "min-h-0 flex-1 lg:grid-cols-3 lg:items-stretch" : ""} ${GRID_CARD_GAP}`}
             >
               <div
-                className={`flex min-h-0 flex-col rounded-xl border border-[#232330] bg-[#11111A] p-4 shadow-[0px_8px_24px_rgba(0,0,0,0.35)] lg:col-span-2`}
+                className={`flex flex-col rounded-xl border border-[#232330] bg-[#11111A] p-4 shadow-[0px_8px_24px_rgba(0,0,0,0.35)] ${viewportLock ? "min-h-0 lg:col-span-2" : ""}`}
               >
                 <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
                   <h2 className="text-[16px] font-semibold text-[#F5F5F7]">Financial Overview</h2>
@@ -250,7 +259,9 @@ export default function DashboardPageContent() {
                 </div>
               </div>
 
-              <div className={`grid min-h-0 grid-cols-1 grid-rows-2 overflow-hidden ${GRID_CARD_GAP}`}>
+              <div
+                className={`grid grid-cols-1 ${viewportLock ? "min-h-0 grid-rows-2 overflow-hidden" : "sm:grid-cols-2"} ${GRID_CARD_GAP}`}
+              >
                 <section
                   className={[SECTION_CARD, SECTION_CARD_PADDING, "flex min-h-0 flex-col overflow-hidden"].join(
                     " ",

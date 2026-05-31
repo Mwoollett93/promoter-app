@@ -31,6 +31,7 @@ import { extractPdfTextInBrowser } from "@/lib/ai/extract-pdf-text-browser";
 import type { VenueExtractionResult } from "@/lib/ai/venue-extract";
 import { readJsonResponse } from "@/lib/api/read-json-response";
 import CurrencyText from "@/app/components/ui/CurrencyText";
+import { PAGE_DESCRIPTION, PAGE_TITLE } from "@/lib/ui/page-surfaces";
 
 type VenueStatus = "active" | "inactive";
 
@@ -966,7 +967,7 @@ export default function AddVenuePage() {
   }
 
   return (
-    <div className="flex w-full max-w-none flex-col gap-3 pb-10">
+    <div className="flex w-full max-w-none flex-col gap-3">
       <input
         ref={fileInputRef}
         type="file"
@@ -982,25 +983,25 @@ export default function AddVenuePage() {
         onChange={(event) => setImageFile(event.target.files?.[0] ?? null)}
       />
 
-      <header className="flex flex-col gap-4 rounded-xl border border-[#232330] bg-[#11111A] p-5 shadow-[0px_10px_40px_0px_rgba(0,0,0,0.35)]">
+      <header className="flex flex-col gap-4 rounded-xl border border-[#232330] bg-[#11111A] p-4 shadow-[0px_10px_40px_0px_rgba(0,0,0,0.35)] sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-xs text-[#A1A1AA]">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-xs text-[#A1A1AA] max-md:hidden">
               <Link href="/venues" className="hover:text-white">
                 Venues
               </Link>
               <ChevronRight className="size-3" />
               <span>{editingVenueId ? "Edit Venue" : "Add Venue"}</span>
             </div>
-            <h1 className="mt-2 text-[32px] font-bold leading-9 tracking-tight text-[#F5F5F7]">
+            <h1 className={`${PAGE_TITLE} mt-0 sm:mt-2`}>
               {editingVenueId ? "Edit Venue" : "Add Venue"}
             </h1>
-            <p className="mt-1 text-[14px] leading-5 text-[#A1A1AA]">
+            <p className={`${PAGE_DESCRIPTION} max-w-2xl`}>
               Create a new venue profile. You can always edit these details later.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <Link
               href="/venues"
               className="inline-flex h-11 items-center justify-center rounded-lg border border-[#232330] bg-[#11111A] px-4 text-sm font-medium text-[#E4E4E7] hover:border-[#8B5CF6]/50 hover:text-white"
@@ -1038,7 +1039,7 @@ export default function AddVenuePage() {
           </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-5">
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 md:grid md:grid-cols-5 md:gap-3 md:overflow-visible md:pb-0">
           {steps.map((item, index) => {
             const active = item.id === step;
             const completed = index < currentIndex;
@@ -1048,7 +1049,7 @@ export default function AddVenuePage() {
                 type="button"
                 onClick={() => setStep(item.id)}
                 className={[
-                  "rounded-xl border px-4 py-3 text-left transition-colors",
+                  "min-w-[140px] shrink-0 rounded-xl border px-4 py-3 text-left transition-colors md:min-w-0",
                   active
                     ? "border-[#8B5CF6]/50 bg-[#151322]"
                     : "border-[#232330] bg-[#0F0F17] hover:border-[#8B5CF6]/30",

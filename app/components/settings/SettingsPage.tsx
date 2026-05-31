@@ -17,6 +17,7 @@ import {
 import PageContent from "@/app/components/layout/PageContent";
 import Button from "@/app/components/ui/Button";
 import { GRID_CARD_GAP, PAGE_STACK_GAP } from "@/lib/layout/page-layout";
+import { INPUT_SURFACE, PAGE_DESCRIPTION, PAGE_TITLE } from "@/lib/ui/page-surfaces";
 import { useSettings } from "@/lib/settings/SettingsProvider";
 import {
   CURRENCY_OPTIONS,
@@ -192,8 +193,8 @@ export default function SettingsPage() {
   return (
     <PageContent maxWidth={1180}>
       <header>
-        <h1 className="text-[32px] font-bold leading-9 tracking-tight text-[#F5F5F7]">Settings</h1>
-        <p className="mt-1 text-[14px] leading-5 text-[#A1A1AA]">
+        <h1 className={PAGE_TITLE}>Settings</h1>
+        <p className={`${PAGE_DESCRIPTION} max-w-2xl`}>
           Manage your account, team, and preferences.
         </p>
       </header>
@@ -1166,7 +1167,7 @@ function SettingsInput({
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className="h-10 rounded-lg border border-[#3F3F46] bg-[#0B0B10] px-3 text-[13px] text-[#F5F5F7] outline-none transition-colors focus:border-[#8B5CF6] disabled:cursor-not-allowed disabled:text-[#71717A]"
+        className={`${INPUT_SURFACE} disabled:cursor-not-allowed disabled:text-[#71717A]`}
       />
     </label>
   );
@@ -1189,7 +1190,7 @@ function SettingsSelect({
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-10 rounded-lg border border-[#3F3F46] bg-[#0B0B10] px-3 text-[13px] text-[#F5F5F7] outline-none transition-colors focus:border-[#8B5CF6]"
+        className={INPUT_SURFACE}
       >
         {options.map((option) => (
           <option key={option} value={option} className="bg-[#11111A]">
@@ -1220,7 +1221,7 @@ function PasswordInput({
           type={visible ? "text" : "password"}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="h-10 w-full rounded-lg border border-[#3F3F46] bg-[#0B0B10] px-3 pr-10 text-[13px] text-[#F5F5F7] outline-none focus:border-[#8B5CF6]"
+          className={`${INPUT_SURFACE} pr-10`}
         />
         <button
           type="button"

@@ -17,7 +17,7 @@ export default function WizardHeader({
   savingDraft = false,
 }: WizardHeaderProps) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="hidden items-center gap-3 md:flex">
       <h1 className="flex-1 text-[32px] font-bold leading-[36px] text-[#F5F5F7]">
         {title}
       </h1>

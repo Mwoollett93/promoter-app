@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { LineupPermissionBanner } from "@/app/components/collaboration/PermissionBanner";
+import WizardMobileNavBar from "@/app/components/layout/WizardMobileNavBar";
 import Button from "@/app/components/ui/Button";
 import ScheduleSummaryStrip from "@/app/components/ui/ScheduleSummaryStrip";
 import Stepper from "@/app/components/ui/Stepper";
@@ -435,7 +436,7 @@ export default function LineupSchedulePage() {
   }
 
   return (
-    <div className="w-full space-y-3">
+    <div className="w-full space-y-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0">
       <div className="flex w-full justify-center">
         <Stepper state="Lineup & Schedule" />
       </div>
@@ -627,7 +628,7 @@ export default function LineupSchedulePage() {
             </div>
           </div>
 
-          <div className="mt-4 flex items-center gap-3 border-t border-[#181824] pt-4">
+          <div className="mt-4 hidden items-center gap-3 border-t border-[#181824] pt-4 md:flex">
             <Button
               variant="ghost"
               size="md"
@@ -659,6 +660,14 @@ export default function LineupSchedulePage() {
       {scheduleDrag && enriched[scheduleDrag.fromIndex] ? (
         <ScheduleDragPreview row={enriched[scheduleDrag.fromIndex]} x={scheduleDrag.x} y={scheduleDrag.y} />
       ) : null}
+
+      <WizardMobileNavBar
+        onBack={() => router.push("/event-wizard/event-basics")}
+        onContinue={() => {
+          saveWizardScheduleSlots(scheduleSlots);
+          router.push("/event-wizard/finance-&-forecast");
+        }}
+      />
     </div>
   );
 }

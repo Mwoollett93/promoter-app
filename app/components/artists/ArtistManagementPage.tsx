@@ -35,7 +35,9 @@ import {
   SortableManagementHeader,
   managementTableRowClass,
 } from "@/app/components/management/ManagementTable";
+import ManagementDetailOverlay from "@/app/components/management/ManagementDetailOverlay";
 import { MANAGEMENT_TABLE_PAGE_SIZE_ARTISTS, PAGE_STACK_GAP } from "@/lib/layout/page-layout";
+import { MANAGEMENT_SEARCH_BAR, PAGE_DESCRIPTION, PAGE_TITLE } from "@/lib/ui/page-surfaces";
 
 import {
   createArtist,
@@ -354,14 +356,14 @@ export default function ArtistManagementPage() {
     <PageContent>
       <header className={`flex flex-col ${PAGE_STACK_GAP} lg:flex-row lg:items-start lg:justify-between`}>
         <div>
-          <h1 className="text-[32px] font-bold leading-9 tracking-tight text-[#F5F5F7]">Artists</h1>
-          <p className="mt-1 text-[14px] leading-5 text-[#A1A1AA]">
+          <h1 className={PAGE_TITLE}>Artists</h1>
+          <p className={`${PAGE_DESCRIPTION} max-w-2xl`}>
             Manage your artists, documents, contacts, and profile details.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex h-11 min-w-[280px] items-center gap-3 rounded-lg border border-[#232330] bg-[#11111A] px-4 text-[#A1A1AA]">
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-3">
+          <div className={`${MANAGEMENT_SEARCH_BAR} min-w-0 flex-1 sm:max-w-xs`}>
             <Search className="size-4 shrink-0" aria-hidden />
             <input
               value={query}
@@ -486,6 +488,39 @@ export default function ArtistManagementPage() {
         }`}
       >
         <ManagementTableCard>
+          <div className="space-y-2 md:hidden">
+            {loading ? (
+              <p className="text-sm text-[#A1A1AA]">Loading artists…</p>
+            ) : paginatedArtists.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-[#3F3F46] px-4 py-8 text-center text-[13px] text-[#A1A1AA]">
+                No artists match this view.
+              </p>
+            ) : (
+              paginatedArtists.map((artist) => (
+                <button
+                  key={artist.id}
+                  type="button"
+                  onClick={() => setSelectedId(artist.id)}
+                  className={[
+                    "flex w-full min-h-[44px] items-center gap-3 rounded-xl border px-4 py-3 text-left",
+                    selectedArtist?.id === artist.id
+                      ? "border-[#8B5CF6]/50 bg-[#2D2640]/40"
+                      : "border-[#232330] bg-[#0F0F17]",
+                  ].join(" ")}
+                >
+                  <ArtistAvatar artist={artist} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold text-[#F5F5F7]">{artist.name}</p>
+                    <p className="truncate text-[12px] text-[#A1A1AA]">
+                      {artist.genres.join(", ") || artist.artistType}
+                    </p>
+                  </div>
+                  <StatusBadge status={artist.status} />
+                </button>
+              ))
+            )}
+          </div>
+          <div className="hidden md:block">
           <ManagementTableViewport minWidth={920}>
               <colgroup>
                 <col className="w-[21%]" />
@@ -661,6 +696,7 @@ export default function ArtistManagementPage() {
                 )}
               </tbody>
           </ManagementTableViewport>
+          </div>
 
           <ManagementTablePagination
             page={page}
@@ -674,13 +710,18 @@ export default function ArtistManagementPage() {
         </ManagementTableCard>
 
         {selectedArtist ? (
-          <ArtistSidePanel
-            artist={selectedArtist}
+          <ManagementDetailOverlay
+            title={selectedArtist.name}
             onClose={() => setSelectedId(null)}
-            onDownload={handleDownload}
-            onViewProfile={() => setProfileArtist(selectedArtist)}
-            onOpenActions={() => setActionMenuArtist(selectedArtist)}
-          />
+          >
+            <ArtistSidePanel
+              artist={selectedArtist}
+              onClose={() => setSelectedId(null)}
+              onDownload={handleDownload}
+              onViewProfile={() => setProfileArtist(selectedArtist)}
+              onOpenActions={() => setActionMenuArtist(selectedArtist)}
+            />
+          </ManagementDetailOverlay>
         ) : null}
       </div>
 

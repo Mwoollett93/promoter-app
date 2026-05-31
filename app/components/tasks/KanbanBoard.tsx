@@ -43,6 +43,7 @@ import {
 import { boardMetrics, filterTasks } from "@/lib/tasks/task-board-utils";
 import type { Task, TaskColumn } from "@/lib/types/collaboration";
 import { TASK_COLUMN_LABELS, TASK_COLUMNS } from "@/lib/types/collaboration";
+import { useIsMobile } from "@/lib/ui/use-breakpoint";
 
 function isDraftTaskId(taskId: string) {
   return taskId.startsWith("draft-");
@@ -88,8 +89,13 @@ export default function KanbanBoard({ workspaceId, eventId: lockedEventId }: Kan
   const [assigneeFilter, setAssigneeFilter] = React.useState<string | null>(null);
   const [assignedToMe, setAssignedToMe] = React.useState(false);
   const [statusFilter, setStatusFilter] = React.useState<TaskColumn | null>(null);
+  const isMobile = useIsMobile();
   const [viewMode, setViewMode] = React.useState<BoardViewMode>("kanban");
   const [compact, setCompact] = React.useState(false);
+
+  React.useEffect(() => {
+    if (isMobile) setViewMode("list");
+  }, [isMobile]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 

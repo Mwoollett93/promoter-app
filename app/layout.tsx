@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { PWA_THEME_COLOR, pwaDescription } from "@/lib/pwa/brand";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -8,9 +9,28 @@ const inter = Inter({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: PWA_THEME_COLOR,
+};
+
 export const metadata: Metadata = {
   title: "PromoSync",
-  description: "PromoSync UI",
+  description: pwaDescription,
+  applicationName: "PromoSync",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "PromoSync",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 export default function RootLayout({

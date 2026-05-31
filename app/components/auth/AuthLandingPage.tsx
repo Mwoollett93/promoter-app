@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
@@ -51,18 +51,22 @@ const teamSizeOptions = [
   "51+ people",
 ];
 
-export default function AuthLandingPage() {
+type AuthLandingPageProps = {
+  initialView?: AuthView;
+  signout?: boolean;
+};
+
+export default function AuthLandingPage({
+  initialView = "login",
+  signout = false,
+}: AuthLandingPageProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const viewParam = searchParams.get("view");
-  const initialView: AuthView =
-    viewParam === "signup" || viewParam === "reset" ? viewParam : "login";
 
   const [view, setView] = React.useState<AuthView>(initialView);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState<string | null>(null);
-  const [checkingSession, setCheckingSession] = React.useState(true);
+  const [bootstrapping, setBootstrapping] = React.useState(true);
   const [existingSession, setExistingSession] = React.useState(false);
 
   const [email, setEmail] = React.useState("");
@@ -80,7 +84,7 @@ export default function AuthLandingPage() {
 
   React.useEffect(() => {
     async function bootstrap() {
-      if (searchParams.get("signout") === "1") {
+      if (signout) {
         await signOutOfSupabase();
         setExistingSession(false);
         router.replace("/login", { scroll: false });
@@ -89,7 +93,7 @@ export default function AuthLandingPage() {
         setExistingSession(Boolean(getStoredSession()));
       }
 
-      setCheckingSession(false);
+      setBootstrapping(false);
 
       try {
         const remembered = window.localStorage.getItem(REMEMBER_KEY);
@@ -100,13 +104,11 @@ export default function AuthLandingPage() {
     }
 
     void bootstrap();
-  }, [router, searchParams]);
+  }, [router, signout]);
 
   React.useEffect(() => {
-    if (viewParam === "signup" || viewParam === "reset" || viewParam === "login") {
-      setView(viewParam);
-    }
-  }, [viewParam]);
+    setView(initialView);
+  }, [initialView]);
 
   function switchView(next: AuthView) {
     setView(next);
@@ -241,20 +243,12 @@ export default function AuthLandingPage() {
     }
   }
 
-  if (checkingSession) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#0B0B10] text-[#A1A1AA]">
-        Loading...
-      </main>
-    );
-  }
-
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-[#0B0B10] px-4 py-10">
+    <main className="flex min-h-[100dvh] flex-col items-center justify-center bg-[#0B0B10] px-4 py-10 pt-[max(2.5rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
       <div className="w-full max-w-[480px]">
         <AuthBrand />
 
-        {existingSession ? (
+        {bootstrapping ? null : existingSession ? (
           <div className="mt-6 flex flex-col gap-3 rounded-xl border border-[#8B5CF6]/30 bg-[#151320] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-[13px] leading-5 text-[#D4D4D8]">
               You&apos;re already signed in. Continue to your dashboard or sign out to use a

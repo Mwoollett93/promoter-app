@@ -54,7 +54,7 @@ export default function SalesTrackerModal({
         />
         <DialogPrimitive.Content
           className={cn(
-            "fixed left-1/2 top-1/2 z-50 flex max-h-[min(90vh,720px)] w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col",
+            "fixed left-1/2 top-1/2 z-50 flex max-h-[min(90dvh,720px)] w-[calc(100%-2rem)] max-sm:w-[calc(100%-1rem)] -translate-x-1/2 -translate-y-1/2 flex-col",
             "overflow-hidden rounded-2xl border border-[#232330] bg-[#11111A] shadow-[0px_20px_60px_rgba(0,0,0,0.55)]",
             "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
             "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
@@ -88,7 +88,10 @@ export default function SalesTrackerModal({
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
 
           {footer ? (
-            <footer className="flex shrink-0 justify-end gap-2 border-t border-[#232330] px-5 py-3">
+            <footer
+              className="flex shrink-0 justify-end gap-2 border-t border-[#232330] px-5 py-3"
+              style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
+            >
               {footer}
             </footer>
           ) : null}

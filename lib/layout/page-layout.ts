@@ -1,8 +1,8 @@
 /** Shared main-content spacing — 20px gutters, 12px gaps between cards/sections */
 
-export const SHELL_PADDING_X = "px-[20px]";
+export const SHELL_PADDING_X = "px-4 md:px-[20px]";
 
-export const SHELL_PADDING_Y = "py-[20px]";
+export const SHELL_PADDING_Y = "py-3 md:py-[20px]";
 
 export const PAGE_STACK_GAP = "gap-[12px]";
 
@@ -23,7 +23,7 @@ export function pageContentClass(extra?: string, options?: { fill?: boolean }) {
   if (options?.fill) {
     parts.push("h-full min-h-0 pb-0");
   } else {
-    parts.push("pb-10");
+    parts.push("pb-4 md:pb-10");
   }
   return parts.filter(Boolean).join(" ");
 }

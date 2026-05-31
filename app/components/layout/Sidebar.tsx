@@ -40,6 +40,8 @@ const NotificationPanel = dynamic(
 type SidebarProps = {
   isOpen: boolean;
   onToggle: () => void;
+  variant?: "rail" | "drawer";
+  onNavClick?: () => void;
 };
 
 type NavItem = {
@@ -114,7 +116,7 @@ function isNavItemActive(
 
 function navItemClassName(active: boolean) {
   return [
-    "flex w-full min-w-0 items-center justify-start gap-3 rounded-lg py-2.5 pl-3 pr-2 text-left text-[14px] font-medium leading-5 transition-colors",
+    "flex w-full min-w-0 min-h-[44px] items-center justify-start gap-3 rounded-lg py-2.5 pl-3 pr-2 text-left text-[14px] font-medium leading-5 transition-colors",
     active
       ? "bg-[#2D2640] text-[#F5F5F7] shadow-[inset_0_0_0_1px_rgba(139,92,246,0.25)]"
       : "text-[#E4E4E7] hover:bg-[#181824] hover:text-[#F5F5F7]",
@@ -244,15 +246,18 @@ function ProfileMenu({
   );
 }
 
-export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
+export default function Sidebar({ isOpen, onToggle, variant = "rail", onNavClick }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const settingsTab = searchParams.get("tab");
   const router = useRouter();
   const { settings } = useSettings();
+  const isDrawer = variant === "drawer";
+  const showLabels = isDrawer || isOpen;
 
   async function handleSignOut() {
     await signOutOfSupabase();
+    onNavClick?.();
     router.replace("/login");
   }
 
@@ -260,12 +265,18 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
     const Icon = item.icon;
     const active = isNavItemActive(item.label, pathname, settingsTab);
     const className = navItemClassName(active);
-    const labels = labelClassName(isOpen);
+    const labels = labelClassName(showLabels);
 
     return (
-      <Link key={item.label} href={item.href!} className={className} title={item.label}>
+      <Link
+        key={item.label}
+        href={item.href!}
+        className={className}
+        title={item.label}
+        onClick={onNavClick}
+      >
         <Icon size={18} className="shrink-0 opacity-95" strokeWidth={2} aria-hidden />
-        <span className={labels} aria-hidden={!isOpen}>
+        <span className={labels} aria-hidden={!showLabels}>
           {item.label}
         </span>
       </Link>
@@ -273,6 +284,8 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
   }
 
   function renderCollapseToggle() {
+    if (isDrawer) return null;
+
     const Icon = isOpen ? PanelLeftOpen : PanelRightOpen;
 
     return (
@@ -291,7 +304,14 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
   }
 
   return (
-    <aside className="sticky top-0 z-20 h-screen w-full min-w-0 self-start overflow-hidden border-r border-[#232330] bg-[#11111A] shadow-[0px_10px_40px_0px_rgba(0,0,0,0.4)]">
+    <aside
+      className={[
+        "sticky top-0 z-20 h-full w-full min-w-0 self-start overflow-hidden bg-[#11111A]",
+        isDrawer
+          ? "shadow-none"
+          : "h-screen border-r border-[#232330] shadow-[0px_10px_40px_0px_rgba(0,0,0,0.4)]",
+      ].join(" ")}
+    >
       <div className="flex h-full min-w-0 flex-col">
         <div className="px-3 pb-2 pt-4">
           <div className="flex min-w-0 items-start gap-3">
@@ -299,6 +319,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
               href="/dashboard"
               className="flex shrink-0 items-center justify-center rounded-lg outline-none ring-[#8B5CF6]/40 transition hover:opacity-90 focus-visible:ring-2"
               aria-label="PromoSync dashboard"
+              onClick={onNavClick}
             >
               <img
                 src="/Promosync_icon.svg"
@@ -312,9 +333,9 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
             <div
               className={[
                 "min-w-0 flex-1 overflow-hidden pt-0.5 transition-[max-width,opacity] duration-300 ease-out",
-                isOpen ? "max-w-[140px] opacity-100" : "max-w-0 opacity-0",
+                showLabels ? "max-w-[140px] opacity-100" : "max-w-0 opacity-0",
               ].join(" ")}
-              aria-hidden={!isOpen}
+              aria-hidden={!showLabels}
             >
               <p className="truncate text-[18px] font-bold leading-6 tracking-tight text-[#F5F5F7]">
                 PromoSync
@@ -328,15 +349,18 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
           {mainNavItems.map(renderNavItem)}
 
           {renderNavItem(settingsNavItem)}
-          <div className={isOpen ? "px-1 pt-2" : "flex justify-center pt-2"}>
+          <div className={showLabels ? "px-1 pt-2" : "flex justify-center pt-2"}>
             <NotificationPanel />
           </div>
           {renderCollapseToggle()}
         </nav>
 
-        <div className="min-w-0 shrink-0 border-t border-[#232330] p-3">
+        <div
+          className="min-w-0 shrink-0 border-t border-[#232330] p-3"
+          style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
+        >
           <ProfileMenu
-            isOpen={isOpen}
+            isOpen={showLabels}
             fullName={settings.profile.fullName}
             role={settings.profile.role}
             avatarUrl={settings.profile.avatarUrl}

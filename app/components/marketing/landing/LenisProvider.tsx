@@ -31,10 +31,24 @@ type LenisProviderProps = {
 export default function LenisProvider({ children }: LenisProviderProps) {
   const reducedMotion = usePrefersReducedMotion();
   const [scroll, setScroll] = React.useState(0);
+  const [disableLenis, setDisableLenis] = React.useState(false);
   const lenisRef = React.useRef<Lenis | null>(null);
 
   React.useEffect(() => {
-    if (reducedMotion) return;
+    const mqMobile = window.matchMedia("(max-width: 767px)");
+    const mqCoarse = window.matchMedia("(pointer: coarse)");
+    const update = () => setDisableLenis(mqMobile.matches || mqCoarse.matches);
+    update();
+    mqMobile.addEventListener("change", update);
+    mqCoarse.addEventListener("change", update);
+    return () => {
+      mqMobile.removeEventListener("change", update);
+      mqCoarse.removeEventListener("change", update);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (reducedMotion || disableLenis) return;
 
     const lenis = new Lenis({
       duration: 1.1,
@@ -61,15 +75,15 @@ export default function LenisProvider({ children }: LenisProviderProps) {
       lenis.destroy();
       lenisRef.current = null;
     };
-  }, [reducedMotion]);
+  }, [reducedMotion, disableLenis]);
 
   React.useEffect(() => {
-    if (reducedMotion) return;
+    if (reducedMotion || disableLenis) return;
     document.documentElement.classList.add("lenis", "lenis-smooth");
     return () => {
       document.documentElement.classList.remove("lenis", "lenis-smooth");
     };
-  }, [reducedMotion]);
+  }, [reducedMotion, disableLenis]);
 
   const value = React.useMemo(
     () => ({ lenis: lenisRef.current, scroll }),

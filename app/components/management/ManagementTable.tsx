@@ -27,6 +27,7 @@ export function ManagementTableViewport({
           {children}
         </table>
       </div>
+      <p className="px-3 py-1.5 text-[11px] text-[#71717A] md:hidden">Swipe to see more →</p>
     </div>
   );
 }

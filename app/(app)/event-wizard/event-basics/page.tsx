@@ -14,6 +14,7 @@ import PromoSyncTextArea from "@/app/components/ui/TextArea";
 import Button from "@/app/components/ui/Button";
 import EventSummaryCard from "@/app/components/ui/EventSummaryCard";
 import TipCard from "@/app/components/ui/TipCard";
+import WizardMobileNavBar from "@/app/components/layout/WizardMobileNavBar";
 import { loadWizardEventDraft, saveWizardEventDraft } from "@/lib/data";
 import { hasWizardProgress } from "@/lib/event-wizard/persist-wizard-draft";
 import {
@@ -159,13 +160,28 @@ export default function EventBasicsPage() {
 
   const canContinue = Boolean(draft.eventName.trim() && draft.date && draft.startTime.trim() && selectedVenue);
 
+  function handleContinue() {
+    if (!selectedVenue || !draft.date) return;
+    markWizardInProgress();
+    saveWizardEventDraft({
+      date: draft.date,
+      startTime: draft.startTime,
+      eventName: draft.eventName,
+      venueId: selectedVenue.id,
+      venueName: selectedVenue.name,
+      venueCapacity: selectedVenue.capacity,
+      description: draft.description,
+    });
+    router.push("/event-wizard/lineup-&-schedule");
+  }
+
   return (
-    <div className="w-full space-y-3">
+    <div className="w-full space-y-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0">
       <div className="flex w-full justify-center">
         <Stepper state="Event Basics" />
       </div>
 
-      <div className="flex w-full items-start justify-end gap-3">
+      <div className="flex w-full flex-col gap-3 xl:flex-row xl:items-start xl:justify-end">
         <section className="min-w-0 flex-1 rounded-[16px] border border-[#181824] bg-gradient-to-b from-[#11111A] to-[#0D0D14] p-5 shadow-[0px_10px_40px_0px_rgba(0,0,0,0.4)]">
           <h2 className="text-[24px] font-bold leading-[28px] text-[#F5F5F7]">
             Event Basics
@@ -186,7 +202,7 @@ export default function EventBasicsPage() {
               helperText="This is how your event will appear to your audience."
             />
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <DateInput
                 label="Date"
                 required
@@ -262,7 +278,7 @@ export default function EventBasicsPage() {
             />
           </div>
 
-          <div className="mt-4 flex items-center gap-3">
+          <div className="mt-4 hidden items-center gap-3 md:flex">
             <Button variant="ghost" size="md" type="button" onClick={handleCancel}>
               Cancel
             </Button>
@@ -272,20 +288,7 @@ export default function EventBasicsPage() {
                 size="md"
                 type="button"
                 disabled={!canContinue}
-                onClick={() => {
-                  if (!selectedVenue || !draft.date) return;
-                  markWizardInProgress();
-                  saveWizardEventDraft({
-                    date: draft.date,
-                    startTime: draft.startTime,
-                    eventName: draft.eventName,
-                    venueId: selectedVenue.id,
-                    venueName: selectedVenue.name,
-                    venueCapacity: selectedVenue.capacity,
-                    description: draft.description,
-                  });
-                  router.push("/event-wizard/lineup-&-schedule");
-                }}
+                onClick={handleContinue}
               >
                 <span className="inline-flex items-center gap-2">
                   Continue
@@ -300,7 +303,7 @@ export default function EventBasicsPage() {
           </div>
         </section>
 
-        <aside className="flex w-fit max-w-[411px] shrink-0 flex-col gap-3">
+        <aside className="flex w-full shrink-0 flex-col gap-3 xl:w-fit xl:max-w-[411px]">
           <EventSummaryCard
             title={draft.eventName.trim() || "Untitled Event"}
             dateLabel={formatDateLabel(draft.date)}
@@ -319,6 +322,12 @@ export default function EventBasicsPage() {
           <TipCard />
         </aside>
       </div>
+
+      <WizardMobileNavBar
+        showBack={false}
+        onContinue={handleContinue}
+        continueDisabled={!canContinue}
+      />
     </div>
   );
 }

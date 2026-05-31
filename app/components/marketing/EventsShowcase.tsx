@@ -37,8 +37,8 @@ export default function EventsShowcase() {
           ))}
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-[#232330]">
-          <table className="w-full text-left text-[10px]">
+        <div className="overflow-x-auto rounded-xl border border-[#232330]">
+          <table className="w-full min-w-[480px] text-left text-[10px]">
             <thead className="bg-[#11111A] text-[#71717A]">
               <tr>
                 <th className="px-3 py-2 font-medium">Event</th>

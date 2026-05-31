@@ -17,6 +17,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import Button from "@/app/components/ui/Button";
+import WizardMobileNavBar from "@/app/components/layout/WizardMobileNavBar";
 import CurrencyText from "@/app/components/ui/CurrencyText";
 import Stepper from "@/app/components/ui/Stepper";
 import EventStatusBadge from "@/app/components/ui/EventStatusBadge";
@@ -298,7 +299,7 @@ export default function ReviewCreatePage() {
   }
 
   return (
-    <div className="w-full space-y-3">
+    <div className="w-full space-y-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0">
       <div className="flex w-full justify-center">
         <Stepper state="Review & Create" />
       </div>
@@ -538,7 +539,7 @@ export default function ReviewCreatePage() {
           <p className="mt-4 text-[13px] text-[#FCA5A5]">{workspaceError}</p>
         ) : null}
 
-        <div className="mt-4 flex items-center gap-3 border-t border-[#181824] pt-4">
+        <div className="mt-4 hidden items-center gap-3 border-t border-[#181824] pt-4 md:flex">
           <Button
             variant="ghost"
             size="md"
@@ -582,6 +583,13 @@ export default function ReviewCreatePage() {
           </div>
         </div>
       </section>
+
+      <WizardMobileNavBar
+        onBack={() => router.push("/event-wizard/finance-&-forecast")}
+        onContinue={() => void handleCreateEvent()}
+        continueDisabled={!canCreate || creating || loading || !workspaceReady || !workspace}
+        continueLabel={creating ? "Creating…" : "Create Event"}
+      />
     </div>
   );
 }

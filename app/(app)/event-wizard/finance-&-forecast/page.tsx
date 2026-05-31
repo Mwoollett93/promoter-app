@@ -48,6 +48,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import { FinancePermissionBanner } from "@/app/components/collaboration/PermissionBanner";
+import WizardMobileNavBar from "@/app/components/layout/WizardMobileNavBar";
 import Button from "@/app/components/ui/Button";
 import CurrencyText from "@/app/components/ui/CurrencyText";
 import Stepper from "@/app/components/ui/Stepper";
@@ -365,7 +366,7 @@ export default function FinanceForecastPage() {
   }, []);
 
   return (
-    <div className="w-full space-y-3">
+    <div className="w-full space-y-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0">
       <div className="flex w-full justify-center">
         <Stepper state="Finance & Forecast" />
       </div>
@@ -726,7 +727,7 @@ export default function FinanceForecastPage() {
           </aside>
         </div>
 
-        <div className="mt-4 flex items-center gap-3 border-t border-[#181824] pt-4">
+        <div className="mt-4 hidden items-center gap-3 border-t border-[#181824] pt-4 md:flex">
           <Button
             variant="ghost"
             size="md"
@@ -775,6 +776,19 @@ export default function FinanceForecastPage() {
         selectedCostIds={selectedAdditionalCostIds}
         onClose={() => setIsCostPickerOpen(false)}
         onSelect={addCostItem}
+      />
+
+      <WizardMobileNavBar
+        onBack={() => router.push("/event-wizard/lineup-&-schedule")}
+        onContinue={() => {
+          saveWizardFinanceDraft({
+            ticketInventory: draft.ticketInventory,
+            costs: draft.costs,
+            tiers: draft.tiers,
+          });
+          router.push("/event-wizard/review-&-create");
+        }}
+        continueDisabled={!canContinue}
       />
     </div>
   );

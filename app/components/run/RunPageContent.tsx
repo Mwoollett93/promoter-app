@@ -20,9 +20,10 @@ import {
 } from "@/lib/run/timeframe";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import { GRID_CARD_GAP, PAGE_STACK_GAP } from "@/lib/layout/page-layout";
+import { useIsLargeDesktop } from "@/lib/ui/use-breakpoint";
 import { getStoredSession, getSupabaseConfig } from "@/lib/supabase/browser";
 import { buildVenueImageLookup, listVenueSummaries } from "@/lib/supabase/venue-summaries";
-import { SELECT_SURFACE } from "@/lib/ui/page-surfaces";
+import { SELECT_SURFACE, PAGE_DESCRIPTION, PAGE_TITLE } from "@/lib/ui/page-surfaces";
 
 const TIMEFRAME_STORAGE_KEY = "promosync:run-timeframe";
 
@@ -31,6 +32,7 @@ const CREATE_EVENT_BUTTON =
 
 export default function RunPageContent() {
   const { workspace, events, ready } = useWorkspace();
+  const viewportLock = useIsLargeDesktop();
   const timeframeOptions = React.useMemo(() => buildTimeframeOptions(), []);
   const [timeframeId, setTimeframeId] = React.useState<TimeframeId>(() => {
     if (typeof window === "undefined") return defaultTimeframeId(timeframeOptions);
@@ -81,14 +83,16 @@ export default function RunPageContent() {
   }
 
   return (
-    <PageContent fill>
-      <div className={`flex h-full min-h-0 flex-col overflow-hidden ${PAGE_STACK_GAP}`}>
+    <PageContent fill={viewportLock}>
+      <div
+        className={`flex flex-col ${PAGE_STACK_GAP} ${viewportLock ? "h-full min-h-0 overflow-hidden" : ""}`}
+      >
         <header
           className={`flex shrink-0 flex-col ${PAGE_STACK_GAP} lg:flex-row lg:items-start lg:justify-between`}
         >
           <div>
-            <h1 className="text-[32px] font-bold leading-9 tracking-tight text-[#F5F5F7]">Run</h1>
-            <p className="mt-1 text-[14px] leading-5 text-[#A1A1AA]">
+            <h1 className={PAGE_TITLE}>Run</h1>
+            <p className={`${PAGE_DESCRIPTION} max-w-2xl`}>
               Track upcoming shows, financial health, and operational risks across the selected
               timeframe.
             </p>
@@ -97,8 +101,8 @@ export default function RunPageContent() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative min-w-[200px]">
+          <div className="flex w-full min-w-0 flex-wrap items-center gap-3 sm:w-auto">
+            <div className="relative min-w-0 flex-1 sm:min-w-[200px] sm:flex-none">
               <label className="sr-only" htmlFor="timeframe-select">
                 Timeframe
               </label>
@@ -119,7 +123,7 @@ export default function RunPageContent() {
                 aria-hidden
               />
             </div>
-            <StartNewEventLink className={CREATE_EVENT_BUTTON}>
+            <StartNewEventLink className={`${CREATE_EVENT_BUTTON} hidden md:inline-flex`}>
               <CalendarPlus className="size-5 shrink-0" strokeWidth={2} aria-hidden />
               Create New Event
             </StartNewEventLink>
@@ -131,9 +135,9 @@ export default function RunPageContent() {
         </div>
 
         <div
-          className={`grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_300px] lg:items-stretch ${GRID_CARD_GAP}`}
+          className={`grid grid-cols-1 ${viewportLock ? "min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_300px] lg:items-stretch" : "lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_300px]"} ${GRID_CARD_GAP}`}
         >
-          <div className="flex min-h-0 flex-col gap-3 overflow-hidden">
+          <div className={`flex flex-col gap-3 ${viewportLock ? "min-h-0 overflow-hidden" : ""}`}>
             <RunTimeline
               monthGroups={insights.monthGroups}
               venueLookup={venueLookup}

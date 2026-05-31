@@ -39,10 +39,10 @@ type TaskBoardToolbarProps = {
 };
 
 const selectClass =
-  "h-9 min-w-0 rounded-lg border border-[#3F3F46]/90 bg-[#11111A]/90 px-2.5 text-[12px] text-[#F5F5F7] outline-none transition-colors focus:border-[#8B5CF6]";
+  "h-11 min-h-[44px] min-w-0 rounded-lg border border-[#3F3F46]/90 bg-[#11111A]/90 px-2.5 text-[12px] text-[#F5F5F7] outline-none transition-colors focus:border-[#8B5CF6]";
 
 const inputClass =
-  "h-9 w-full min-w-[140px] rounded-lg border border-[#3F3F46]/90 bg-[#11111A]/90 px-2.5 pl-8 text-[12px] text-[#F5F5F7] outline-none transition-colors placeholder:text-[#71717A] focus:border-[#8B5CF6]";
+  "h-11 min-h-[44px] w-full min-w-0 rounded-lg border border-[#3F3F46]/90 bg-[#11111A]/90 px-2.5 pl-8 text-[12px] text-[#F5F5F7] outline-none transition-colors placeholder:text-[#71717A] focus:border-[#8B5CF6]";
 
 export default function TaskBoardToolbar({
   events,

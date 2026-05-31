@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import Button from "@/app/components/ui/Button";
+import { INPUT_SURFACE, SELECT_SURFACE } from "@/lib/ui/page-surfaces";
 import { reconnectCloudCollaboration } from "@/lib/collaboration/storage-mode";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import { canInviteMembers } from "@/lib/collaboration/permissions";
@@ -203,12 +204,12 @@ export default function TeamWorkspaceSettings() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="colleague@collective.com"
-            className="min-w-[200px] flex-1 rounded-lg border border-[#3F3F46] bg-[#0B0B10] px-3 py-2 text-[13px] text-[#F5F5F7]"
+            className={`${INPUT_SURFACE} min-w-0 flex-1`}
           />
           <select
             value={inviteRole}
             onChange={(e) => setInviteRole(e.target.value as WorkspaceRole)}
-            className="rounded-lg border border-[#3F3F46] bg-[#0B0B10] px-3 py-2 text-[13px] text-[#F5F5F7]"
+            className={SELECT_SURFACE}
           >
             {ROLES.map((r) => (
               <option key={r} value={r}>
