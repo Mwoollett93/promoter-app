@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import MarketingFooter from "@/app/components/marketing/MarketingFooter";
 import MarketingNav from "@/app/components/marketing/MarketingNav";
+import LenisProvider from "@/app/components/marketing/landing/LenisProvider";
 import { site } from "@/lib/marketing/site-meta";
 
 export const metadata: Metadata = {
@@ -25,7 +26,9 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
         <div className="absolute -right-24 top-1/3 size-[400px] rounded-full bg-[#4C1D95]/15 blur-[100px]" />
       </div>
       <MarketingNav />
-      <main>{children}</main>
+      <LenisProvider>
+        <main>{children}</main>
+      </LenisProvider>
       <MarketingFooter />
     </div>
   );

@@ -188,3 +188,21 @@ body {
   border-radius: calc(0.5rem - 1px);
   background: #1a1630;
 }
+
+/* Hero floating orbs — subtle vertical drift, disabled via motion-reduce in markup */
+@keyframes hero-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-18px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.lenis,
+  html.lenis-smooth {
+    scroll-behavior: auto;
+  }
+}
