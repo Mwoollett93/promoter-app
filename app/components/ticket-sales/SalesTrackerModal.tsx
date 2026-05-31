@@ -2,9 +2,18 @@
 
 import { X } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
+import * as React from "react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
+
+/** Radix RemoveScroll can stick if a dialog unmounts mid-close — clear on teardown. */
+function releaseBodyScrollLock() {
+  document.body.style.removeProperty("overflow");
+  document.body.style.removeProperty("padding-right");
+  document.body.style.removeProperty("pointer-events");
+  document.body.removeAttribute("data-scroll-locked");
+}
 
 type SalesTrackerModalProps = {
   open: boolean;
@@ -27,6 +36,12 @@ export default function SalesTrackerModal({
   footer,
   size = "md",
 }: SalesTrackerModalProps) {
+  React.useEffect(() => {
+    if (!open) releaseBodyScrollLock();
+  }, [open]);
+
+  React.useEffect(() => releaseBodyScrollLock, []);
+
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
@@ -34,6 +49,7 @@ export default function SalesTrackerModal({
           className={cn(
             "fixed inset-0 z-50 bg-[#0B0B10]/80 backdrop-blur-sm",
             "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+            "data-[state=closed]:pointer-events-none",
           )}
         />
         <DialogPrimitive.Content
@@ -42,8 +58,13 @@ export default function SalesTrackerModal({
             "overflow-hidden rounded-2xl border border-[#232330] bg-[#11111A] shadow-[0px_20px_60px_rgba(0,0,0,0.55)]",
             "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
             "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+            "data-[state=closed]:pointer-events-none",
             size === "lg" ? "max-w-2xl" : "max-w-lg",
           )}
+          onCloseAutoFocus={(event) => {
+            // Avoid focus trap fighting navigation when closing via tab links.
+            event.preventDefault();
+          }}
         >
           <header className="flex shrink-0 items-start justify-between gap-3 border-b border-[#232330] px-5 py-4">
             <div>

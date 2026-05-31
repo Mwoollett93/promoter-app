@@ -59,14 +59,42 @@ export default function SalesTrackerTab({ eventId, event }: SalesTrackerTabProps
   const chartId = eventId.slice(0, 8);
 
   function openCheckpointModal() {
+    setCsvOpen(false);
+    setHistoryOpen(false);
     setModalResetKey((k) => k + 1);
     setCheckpointOpen(true);
   }
 
   function openCsvModal() {
+    setCheckpointOpen(false);
+    setHistoryOpen(false);
     setModalResetKey((k) => k + 1);
     setCsvOpen(true);
   }
+
+  const handleCheckpointOpenChange = React.useCallback((next: boolean) => {
+    setCheckpointOpen(next);
+  }, []);
+
+  const handleCsvOpenChange = React.useCallback((next: boolean) => {
+    setCsvOpen(next);
+    if (!next) {
+      setCsvState({ canImport: false, triggerImport: () => {} });
+    }
+  }, []);
+
+  const handleHistoryOpenChange = React.useCallback((next: boolean) => {
+    setHistoryOpen(next);
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      document.body.style.removeProperty("overflow");
+      document.body.style.removeProperty("padding-right");
+      document.body.style.removeProperty("pointer-events");
+      document.body.removeAttribute("data-scroll-locked");
+    };
+  }, []);
 
   const handleCheckpoint = React.useCallback(
     (input: ManualCheckpointInput) => {
@@ -163,7 +191,7 @@ export default function SalesTrackerTab({ eventId, event }: SalesTrackerTabProps
       {/* Modals — forms never expand the main layout */}
       <SalesTrackerModal
         open={checkpointOpen}
-        onOpenChange={setCheckpointOpen}
+        onOpenChange={handleCheckpointOpenChange}
         title="Add sales checkpoint"
         description="Record a snapshot from your ticketing dashboard — no scraping required."
         footer={
@@ -177,49 +205,51 @@ export default function SalesTrackerTab({ eventId, event }: SalesTrackerTabProps
           </>
         }
       >
-        <ManualCheckpointForm
-          formId={CHECKPOINT_FORM_ID}
-          defaultCapacity={defaultCapacity}
-          onSubmit={handleCheckpoint}
-          resetKey={modalResetKey}
-        />
+        {checkpointOpen ? (
+          <ManualCheckpointForm
+            formId={CHECKPOINT_FORM_ID}
+            defaultCapacity={defaultCapacity}
+            onSubmit={handleCheckpoint}
+            resetKey={modalResetKey}
+          />
+        ) : null}
       </SalesTrackerModal>
 
-      {csvOpen ? (
-        <SalesTrackerModal
-          open={csvOpen}
-          onOpenChange={setCsvOpen}
-          title="Import ticket sales report"
-          description="Upload a CSV export from your ticketing platform. Map columns if headers differ."
-          size="lg"
-          footer={
-            <>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setCsvOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                disabled={!csvState.canImport}
-                onClick={() => csvState.triggerImport()}
-              >
-                Import &amp; create checkpoint
-              </Button>
-            </>
-          }
-        >
+      <SalesTrackerModal
+        open={csvOpen}
+        onOpenChange={handleCsvOpenChange}
+        title="Import ticket sales report"
+        description="Upload a CSV export from your ticketing platform. Map columns if headers differ."
+        size="lg"
+        footer={
+          <>
+            <Button type="button" variant="ghost" size="sm" onClick={() => handleCsvOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              disabled={!csvState.canImport}
+              onClick={() => csvState.triggerImport()}
+            >
+              Import &amp; create checkpoint
+            </Button>
+          </>
+        }
+      >
+        {csvOpen ? (
           <CsvImportPanel
             resetKey={modalResetKey}
             onImport={handleCsvImport}
             onStateChange={handleCsvStateChange}
           />
-        </SalesTrackerModal>
-      ) : null}
+        ) : null}
+      </SalesTrackerModal>
 
       <CheckpointHistoryModal
         open={historyOpen}
-        onOpenChange={setHistoryOpen}
+        onOpenChange={handleHistoryOpenChange}
         checkpoints={snapshot.checkpoints}
       />
     </>
