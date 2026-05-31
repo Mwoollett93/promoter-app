@@ -18,7 +18,9 @@ import {
   workspaceEventToManaged,
 } from "@/lib/supabase/events";
 import {
-  clearWizardEditingEventId,
+  resetEventWizardForNewEvent,
+} from "@/lib/event-wizard/reset-wizard";
+import {
   getWizardEditingEventId,
 } from "@/lib/event-wizard/wizard-editing-event";
 import type { SupabaseSession } from "@/lib/types/artist";
@@ -103,10 +105,7 @@ export async function saveWizardProgressAsDraft(
       ? await updateWorkspaceEvent(session, editingId, payload)
       : await createWorkspaceEvent(session, payload);
 
-    clearWizardEventDraft();
-    clearWizardScheduleSlots();
-    clearWizardFinanceDraft();
-    clearWizardEditingEventId();
+    resetEventWizardForNewEvent();
     upsertManagedEvent(workspaceEventToManaged(saved));
 
     if (typeof window !== "undefined") {

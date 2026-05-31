@@ -4,6 +4,7 @@ import Link from "next/link";
 import * as React from "react";
 import { ChevronDown, Plus } from "lucide-react";
 
+import StartNewEventLink from "@/app/components/events/StartNewEventLink";
 import PageContent from "@/app/components/layout/PageContent";
 import CreateSeasonModal from "@/app/components/season/CreateSeasonModal";
 import SeasonAnalyticsView from "@/app/components/season/SeasonAnalyticsView";
@@ -189,7 +190,7 @@ export default function SeasonPageContent() {
             <Button type="button" variant="secondary" size="sm" onClick={() => setCreateOpen(true)}>
               New season
             </Button>
-            <Link
+            <StartNewEventLink
               href={
                 selected
                   ? `/event-wizard/event-basics?seasonId=${encodeURIComponent(selected.id)}`
@@ -199,7 +200,7 @@ export default function SeasonPageContent() {
             >
               <Plus className="size-4" strokeWidth={2} aria-hidden />
               Add event
-            </Link>
+            </StartNewEventLink>
           </div>
         </header>
 

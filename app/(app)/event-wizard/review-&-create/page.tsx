@@ -21,8 +21,6 @@ import CurrencyText from "@/app/components/ui/CurrencyText";
 import Stepper from "@/app/components/ui/Stepper";
 import EventStatusBadge from "@/app/components/ui/EventStatusBadge";
 import {
-  clearWizardEventDraft,
-  clearWizardScheduleSlots,
   getEventStartForWizard,
   loadWizardEventDraft,
   loadWizardScheduleSlots,
@@ -30,7 +28,6 @@ import {
 } from "@/lib/data";
 import { buildFinanceDraft, calculateFinanceSummary } from "@/lib/data/wizard-finance-logic";
 import {
-  clearWizardFinanceDraft,
   loadWizardFinanceDraft,
   type WizardFinanceDraftV1,
 } from "@/lib/data/wizard-finance-draft";
@@ -48,8 +45,8 @@ import {
   updateWorkspaceEvent,
   workspaceEventToManaged,
 } from "@/lib/supabase/events";
+import { resetEventWizardForNewEvent } from "@/lib/event-wizard/reset-wizard";
 import {
-  clearWizardEditingEventId,
   getWizardEditingEventId,
 } from "@/lib/event-wizard/wizard-editing-event";
 import { getVenueFee, loadVenueFinanceContext, type VenueFinanceContext } from "@/lib/data/venue-finance-context";
@@ -291,10 +288,7 @@ export default function ReviewCreatePage() {
 
       upsertManagedEvent(workspaceEventToManaged(created));
       await refreshEvents();
-      clearWizardEventDraft();
-      clearWizardScheduleSlots();
-      clearWizardFinanceDraft();
-      clearWizardEditingEventId();
+      resetEventWizardForNewEvent();
       router.push("/events");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to create event.");

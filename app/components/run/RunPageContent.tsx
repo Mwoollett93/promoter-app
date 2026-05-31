@@ -4,6 +4,7 @@ import Link from "next/link";
 import * as React from "react";
 import { ChevronDown, Plus } from "lucide-react";
 
+import StartNewEventLink from "@/app/components/events/StartNewEventLink";
 import PageContent from "@/app/components/layout/PageContent";
 import RunFinancialsPanel from "@/app/components/run/RunFinancialsPanel";
 import RunInsightsSidebar from "@/app/components/run/RunInsightsSidebar";
@@ -119,13 +120,12 @@ export default function RunPageContent() {
             </div>
           </div>
 
-          <Link
-            href="/event-wizard/event-basics"
+          <StartNewEventLink
             className="inline-flex h-9 items-center gap-2 rounded-lg border border-[rgba(139,92,246,0.45)] bg-[#7C3AED] px-4 text-[13px] font-medium text-white hover:bg-[#6D28D9]"
           >
             <Plus className="size-4" strokeWidth={2} aria-hidden />
             Add event
-          </Link>
+          </StartNewEventLink>
         </header>
 
         <RunSummaryStrip snapshot={insights.snapshot} />

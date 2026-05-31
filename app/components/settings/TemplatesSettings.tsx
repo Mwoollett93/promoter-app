@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 import Button from "@/app/components/ui/Button";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import {
-  applyEventTemplate,
   applyTaskTemplate,
+  beginEventWizardFromTemplate,
   listEventTemplates,
   listTaskTemplates,
 } from "@/lib/collaboration/templates";
@@ -33,7 +33,7 @@ export default function TemplatesSettings() {
   function useEventTemplate(templateId: string) {
     const template = eventTemplates.find((t) => t.id === templateId);
     if (!template) return;
-    applyEventTemplate(template);
+    beginEventWizardFromTemplate(template);
     setMessage(`Applied "${template.name}" — opening event wizard with template defaults.`);
     router.push("/event-wizard/event-basics");
   }

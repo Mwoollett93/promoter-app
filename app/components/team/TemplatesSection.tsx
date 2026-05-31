@@ -7,8 +7,8 @@ import TemplateCard from "@/app/components/team/TemplateCard";
 import TemplatePreviewModal from "@/app/components/team/TemplatePreviewModal";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import {
-  applyEventTemplate,
   applyTaskTemplate,
+  beginEventWizardFromTemplate,
   listEventTemplates,
   listTaskTemplates,
 } from "@/lib/collaboration/templates";
@@ -35,7 +35,7 @@ export default function TemplatesSection() {
   }
 
   function applyEvent(template: EventTemplate) {
-    applyEventTemplate(template);
+    beginEventWizardFromTemplate(template);
     setMessage(`Applied "${template.name}" — opening event wizard.`);
     setPreviewEvent(null);
     router.push("/event-wizard/event-basics");

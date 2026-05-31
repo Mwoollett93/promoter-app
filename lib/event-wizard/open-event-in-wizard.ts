@@ -1,6 +1,4 @@
-import { clearWizardEventDraft } from "@/lib/data/wizard-event-draft";
-import { clearWizardFinanceDraft } from "@/lib/data/wizard-finance-draft";
-import { clearWizardScheduleSlots } from "@/lib/data/wizard-schedule-persist";
+import { resetEventWizardForNewEvent, markWizardInProgress } from "./reset-wizard";
 import { getWorkspaceEvent } from "@/lib/supabase/events";
 import type { SupabaseSession } from "@/lib/types/artist";
 
@@ -23,10 +21,7 @@ export async function prepareEventForWizardEdit(
     description?: string;
   },
 ): Promise<boolean> {
-  clearWizardEventDraft();
-  clearWizardScheduleSlots();
-  clearWizardFinanceDraft();
-  clearWizardEditingEventId();
+  resetEventWizardForNewEvent();
 
   const event = await getWorkspaceEvent(session, eventId, workspaceId);
 
@@ -34,11 +29,13 @@ export async function prepareEventForWizardEdit(
 
   if (event) {
     hydrateWizardFromEvent(event);
+    markWizardInProgress();
     return true;
   }
 
   if (fallback) {
     hydrateWizardFromManagedSummary({ id: eventId, ...fallback });
+    markWizardInProgress();
     return true;
   }
 

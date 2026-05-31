@@ -1,6 +1,10 @@
 import { newId } from "@/lib/collaboration/local-store";
 import { createTask } from "@/lib/collaboration/tasks";
 import { saveWizardEventDraft } from "@/lib/data/wizard-event-draft";
+import {
+  markWizardInProgress,
+  resetEventWizardForNewEvent,
+} from "@/lib/event-wizard/reset-wizard";
 import type { SupabaseSession } from "@/lib/types/artist";
 import type { TaskTemplate, EventTemplate } from "@/lib/types/collaboration";
 
@@ -105,6 +109,13 @@ export function applyEventTemplate(template: EventTemplate): void {
     description: template.description ?? undefined,
     venueCapacity: defaultCapacity,
   });
+}
+
+/** Clear stale wizard data, apply template defaults, and mark wizard active. */
+export function beginEventWizardFromTemplate(template: EventTemplate): void {
+  resetEventWizardForNewEvent();
+  applyEventTemplate(template);
+  markWizardInProgress();
 }
 
 export function listEventTemplates(workspaceId: string): EventTemplate[] {

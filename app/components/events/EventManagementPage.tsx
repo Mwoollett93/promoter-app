@@ -15,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 
+import StartNewEventLink from "@/app/components/events/StartNewEventLink";
 import EventStatusBadge from "@/app/components/ui/EventStatusBadge";
 import PageContent from "@/app/components/layout/PageContent";
 import {
@@ -32,7 +33,6 @@ import { formatDateLabel, formatTimeLabel } from "@/lib/data/format";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import AddedByLine from "@/app/components/ui/AddedByLine";
 import { prepareEventForWizardEdit } from "@/lib/event-wizard/open-event-in-wizard";
-import { clearWizardEditingEventId } from "@/lib/event-wizard/wizard-editing-event";
 import {
   getManagedEventSeedCount,
   loadManagedEvents,
@@ -199,13 +199,12 @@ export default function EventManagementPage() {
               {seeding ? "Adding..." : `Seed ${managedEventSeedCount} Events`}
             </button>
           ) : null}
-          <Link
-            href="/event-wizard/event-basics"
+          <StartNewEventLink
             className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-[8px] border border-[rgba(139,92,246,0.45)] bg-[#7C3AED] px-6 text-[16px] font-medium leading-5 tracking-[0.08px] text-white transition-all hover:border-[#A855F7] hover:bg-[linear-gradient(178.683deg,#7C3AED_4.7705%,rgba(71,33,135,0.76)_96.232%)] hover:shadow-[0_0_24px_0_rgba(139,92,246,0.3)]"
           >
             <CalendarPlus className="size-5 shrink-0" strokeWidth={2} aria-hidden />
             Create New Event
-          </Link>
+          </StartNewEventLink>
         </div>
       </header>
 
@@ -435,9 +434,7 @@ export default function EventManagementPage() {
                 </button>
               ) : null}
 
-              <Link
-                href="/event-wizard/event-basics"
-                onClick={() => clearWizardEditingEventId()}
+              <StartNewEventLink
                 className={[
                   "inline-flex w-full items-center justify-center gap-2 rounded-[10px] border px-4 py-3 text-[14px] font-medium transition-colors",
                   selectedEvent.status === "draft"
@@ -447,7 +444,7 @@ export default function EventManagementPage() {
               >
                 <CalendarPlus className="size-4" strokeWidth={2} aria-hidden />
                 Create Another Event
-              </Link>
+              </StartNewEventLink>
             </>
           ) : (
             <div className="rounded-[16px] border border-dashed border-[#3F3F46] bg-[#0F0F17] px-5 py-10 text-center">

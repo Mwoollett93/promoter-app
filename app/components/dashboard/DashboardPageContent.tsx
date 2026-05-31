@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import { ArrowRight, Plus } from "lucide-react";
 
+import StartNewEventLink from "@/app/components/events/StartNewEventLink";
 import PageContent from "@/app/components/layout/PageContent";
 import DashboardLoadingSkeleton from "@/app/components/dashboard/DashboardLoadingSkeleton";
 import DashboardOpsStatsRow from "@/app/components/dashboard/DashboardOpsStatsRow";
@@ -201,13 +202,12 @@ export default function DashboardPageContent() {
               Here&apos;s what&apos;s happening with your events.
             </p>
           </div>
-          <Link
-            href="/event-wizard/event-basics"
+          <StartNewEventLink
             className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-[8px] border border-[rgba(139,92,246,0.45)] bg-[#7C3AED] px-6 text-[16px] font-medium leading-5 tracking-[0.08px] text-white transition-all hover:border-[#A855F7] hover:bg-[linear-gradient(178.683deg,#7C3AED_4.7705%,rgba(71,33,135,0.76)_96.232%)] hover:shadow-[0_0_24px_0_rgba(139,92,246,0.3)] active:bg-[rgba(124,58,237,0.44)]"
           >
             <Plus className="size-5 shrink-0" strokeWidth={2} aria-hidden />
             Create Event
-          </Link>
+          </StartNewEventLink>
         </header>
 
         {loading ? (
@@ -247,13 +247,12 @@ export default function DashboardPageContent() {
                     </li>
                   )}
                 </ul>
-                <Link
-                  href="/event-wizard/event-basics"
+                <StartNewEventLink
                   className="mt-4 inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-dashed border-[#8B5CF6]/50 py-2.5 text-[14px] font-medium text-[#8B5CF6] transition-colors hover:border-[#8B5CF6] hover:bg-[#8B5CF6]/5"
                 >
                   <Plus className="size-4" strokeWidth={2} aria-hidden />
                   Create New Event
-                </Link>
+                </StartNewEventLink>
               </div>
 
               <TeamNotificationsPanel

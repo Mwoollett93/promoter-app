@@ -9,8 +9,8 @@ import TemplatePreviewModal from "@/app/components/team/TemplatePreviewModal";
 import { ManagementTableCard } from "@/app/components/management/ManagementTable";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import {
-  applyEventTemplate,
   applyTaskTemplate,
+  beginEventWizardFromTemplate,
   listEventTemplates,
   listTaskTemplates,
 } from "@/lib/collaboration/templates";
@@ -55,7 +55,7 @@ export default function TeamTemplatesTab() {
   }
 
   function applyEvent(template: EventTemplate) {
-    applyEventTemplate(template);
+    beginEventWizardFromTemplate(template);
     setMessage(`Applied "${template.name}" — opening event wizard.`);
     setPreviewEvent(null);
     router.push("/event-wizard/event-basics");

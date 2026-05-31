@@ -1,10 +1,8 @@
 import type { Artist } from "../types/event-schedule";
-import { fixtureArtists } from "./fixtures/artists";
 
 /**
- * Eventual: `supabase.from("artists").select()` mapped to `Artist`.
- * Today: fixtures from disk.
+ * Legacy fixture loader — wizard uses Supabase artists when a workspace is available.
  */
 export async function getArtists(): Promise<Artist[]> {
-  return fixtureArtists;
+  return [];
 }

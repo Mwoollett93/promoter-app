@@ -20,12 +20,11 @@ import ScheduleSummaryStrip from "@/app/components/ui/ScheduleSummaryStrip";
 import Stepper from "@/app/components/ui/Stepper";
 import type { Artist, EnrichedSlot, ScheduleSlot } from "@/lib/types/event-schedule";
 import {
-  getArtists,
   getEventStartForWizard,
-  getInitialScheduleSlots,
   getWizardEventStartOrFallback,
   loadWizardScheduleSlots,
   saveWizardScheduleSlots,
+  tryWizardEventStartFromStorage,
 } from "@/lib/data";
 import {
   appendSingleFromArtist,
@@ -172,18 +171,15 @@ export default function LineupSchedulePage() {
     let cancelled = false;
     void (async () => {
       try {
-        const [artists, fixtureSlots] = await Promise.all([
-          getArtists(),
-          getInitialScheduleSlots(),
-        ]);
         const supabaseArtists = workspaceId ? await getSupabaseScheduleArtists(workspaceId) : [];
-        const artistLibrary = supabaseArtists.length > 0 ? supabaseArtists : artists;
         if (cancelled) return;
         const persistedSlots = loadWizardScheduleSlots();
-        const fallbackSlots = supabaseArtists.length > 0 ? [] : fixtureSlots;
-        const slots = persistedSlots !== null ? persistedSlots : fallbackSlots;
-        const normalizedSlots = hydrateSlotFeesFromLibrary(filterSlotsForLibrary(slots, artistLibrary), artistLibrary);
-        setLibrary(artistLibrary);
+        const slots = persistedSlots ?? [];
+        const normalizedSlots = hydrateSlotFeesFromLibrary(
+          filterSlotsForLibrary(slots, supabaseArtists),
+          supabaseArtists,
+        );
+        setLibrary(supabaseArtists);
         setScheduleSlots(normalizedSlots);
         setEventStart(getWizardEventStartOrFallback());
       } finally {

@@ -16,6 +16,13 @@ import EventSummaryCard from "@/app/components/ui/EventSummaryCard";
 import TipCard from "@/app/components/ui/TipCard";
 import { loadWizardEventDraft, saveWizardEventDraft } from "@/lib/data";
 import { hasWizardProgress } from "@/lib/event-wizard/persist-wizard-draft";
+import {
+  ensureWizardStorageVersion,
+  isWizardInProgress,
+  markWizardInProgress,
+  resetEventWizardForNewEvent,
+} from "@/lib/event-wizard/reset-wizard";
+import { getWizardEditingEventId } from "@/lib/event-wizard/wizard-editing-event";
 import { useWizardFlush } from "@/lib/event-wizard/use-wizard-flush";
 import { getStoredSession, getSupabaseConfig, listVenues } from "@/lib/supabase/browser";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
@@ -38,29 +45,13 @@ type EventDraft = {
   description: string;
 };
 
-const venues: Venue[] = [
-  {
-    id: "seed-ministry-of-sound",
-    name: "Ministry of Sound",
-    cityLabel: "Ministry of Sound, London",
-    address: "103 Gaunt St, London, United Kingdom",
-    capacity: 1500,
-  },
-  {
-    id: "seed-printworks-london",
-    name: "Printworks London",
-    cityLabel: "Printworks London, London",
-    address: "Surrey Quays Rd, London, United Kingdom",
-    capacity: 6000,
-  },
-  {
-    id: "seed-revolver-upstairs",
-    name: "Revolver Upstairs",
-    cityLabel: "Revolver Upstairs, Melbourne",
-    address: "229 Chapel St, Melbourne, Australia",
-    capacity: 500,
-  },
-];
+const EMPTY_DRAFT: EventDraft = {
+  eventName: "",
+  date: undefined,
+  startTime: "",
+  venueId: "",
+  description: "",
+};
 
 function formatDateLabel(date?: Date) {
   if (!date) return "—";
@@ -86,14 +77,8 @@ export default function EventBasicsPage() {
   const router = useRouter();
   const { workspace } = useWorkspace();
   const workspaceId = workspace?.id;
-  const [availableVenues, setAvailableVenues] = React.useState<Venue[]>(venues);
-  const [draft, setDraft] = React.useState<EventDraft>({
-    eventName: "ABYSSAL 007",
-    date: new Date(2026, 4, 5),
-    startTime: "22:00",
-    venueId: venues[0]?.id ?? "",
-    description: "",
-  });
+  const [availableVenues, setAvailableVenues] = React.useState<Venue[]>([]);
+  const [draft, setDraft] = React.useState<EventDraft>(EMPTY_DRAFT);
 
   React.useEffect(() => {
     const stored = getStoredSession();
@@ -101,22 +86,21 @@ export default function EventBasicsPage() {
 
     listVenues(stored, workspaceId)
       .then((rows) => {
-        if (!rows || rows.length === 0) return;
-        const mapped = rows.map(mapVenueOption);
-        setAvailableVenues(mapped);
+        setAvailableVenues(rows.map(mapVenueOption));
       })
       .catch(() => undefined);
   }, [workspaceId]);
 
   React.useEffect(() => {
-    if (!availableVenues.some((venue) => venue.id === draft.venueId)) {
-      setDraft((current) => ({ ...current, venueId: availableVenues[0]?.id ?? "" }));
+    ensureWizardStorageVersion();
+
+    const editingId = getWizardEditingEventId();
+    const continuingWizard = isWizardInProgress();
+    if (!editingId && !continuingWizard) {
+      resetEventWizardForNewEvent();
+      return;
     }
-  }, [availableVenues, draft.venueId]);
 
-  const selectedVenue = availableVenues.find((v) => v.id === draft.venueId) ?? availableVenues[0];
-
-  React.useEffect(() => {
     const stored = loadWizardEventDraft();
     if (!stored) return;
 
@@ -126,18 +110,28 @@ export default function EventBasicsPage() {
         ? new Date(year, month - 1, day)
         : undefined;
 
-    setDraft((current) => ({
-      ...current,
-      eventName: stored.eventName ?? current.eventName,
-      date: parsedDate ?? current.date,
-      startTime: stored.startTime || current.startTime,
-      venueId: stored.venueId ?? current.venueId,
-      description: stored.description ?? current.description,
-    }));
+    setDraft({
+      eventName: stored.eventName ?? "",
+      date: parsedDate,
+      startTime: stored.startTime ?? "",
+      venueId: stored.venueId ?? "",
+      description: stored.description ?? "",
+    });
   }, []);
+
+  React.useEffect(() => {
+    if (!draft.venueId && availableVenues[0]?.id) {
+      setDraft((current) => ({ ...current, venueId: availableVenues[0]!.id }));
+    } else if (draft.venueId && !availableVenues.some((venue) => venue.id === draft.venueId)) {
+      setDraft((current) => ({ ...current, venueId: availableVenues[0]?.id ?? "" }));
+    }
+  }, [availableVenues, draft.venueId]);
+
+  const selectedVenue = availableVenues.find((v) => v.id === draft.venueId);
 
   const flushDraftToStorage = React.useCallback(() => {
     if (!draft.date || !selectedVenue) return;
+    markWizardInProgress();
     saveWizardEventDraft({
       date: draft.date,
       startTime: draft.startTime,
@@ -162,6 +156,8 @@ export default function EventBasicsPage() {
     }
     router.push("/events");
   }
+
+  const canContinue = Boolean(draft.eventName.trim() && draft.date && draft.startTime.trim() && selectedVenue);
 
   return (
     <div className="w-full space-y-3">
@@ -213,22 +209,40 @@ export default function EventBasicsPage() {
               helperText="End time will be calculated from your lineup"
             />
 
-            <VenueDropdown
-              label="Venue"
-              required
-              value={draft.venueId}
-              onChange={(id) => setDraft((prev) => ({ ...prev, venueId: id }))}
-              options={availableVenues.map((v) => ({ value: v.id, label: v.cityLabel }))}
-            />
+            {availableVenues.length > 0 ? (
+              <>
+                <VenueDropdown
+                  label="Venue"
+                  required
+                  value={draft.venueId}
+                  onChange={(id) => setDraft((prev) => ({ ...prev, venueId: id }))}
+                  options={availableVenues.map((v) => ({ value: v.id, label: v.cityLabel }))}
+                />
 
-            <EventCard
-              venueName={selectedVenue.name}
-              address={selectedVenue.address}
-              capacity={selectedVenue.capacity}
-              imageSrc={selectedVenue.imageSrc}
-              editHref={draft.venueId.startsWith("seed-") ? "/venues/new" : `/venues/new?venueId=${selectedVenue.id}`}
-              className="max-w-none"
-            />
+                {selectedVenue ? (
+                  <EventCard
+                    venueName={selectedVenue.name}
+                    address={selectedVenue.address}
+                    capacity={selectedVenue.capacity}
+                    imageSrc={selectedVenue.imageSrc}
+                    editHref={`/venues/new?venueId=${selectedVenue.id}`}
+                    className="max-w-none"
+                  />
+                ) : null}
+              </>
+            ) : (
+              <p className="rounded-lg border border-[#232330] bg-[#0F0F17] px-3 py-2 text-[13px] text-[#A1A1AA]">
+                No venues in your team yet.{" "}
+                <button
+                  type="button"
+                  className="font-medium text-[#C4B5FD] hover:text-[#A855F7]"
+                  onClick={() => router.push("/venues/new")}
+                >
+                  Add a venue
+                </button>{" "}
+                to continue.
+              </p>
+            )}
 
             <div className="flex items-center gap-1.5 text-[14px] leading-5 text-[#A1A1AA]">
               <Info className="h-4 w-4 shrink-0" />
@@ -257,7 +271,10 @@ export default function EventBasicsPage() {
                 variant="primary"
                 size="md"
                 type="button"
+                disabled={!canContinue}
                 onClick={() => {
+                  if (!selectedVenue || !draft.date) return;
+                  markWizardInProgress();
                   saveWizardEventDraft({
                     date: draft.date,
                     startTime: draft.startTime,
@@ -285,17 +302,19 @@ export default function EventBasicsPage() {
 
         <aside className="flex w-fit max-w-[411px] shrink-0 flex-col gap-3">
           <EventSummaryCard
-            title={draft.eventName || "Untitled Event"}
+            title={draft.eventName.trim() || "Untitled Event"}
             dateLabel={formatDateLabel(draft.date)}
             timeLabel={formatTimeLabel(draft.startTime)}
-            venueLabel={selectedVenue.cityLabel}
-            capacityLabel={`Capacity: ${selectedVenue.capacity}`}
+            venueLabel={selectedVenue?.cityLabel ?? "Select a venue"}
+            capacityLabel={
+              selectedVenue ? `Capacity: ${selectedVenue.capacity}` : "Capacity: —"
+            }
             description={
               draft.description?.trim()
                 ? draft.description
                 : "Add a description to preview it here."
             }
-            imageSrc={selectedVenue.imageSrc}
+            imageSrc={selectedVenue?.imageSrc}
           />
           <TipCard />
         </aside>

@@ -1,7 +1,7 @@
 /**
- * Wizard-only: event door time until Event Basics + DB back this.
- * Keep as a function so you can swap to context / loader later.
+ * Wizard-only fallback when Event Basics has not set a date yet.
  */
 export function getEventStartForWizard(): Date {
-  return new Date("2026-05-24T22:00:00");
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 20, 0, 0, 0);
 }
