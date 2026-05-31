@@ -10,7 +10,7 @@ Operational security notes for the PromoSync promoter app.
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash REST API token |
 | `NEXT_PUBLIC_APP_URL` | Allowed Origin for CSRF checks (e.g. `https://www.promosync.app`) |
 
-Without Upstash in production, sign-in rate limiting fails closed (503) when Redis is unavailable.
+Without Upstash, app-level rate limiting is **skipped** (sign-in still works; Supabase Auth limits apply). Add both vars to enable brute-force protection on `/api/auth/signin`.
 
 ## Content Security Policy
 

@@ -37,13 +37,13 @@ export function getClientIp(request: Request): string {
   return request.headers.get("x-real-ip")?.trim() || "unknown";
 }
 
-async function checkLimit(
-  limiter: Ratelimit | null,
-  key: string,
-  fallback: LimitResult,
-): Promise<LimitResult> {
+async function checkLimit(limiter: Ratelimit | null, key: string): Promise<LimitResult> {
   if (!limiter) {
-    if (isProduction()) return fallback;
+    if (isProduction()) {
+      console.warn(
+        "[rate-limit] UPSTASH_REDIS_REST_URL/TOKEN not set — app-level rate limiting disabled.",
+      );
+    }
     return { ok: true };
   }
 
@@ -71,11 +71,7 @@ export function rateLimitResponse(result: Extract<LimitResult, { ok: false }>) {
 export async function checkSignInIpLimit(request: Request): Promise<LimitResult> {
   const ip = getClientIp(request);
   const limiter = createLimiter(20, "15 m");
-  return checkLimit(limiter, `signin-ip:${ip}`, {
-    ok: false,
-    retryAfterSec: 900,
-    message: "Sign-in is temporarily unavailable. Please try again later.",
-  });
+  return checkLimit(limiter, `signin-ip:${ip}`);
 }
 
 export async function checkSignInFailureLimit(
@@ -84,11 +80,7 @@ export async function checkSignInFailureLimit(
 ): Promise<LimitResult> {
   const ip = getClientIp(request);
   const limiter = createLimiter(5, "15 m");
-  return checkLimit(limiter, `signin-fail:${ip}:${email.toLowerCase()}`, {
-    ok: false,
-    retryAfterSec: 900,
-    message: "Too many failed sign-in attempts. Please try again later.",
-  });
+  return checkLimit(limiter, `signin-fail:${ip}:${email.toLowerCase()}`);
 }
 
 export async function recordSignInFailure(request: Request, email: string) {
@@ -100,29 +92,17 @@ export async function recordSignInFailure(request: Request, email: string) {
 export async function checkRecoverLimit(request: Request, email: string): Promise<LimitResult> {
   const ip = getClientIp(request);
   const limiter = createLimiter(3, "1 h");
-  return checkLimit(limiter, `recover:${ip}:${email.toLowerCase()}`, {
-    ok: false,
-    retryAfterSec: 3600,
-    message: "Too many reset requests. Please try again later.",
-  });
+  return checkLimit(limiter, `recover:${ip}:${email.toLowerCase()}`);
 }
 
 export async function checkSignupIpLimit(request: Request): Promise<LimitResult> {
   const ip = getClientIp(request);
   const limiter = createLimiter(10, "1 h");
-  return checkLimit(limiter, `signup-ip:${ip}`, {
-    ok: false,
-    retryAfterSec: 3600,
-    message: "Too many sign-up attempts. Please try again later.",
-  });
+  return checkLimit(limiter, `signup-ip:${ip}`);
 }
 
 export async function checkContactLimit(request: Request): Promise<LimitResult> {
   const ip = getClientIp(request);
   const limiter = createLimiter(5, "1 h");
-  return checkLimit(limiter, `contact:${ip}`, {
-    ok: false,
-    retryAfterSec: 3600,
-    message: "Too many messages sent. Please try again later.",
-  });
+  return checkLimit(limiter, `contact:${ip}`);
 }
