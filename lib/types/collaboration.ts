@@ -48,6 +48,7 @@ export type WorkspaceMember = {
   role: WorkspaceRole;
   status: MemberStatus;
   displayName: string | null;
+  avatarUrl?: string | null;
   joinedAt: string | null;
   createdAt: string;
 };

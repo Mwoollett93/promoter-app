@@ -28,7 +28,9 @@ import {
   ensureWorkspaceForUser,
   listWorkspaceMembers,
   probeCloudCollaboration,
+  updateWorkspaceMemberProfile,
 } from "@/lib/supabase/workspace";
+import { loadSettings } from "@/lib/settings/settings";
 import { getValidSession } from "@/lib/supabase/browser";
 import type { SupabaseSession } from "@/lib/types/artist";
 import type {
@@ -39,7 +41,6 @@ import type {
   WorkspaceMember,
   WorkspaceRole,
 } from "@/lib/types/collaboration";
-import { loadSettings } from "@/lib/settings/settings";
 
 type WorkspaceContextValue = {
   ready: boolean;
@@ -222,6 +223,41 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     if (!cloudQuery.data?.events) return;
     publishManagedEvents(cloudQuery.data.events);
   }, [cloudQuery.data?.events]);
+
+  const profileSyncedRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (!session || usingLocalFallback) return;
+    const mem = cloudQuery.data?.membership;
+    if (!mem || mem.userId !== session.user.id) return;
+
+    const settings = loadSettings();
+    const fullName = settings.profile.fullName?.trim();
+    if (!fullName) return;
+
+    const syncKey = `${mem.id}:${fullName}:${settings.profile.avatarUrl ?? ""}`;
+    if (profileSyncedRef.current === syncKey) return;
+
+    const storedName = mem.displayName?.trim() ?? "";
+    const nameMismatch = storedName !== fullName;
+    const avatarMismatch = (settings.profile.avatarUrl || "") !== (mem.avatarUrl || "");
+    const looksLikeEmail = storedName.includes("@");
+
+    if (!nameMismatch && !avatarMismatch && !looksLikeEmail) {
+      profileSyncedRef.current = syncKey;
+      return;
+    }
+
+    void updateWorkspaceMemberProfile(session, mem.id, {
+      displayName: fullName,
+      avatarUrl: settings.profile.avatarUrl || null,
+    })
+      .then(() => {
+        profileSyncedRef.current = syncKey;
+        return cloudQuery.mutate();
+      })
+      .catch(() => undefined);
+  }, [session, usingLocalFallback, cloudQuery.data?.membership, cloudQuery.mutate]);
 
   React.useEffect(() => {
     function onEventsUpdated() {

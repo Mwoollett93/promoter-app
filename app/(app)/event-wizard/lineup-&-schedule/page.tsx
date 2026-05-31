@@ -49,8 +49,10 @@ import {
   getSupabaseConfig,
   listArtists,
 } from "@/lib/supabase/browser";
-import type { ArtistProfile } from "@/lib/types/artist";
+import ArtistAvatar from "@/app/components/artists/ArtistAvatar";
+import { sanitizeArtistImageUrl } from "@/lib/ai/artist-image";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
+import type { ArtistProfile } from "@/lib/types/artist";
 
 const DURATION_OPTIONS = [30, 45, 60, 90, 120, 180];
 
@@ -62,7 +64,7 @@ function artistProfileToScheduleArtist(profile: ArtistProfile): Artist {
   return {
     id: profile.id,
     name: profile.name,
-    avatarUrl: profile.promoImageUrl,
+    avatarUrl: sanitizeArtistImageUrl(profile.promoImageUrl),
     genres: profile.genres,
     tags: profile.tags,
     defaultFeeCents: profile.typicalFeeCents,
@@ -486,15 +488,7 @@ export default function LineupSchedulePage() {
                     aria-label={`Add ${a.name} to schedule`}
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                      {a.avatarUrl ? (
-                        <img
-                          src={a.avatarUrl}
-                          alt=""
-                          className="size-[30px] shrink-0 rounded-[3px] object-cover"
-                        />
-                      ) : (
-                        <div className="size-[30px] shrink-0 rounded-[3px] bg-white/90" />
-                      )}
+                      <ArtistAvatar name={a.name} imageUrl={a.avatarUrl} size={30} className="rounded-[3px]" />
                       <span className="truncate text-[12px] leading-4 text-[#F5F5F7]">{a.name}</span>
                     </div>
                     <span className="relative flex size-[25px] shrink-0 items-center justify-center rounded-md border border-[#3F3F46] text-[#A1A1AA]">
@@ -838,7 +832,12 @@ function ScheduleArtistCard({
           >
             {row.kind === "single" ? (
               <div className="flex min-w-0 items-center gap-6">
-                <div className="size-[30px] shrink-0 rounded-[3px] bg-white" />
+                <ArtistAvatar
+                  name={row.artist.name}
+                  imageUrl={row.artist.avatarUrl}
+                  size={30}
+                  className="rounded-[3px]"
+                />
                 <span className="truncate text-[12px] font-bold leading-4 tracking-[0.12px] text-[#F5F5F7]">
                   {row.artist.name}
                 </span>
@@ -846,7 +845,12 @@ function ScheduleArtistCard({
             ) : (
               <div className="flex min-w-0 flex-col gap-[17px]">
                 <div className="flex min-w-0 items-center gap-6">
-                  <div className="size-[30px] shrink-0 rounded-[3px] bg-white" />
+                  <ArtistAvatar
+                    name={row.artists[0]?.name ?? "Artist"}
+                    imageUrl={row.artists[0]?.avatarUrl}
+                    size={30}
+                    className="rounded-[3px]"
+                  />
                   <span className="truncate text-[12px] font-bold leading-4 tracking-[0.12px] text-[#F5F5F7]">
                     {row.artists[0]?.name}
                   </span>
@@ -856,7 +860,12 @@ function ScheduleArtistCard({
                 </div>
                 {row.artists.slice(1).map((ar) => (
                   <div key={ar.artistId} className="flex min-w-0 items-center gap-6">
-                    <div className="size-[30px] shrink-0 rounded-[3px] bg-white" />
+                    <ArtistAvatar
+                      name={ar.name}
+                      imageUrl={ar.avatarUrl}
+                      size={30}
+                      className="rounded-[3px]"
+                    />
                     <span className="truncate text-[12px] font-bold leading-4 tracking-[0.12px] text-[#F5F5F7]">
                       {ar.name}
                     </span>

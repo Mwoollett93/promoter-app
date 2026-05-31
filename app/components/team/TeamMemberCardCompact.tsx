@@ -1,11 +1,11 @@
 "use client";
 
+import MemberAvatar from "@/app/components/team/MemberAvatar";
 import PresenceIndicator from "@/app/components/team/PresenceIndicator";
 import RoleBadge from "@/app/components/team/RoleBadge";
 import { getWorkspaceMemberLabel } from "@/lib/collaboration/member-display";
 import { formatLastActive, type MemberWorkload } from "@/lib/team/member-workload";
 import { resolveMemberPresence } from "@/lib/team/presence";
-import { memberInitials } from "@/lib/tasks/task-board-utils";
 import { SECTION_CARD_INNER } from "@/lib/ui/page-surfaces";
 import type { WorkspaceMember } from "@/lib/types/collaboration";
 
@@ -36,9 +36,7 @@ export default function TeamMemberCardCompact({
       ].join(" ")}
     >
       <div className="relative shrink-0">
-        <div className="flex size-8 items-center justify-center rounded-full border border-[#3F3F46] bg-[#1A1630] text-[10px] font-bold text-[#C4B5FD]">
-          {memberInitials(name)}
-        </div>
+        <MemberAvatar name={name} avatarUrl={member.avatarUrl} size={32} />
         <span className="absolute -bottom-0.5 -right-0.5 rounded-full border border-[#0F0F17] bg-[#0F0F17]">
           <PresenceIndicator state={presence.state} />
         </span>

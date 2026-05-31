@@ -3,6 +3,7 @@
 import * as React from "react";
 import { MoreHorizontal, Trash2 } from "lucide-react";
 
+import MemberAvatar from "@/app/components/team/MemberAvatar";
 import PresenceIndicator from "@/app/components/team/PresenceIndicator";
 import RoleBadge from "@/app/components/team/RoleBadge";
 import WorkloadSparkline from "@/app/components/team/WorkloadSparkline";
@@ -14,7 +15,6 @@ import {
   TEAM_ROLES,
   TEAM_ROLE_LABELS,
 } from "@/lib/team/role-display";
-import { memberInitials } from "@/lib/tasks/task-board-utils";
 import { SECTION_CARD_INNER } from "@/lib/ui/page-surfaces";
 import type { WorkspaceMember, WorkspaceRole } from "@/lib/types/collaboration";
 
@@ -57,14 +57,11 @@ export default function TeamMemberCard({
     >
       <div className="flex items-start gap-2.5">
         <div className="relative shrink-0">
-          <div
-            className={[
-              "flex items-center justify-center rounded-full border border-[#3F3F46] bg-[#1A1630] font-bold text-[#C4B5FD]",
-              dense ? "size-9 text-[11px]" : "size-11 text-[13px]",
-            ].join(" ")}
-          >
-            {memberInitials(name)}
-          </div>
+          <MemberAvatar
+            name={name}
+            avatarUrl={member.avatarUrl}
+            size={dense ? 36 : 44}
+          />
           <span className="absolute -bottom-0.5 -right-0.5 rounded-full border-2 border-[#0F0F17] bg-[#0F0F17]">
             <PresenceIndicator state={presence.state} activity={presence.activity} />
           </span>

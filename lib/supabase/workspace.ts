@@ -45,6 +45,7 @@ type MemberRow = {
   role: WorkspaceRole;
   status: MemberStatus;
   display_name: string | null;
+  avatar_url?: string | null;
   joined_at: string | null;
   created_at: string;
 };
@@ -90,6 +91,7 @@ function mapMember(row: MemberRow): WorkspaceMember {
     role: row.role,
     status: row.status,
     displayName: row.display_name,
+    avatarUrl: row.avatar_url ?? null,
     joinedAt: row.joined_at,
     createdAt: row.created_at,
   };
@@ -602,6 +604,46 @@ export async function updateMemberRole(
     session,
     { method: "PATCH", body: { role }, prefer: "return=representation" },
   );
+  return mapMember(rows[0]);
+}
+
+export async function updateWorkspaceMemberProfile(
+  session: SupabaseSession,
+  memberId: string,
+  input: { displayName?: string; avatarUrl?: string | null },
+): Promise<WorkspaceMember> {
+  const displayName = input.displayName?.trim();
+  const avatarUrl = input.avatarUrl?.trim() || null;
+
+  if (shouldUseLocalCollaboration(session)) {
+    const userId = session.user.id;
+    const ws = loadLocalWorkspace(userId);
+    if (!ws) throw new Error("Workspace not found");
+    const members = loadLocalMembers(ws.id).map((m) =>
+      m.id === memberId
+        ? {
+            ...m,
+            ...(displayName ? { displayName } : {}),
+            avatarUrl,
+          }
+        : m,
+    );
+    saveLocalMembers(ws.id, members);
+    const updated = members.find((m) => m.id === memberId);
+    if (!updated) throw new Error("Member not found");
+    return updated;
+  }
+
+  const body: Record<string, string | null> = {};
+  if (displayName) body.display_name = displayName;
+  if (input.avatarUrl !== undefined) body.avatar_url = avatarUrl;
+
+  const rows = await supabaseRest<MemberRow[]>(
+    `workspace_members?id=eq.${memberId}`,
+    session,
+    { method: "PATCH", body, prefer: "return=representation" },
+  );
+  if (!rows[0]) throw new Error("Member not found.");
   return mapMember(rows[0]);
 }
 

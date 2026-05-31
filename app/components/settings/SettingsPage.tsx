@@ -35,6 +35,7 @@ import {
   validatePasswordChange,
 } from "@/lib/settings/settings";
 import { signOutOfSupabase, updateUserPassword } from "@/lib/supabase/browser";
+import { updateWorkspaceMemberProfile } from "@/lib/supabase/workspace";
 import { useAsyncAction } from "@/lib/ui/use-async-action";
 import ComingSoonButton from "@/app/components/ui/ComingSoonButton";
 import MfaSetupPanel from "@/app/components/settings/MfaSetupPanel";
@@ -76,6 +77,7 @@ export default function SettingsPage() {
   const activeTab: SettingsTabId = isSettingsTab(tabParam) ? tabParam : "profile";
 
   const { settings, patchSettings } = useSettings();
+  const { session, membership, refreshMembers } = useWorkspace();
   const [saveMessage, setSaveMessage] = React.useState<string | null>(null);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
@@ -106,13 +108,34 @@ export default function SettingsPage() {
     window.setTimeout(() => setSaveMessage(null), 2500);
   }
 
-  function saveProfile() {
-    patchSettings({
-      profile: {
-        ...settings.profile,
-        memberSince: settings.profile.memberSince || new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-      },
-    });
+  async function saveProfile() {
+    const profile = {
+      ...settings.profile,
+      memberSince:
+        settings.profile.memberSince ||
+        new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    };
+
+    patchSettings({ profile });
+
+    if (session && membership?.id && membership.userId === session.user.id) {
+      try {
+        await updateWorkspaceMemberProfile(session, membership.id, {
+          displayName: profile.fullName.trim() || undefined,
+          avatarUrl: profile.avatarUrl || null,
+        });
+        await refreshMembers();
+      } catch (err) {
+        notify(
+          err instanceof Error
+            ? err.message
+            : "Profile saved locally, but team visibility could not be updated.",
+          true,
+        );
+        return;
+      }
+    }
+
     notify("Profile saved.");
   }
 
