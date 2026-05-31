@@ -8,6 +8,7 @@ import type {
   ArtistStatus,
   SupabaseSession,
 } from "@/lib/types/artist";
+import { normalizeSupabaseUserMetadata } from "@/lib/supabase/auth-metadata";
 import {
   clearStoredSessionRecord,
   getStoredSession,
@@ -107,7 +108,7 @@ export function isDemoAuthEnabled() {
 export const DEMO_LOGIN_EMAIL = "demo@promosync.app";
 export const DEMO_LOGIN_PASSWORD = "demo1234";
 
-export function signInAsDemo(): SupabaseSession {
+export async function signInAsDemo(): Promise<SupabaseSession> {
   const session: SupabaseSession = {
     accessToken: "demo-access-token",
     demo: true,
@@ -117,7 +118,7 @@ export function signInAsDemo(): SupabaseSession {
     },
   };
   storeSession(session);
-  void setSessionIndicator({ demo: true });
+  await setSessionIndicator({ demo: true });
   return session;
 }
 
@@ -260,7 +261,7 @@ export function getSupabaseRealtimeClient() {
 }
 
 function persistSessionFromSupabase(session: Session): SupabaseSession {
-  const meta = session.user.user_metadata ?? {};
+  const metadata = normalizeSupabaseUserMetadata(session.user.user_metadata);
   const mapped: SupabaseSession = {
     accessToken: session.access_token,
     refreshToken: session.refresh_token,
@@ -268,11 +269,7 @@ function persistSessionFromSupabase(session: Session): SupabaseSession {
     user: {
       id: session.user.id,
       email: session.user.email,
-      metadata: {
-        full_name: typeof meta.full_name === "string" ? meta.full_name : null,
-        company_name: typeof meta.company_name === "string" ? meta.company_name : null,
-        team_size: typeof meta.team_size === "string" ? meta.team_size : null,
-      },
+      metadata,
     },
   };
 
@@ -323,25 +320,32 @@ async function postAuthApi<T extends Record<string, unknown>>(path: string, body
 }
 
 async function setSessionIndicator(options?: { demo?: boolean; accessToken?: string }) {
-  try {
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (options?.accessToken) {
-      headers.Authorization = `Bearer ${options.accessToken}`;
-    }
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (options?.accessToken) {
+    headers.Authorization = `Bearer ${options.accessToken}`;
+  }
 
-    await fetch("/api/auth/session-indicator", {
+  let response: Response;
+  try {
+    response = await fetch("/api/auth/session-indicator", {
       method: "POST",
       headers,
       credentials: "same-origin",
       body: JSON.stringify(options?.demo ? { demo: true } : {}),
     });
   } catch {
-    /* cookie is defense-in-depth; client auth still works via localStorage */
+    throw new Error("Could not reach the server. Check your connection and try again.");
+  }
+
+  const payload = (await response.json().catch(() => ({}))) as { error?: string };
+  if (!response.ok) {
+    throw new Error(payload.error ?? `Unable to establish session (${response.status}).`);
   }
 }
 
 export async function startOAuthSignIn(provider: OAuthProvider) {
   const supabase = getOAuthAuthClient();
+  await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
   const redirectTo = `${window.location.origin}${AUTH_RETURN_PATH}`;
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
@@ -372,7 +376,7 @@ export async function signInWithPassword(email: string, password: string): Promi
     normalizedEmail === DEMO_LOGIN_EMAIL &&
     password === DEMO_LOGIN_PASSWORD
   ) {
-    return signInAsDemo();
+    return await signInAsDemo();
   }
 
   const result = await postAuthApi<{ session: ApiAuthSessionPayload }>("/api/auth/signin", {

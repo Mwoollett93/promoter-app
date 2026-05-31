@@ -14,8 +14,10 @@ export const SETTINGS_USER_BINDING_KEY = "promosync:settings-user-id";
 
 export type AuthUserMetadata = {
   full_name?: string | null;
+  name?: string | null;
   company_name?: string | null;
   team_size?: string | null;
+  avatar_url?: string | null;
 };
 
 export type AuthProfileInput = {
@@ -36,14 +38,16 @@ function resolveProfileFields(input: AuthProfileInput) {
   const fullName =
     metadataString(input.fullName) ??
     metadataString(input.metadata?.full_name) ??
+    metadataString(input.metadata?.name) ??
     "";
   const email = input.email?.trim().toLowerCase() ?? "";
   const company =
     metadataString(input.companyName) ??
     metadataString(input.metadata?.company_name) ??
     "";
+  const avatarUrl = metadataString(input.metadata?.avatar_url) ?? "";
 
-  return { fullName, email, company };
+  return { fullName, email, company, avatarUrl };
 }
 
 function formatMemberSince(date = new Date()) {
@@ -128,7 +132,7 @@ export function removeSeedManagedEvents() {
 }
 
 export function createInitialSettings(input: AuthProfileInput): AppSettings {
-  const { fullName, email, company } = resolveProfileFields(input);
+  const { fullName, email, company, avatarUrl } = resolveProfileFields(input);
   const regional = detectRegionalDefaults();
   const memberSince = formatMemberSince();
   const displayName = fullName || email.split("@")[0] || "User";
@@ -139,7 +143,7 @@ export function createInitialSettings(input: AuthProfileInput): AppSettings {
     phone: "",
     jobTitle: "",
     company,
-    avatarUrl: "",
+    avatarUrl,
     role: "Admin",
     memberSince,
   };
@@ -199,7 +203,7 @@ export function bootstrapSettingsFromAuth(input: AuthProfileInput) {
 
   const boundUserId = window.localStorage.getItem(SETTINGS_USER_BINDING_KEY);
   const current = loadSettings();
-  const { fullName, email, company } = resolveProfileFields(input);
+  const { fullName, email, company, avatarUrl } = resolveProfileFields(input);
   const isNewAccount = !boundUserId || boundUserId !== input.userId;
   const stillOnDemoProfile = isFactoryDemoProfile(current.profile);
 
@@ -218,6 +222,7 @@ export function bootstrapSettingsFromAuth(input: AuthProfileInput) {
       email: email || current.profile.email,
       fullName: fullName || current.profile.fullName,
       company: company || current.profile.company,
+      avatarUrl: avatarUrl || current.profile.avatarUrl,
     },
   });
 

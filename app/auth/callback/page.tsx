@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 import MfaLoginChallenge from "@/app/components/auth/MfaLoginChallenge";
 import { getMfaLoginRequirement, verifyTotpLogin } from "@/lib/auth/mfa";
-import { reactivateAccount } from "@/lib/settings/settings";
+import { getLandingPagePath, reactivateAccount } from "@/lib/settings/settings";
 import { bootstrapSettingsFromAuth } from "@/lib/settings/user-bootstrap";
 import {
   completeSupabaseOAuthCallback,
@@ -111,5 +111,5 @@ async function finishSignIn(
 ) {
   await establishSessionIndicator(session);
   reactivateAccount();
-  router.replace("/dashboard");
+  router.replace(getLandingPagePath());
 }

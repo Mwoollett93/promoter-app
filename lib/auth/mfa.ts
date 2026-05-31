@@ -1,5 +1,6 @@
 import { createClient, type Session } from "@supabase/supabase-js";
 
+import { normalizeSupabaseUserMetadata } from "@/lib/supabase/auth-metadata";
 import { getStoredSession, getSupabaseConfig } from "@/lib/supabase/browser";
 import { storeSessionRecord } from "@/lib/supabase/session-store";
 import type { SupabaseSession } from "@/lib/types/artist";
@@ -10,7 +11,7 @@ export type MfaLoginRequirement = {
 };
 
 function persistMfaSession(session: Session): SupabaseSession {
-  const meta = session.user.user_metadata ?? {};
+  const metadata = normalizeSupabaseUserMetadata(session.user.user_metadata);
   const mapped: SupabaseSession = {
     accessToken: session.access_token,
     refreshToken: session.refresh_token,
@@ -18,11 +19,7 @@ function persistMfaSession(session: Session): SupabaseSession {
     user: {
       id: session.user.id,
       email: session.user.email,
-      metadata: {
-        full_name: typeof meta.full_name === "string" ? meta.full_name : null,
-        company_name: typeof meta.company_name === "string" ? meta.company_name : null,
-        team_size: typeof meta.team_size === "string" ? meta.team_size : null,
-      },
+      metadata,
     },
   };
   storeSessionRecord(mapped);

@@ -96,6 +96,14 @@ export default function AuthLandingPage({
         router.replace("/login", { scroll: false });
       } else {
         reactivateAccount();
+        const session = getStoredSession();
+        if (session) {
+          try {
+            await establishSessionIndicator(session);
+          } catch {
+            /* cookie repair failed — banner lets user retry or sign out */
+          }
+        }
         setExistingSession(Boolean(getStoredSession()));
       }
 
@@ -140,17 +148,26 @@ export default function AuthLandingPage({
   async function completeAuthenticatedSession(session: ReturnType<typeof getStoredSession>) {
     if (!session) return;
 
-    if (!isDemoSession(session)) {
-      bootstrapSettingsFromAuth({
-        userId: session.user.id,
-        email: session.user.email,
-        metadata: session.user.metadata,
-      });
-    }
+    setLoading(true);
+    setError(null);
 
-    await establishSessionIndicator(session);
-    reactivateAccount();
-    router.push(getLandingPagePath());
+    try {
+      if (!isDemoSession(session)) {
+        bootstrapSettingsFromAuth({
+          userId: session.user.id,
+          email: session.user.email,
+          metadata: session.user.metadata,
+        });
+      }
+
+      await establishSessionIndicator(session);
+      reactivateAccount();
+      router.push(getLandingPagePath());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to complete sign in.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   function switchView(next: AuthView) {
@@ -219,7 +236,7 @@ export default function AuthLandingPage({
     setError(null);
 
     try {
-      signInAsDemo();
+      await signInAsDemo();
       reactivateAccount();
       router.push(getLandingPagePath());
     } catch (err) {
@@ -327,7 +344,7 @@ export default function AuthLandingPage({
             <div className="flex shrink-0 flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => router.push("/dashboard")}
+                onClick={() => void completeAuthenticatedSession(getStoredSession())}
                 className="inline-flex h-9 items-center justify-center rounded-lg border border-[#8B5CF6]/50 bg-[#7C3AED] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#8B5CF6]"
               >
                 Go to dashboard
@@ -375,7 +392,7 @@ export default function AuthLandingPage({
           />
         ) : null}
 
-        {!mfaFactorId && view === "login" ? (
+        {!mfaFactorId && !existingSession && view === "login" ? (
           <LoginPanel
             email={email}
             password={password}
@@ -394,7 +411,7 @@ export default function AuthLandingPage({
           />
         ) : null}
 
-        {!mfaFactorId && view === "signup" ? (
+        {!mfaFactorId && !existingSession && view === "signup" ? (
           <SignUpPanel
             fullName={fullName}
             email={email}
@@ -419,7 +436,7 @@ export default function AuthLandingPage({
           />
         ) : null}
 
-        {!mfaFactorId && view === "reset" ? (
+        {!mfaFactorId && !existingSession && view === "reset" ? (
           <ResetPanel
             email={email}
             loading={loading}

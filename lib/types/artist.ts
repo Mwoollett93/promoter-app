@@ -110,8 +110,10 @@ export type SupabaseSession = {
     email?: string;
     metadata?: {
       full_name?: string | null;
+      name?: string | null;
       company_name?: string | null;
       team_size?: string | null;
+      avatar_url?: string | null;
     };
   };
 };
