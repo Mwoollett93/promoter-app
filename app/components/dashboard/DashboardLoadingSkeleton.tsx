@@ -23,25 +23,15 @@ export default function DashboardLoadingSkeleton() {
         ))}
       </div>
 
-      <section className={`grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-3 lg:items-stretch ${GRID_CARD_GAP}`}>
-        <div className={`flex min-h-0 flex-col ${SECTION_CARD} p-4 lg:col-span-2`}>
+      <section className={`grid shrink-0 grid-cols-1 lg:grid-cols-3 lg:items-start ${GRID_CARD_GAP}`}>
+        <div className={`flex max-h-[min(420px,42vh)] min-h-[220px] flex-col overflow-hidden ${SECTION_CARD} p-4 lg:col-span-2`}>
           <div className="mb-4 flex items-center justify-between gap-2">
             <SkeletonBar className="h-4 w-36" />
             <SkeletonBar className="h-4 w-24" />
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+          <div className={`flex min-h-0 flex-1 flex-col ${PAGE_STACK_GAP} overflow-y-auto`}>
             {Array.from({ length: 3 }).map((_, index) => (
-              <div
-                key={index}
-                className="animate-pulse rounded-lg bg-[#232330]"
-                style={{
-                  height: 88,
-                  marginTop: index === 0 ? 0 : -52,
-                  position: "relative",
-                  zIndex: index + 1,
-                }}
-                aria-hidden
-              />
+              <SkeletonBar key={index} className="h-[88px] w-full shrink-0 rounded-lg" />
             ))}
           </div>
         </div>

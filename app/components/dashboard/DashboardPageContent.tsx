@@ -10,7 +10,7 @@ import PageContent from "@/app/components/layout/PageContent";
 import DashboardLoadingSkeleton from "@/app/components/dashboard/DashboardLoadingSkeleton";
 import DashboardOpsStatsRow from "@/app/components/dashboard/DashboardOpsStatsRow";
 import FinancialSparkline from "@/app/components/dashboard/FinancialSparkline";
-import UpcomingEventsStack from "@/app/components/dashboard/UpcomingEventsStack";
+import UpcomingEventsList from "@/app/components/dashboard/UpcomingEventsList";
 import CurrencyText from "@/app/components/ui/CurrencyText";
 import TeamNotificationsPanel from "@/app/components/team/TeamNotificationsPanel";
 import {
@@ -175,10 +175,10 @@ export default function DashboardPageContent() {
             <DashboardOpsStatsRow stats={ops.opsStats} />
 
             <section
-              className={`grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-3 lg:items-stretch ${GRID_CARD_GAP}`}
+              className={`grid shrink-0 grid-cols-1 lg:grid-cols-3 lg:items-start ${GRID_CARD_GAP}`}
             >
               <div
-                className={`flex min-h-0 flex-col rounded-xl border border-[#232330] bg-[#11111A] p-4 shadow-[0px_8px_24px_rgba(0,0,0,0.35)] lg:col-span-2`}
+                className={`flex max-h-[min(420px,42vh)] min-h-[220px] flex-col overflow-hidden rounded-xl border border-[#232330] bg-[#11111A] p-4 shadow-[0px_8px_24px_rgba(0,0,0,0.35)] lg:col-span-2`}
               >
                 <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-2">
                   <h2 className="text-[16px] font-semibold text-[#F5F5F7]">Upcoming Events</h2>
@@ -191,7 +191,7 @@ export default function DashboardPageContent() {
                   </Link>
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
-                  <UpcomingEventsStack events={upcoming} />
+                  <UpcomingEventsList events={upcoming} />
                 </div>
                 <StartNewEventLink
                   className="mt-4 inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-dashed border-[#8B5CF6]/50 py-2.5 text-[14px] font-medium text-[#8B5CF6] transition-colors hover:border-[#8B5CF6] hover:bg-[#8B5CF6]/5"
