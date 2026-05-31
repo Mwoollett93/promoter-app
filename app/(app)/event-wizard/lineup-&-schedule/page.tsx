@@ -50,6 +50,7 @@ import {
   listArtists,
 } from "@/lib/supabase/browser";
 import type { ArtistProfile } from "@/lib/types/artist";
+import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 
 const DURATION_OPTIONS = [30, 45, 60, 90, 120, 180];
 
@@ -98,12 +99,12 @@ function hydrateSlotFeesFromLibrary(slots: ScheduleSlot[], artists: Artist[]) {
   });
 }
 
-async function getSupabaseScheduleArtists(): Promise<Artist[]> {
+async function getSupabaseScheduleArtists(workspaceId: string): Promise<Artist[]> {
   const session = getStoredSession();
   if (!session || !getSupabaseConfig()) return [];
 
   try {
-    return (await listArtists(session))
+    return (await listArtists(session, workspaceId))
       .filter((artist) => artist.status !== "archived")
       .map(artistProfileToScheduleArtist);
   } catch {
@@ -132,6 +133,8 @@ function durationParts(minutes: number): { h?: string; m?: string } {
 
 export default function LineupSchedulePage() {
   const router = useRouter();
+  const { workspace } = useWorkspace();
+  const workspaceId = workspace?.id;
   const [query, setQuery] = React.useState("");
   const [library, setLibrary] = React.useState<Artist[]>([]);
   const [scheduleSlots, setScheduleSlots] = React.useState<ScheduleSlot[]>([]);
@@ -171,7 +174,7 @@ export default function LineupSchedulePage() {
           getArtists(),
           getInitialScheduleSlots(),
         ]);
-        const supabaseArtists = await getSupabaseScheduleArtists();
+        const supabaseArtists = workspaceId ? await getSupabaseScheduleArtists(workspaceId) : [];
         const artistLibrary = supabaseArtists.length > 0 ? supabaseArtists : artists;
         if (cancelled) return;
         const persistedSlots = loadWizardScheduleSlots();
@@ -188,7 +191,7 @@ export default function LineupSchedulePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [workspaceId]);
 
   /** Keep lineup edits when jumping to Event Basics and back (session-only). */
   React.useEffect(() => {

@@ -27,6 +27,8 @@ type SupabaseConfig = {
 
 type ArtistRow = {
   id: string;
+  owner_id?: string;
+  workspace_id?: string | null;
   name: string;
   artist_type: string;
   genres: string[] | null;
@@ -463,9 +465,12 @@ export async function signOutOfSupabase() {
   clearStoredSession();
 }
 
-export async function listArtists(session: SupabaseSession): Promise<ArtistProfile[]> {
+export async function listArtists(
+  session: SupabaseSession,
+  workspaceId: string,
+): Promise<ArtistProfile[]> {
   const rows = await supabaseRest<ArtistRow[]>(
-    "artists?select=*,artist_social_links(*),artist_documents(*)&order=created_at.desc",
+    `artists?select=*,artist_social_links(*),artist_documents(*)&workspace_id=eq.${workspaceId}&order=created_at.desc`,
     session,
   );
 
@@ -482,10 +487,14 @@ export async function getArtist(artistId: string, session: SupabaseSession): Pro
   return mapArtistRow(row);
 }
 
-export async function createArtist(draft: ArtistDraft, session: SupabaseSession): Promise<ArtistProfile> {
+export async function createArtist(
+  draft: ArtistDraft,
+  session: SupabaseSession,
+  workspaceId: string,
+): Promise<ArtistProfile> {
   const [created] = await supabaseRest<ArtistRow[]>("artists?select=*", session, {
     method: "POST",
-    body: artistDraftToRow(draft),
+    body: artistDraftToRow(draft, workspaceId),
     prefer: "return=representation",
   });
 
@@ -741,7 +750,7 @@ function requireSupabaseConfig(): SupabaseConfig {
   return config;
 }
 
-function artistDraftToRow(draft: ArtistDraft) {
+function artistDraftToRow(draft: ArtistDraft, workspaceId?: string) {
   return {
     name: draft.name.trim(),
     artist_type: draft.artistType,
@@ -775,6 +784,7 @@ function artistDraftToRow(draft: ArtistDraft) {
     deposit_amount_cents: draft.depositAmountCents,
     booking_notes: draft.bookingNotes || null,
     tags: draft.tags,
+    ...(workspaceId ? { workspace_id: workspaceId } : {}),
   };
 }
 
@@ -814,6 +824,7 @@ function mapArtistRow(row: ArtistRow): ArtistProfile {
     bookingNotes: row.booking_notes ?? undefined,
     tags: row.tags ?? [],
     addedDate: row.added_date,
+    createdBy: row.owner_id ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     socialLinks: (row.artist_social_links ?? []).map((link) => ({
@@ -856,3 +867,18 @@ async function getErrorMessage(response: Response, fallback: string) {
     return `${fallback} (${response.status})`;
   }
 }
+
+export {
+  addVenueDocuments,
+  createSignedVenueDocumentUrl,
+  createVenue,
+  deleteVenue,
+  getVenue,
+  listVenues,
+  updateVenue,
+  updateVenueImage,
+  uploadVenueDocument,
+  uploadVenueMedia,
+} from "./venues";
+
+export type { VenueDocument, VenueDraft, VenueProfile, VenueStatus } from "@/lib/types/venue";

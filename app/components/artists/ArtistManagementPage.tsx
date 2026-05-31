@@ -47,6 +47,8 @@ import {
   startGithubSignIn,
   updateArtist,
 } from "@/lib/supabase/browser";
+import AddedByLine from "@/app/components/ui/AddedByLine";
+import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import type { ArtistDraft, ArtistProfile, ArtistStatus, SupabaseSession } from "@/lib/types/artist";
 
 type SortKey = "name" | "artistType" | "genres" | "status" | "location" | "addedDate";
@@ -83,6 +85,8 @@ const seedArtistTemplates = [
 ] as const;
 
 export default function ArtistManagementPage() {
+  const { workspace, members } = useWorkspace();
+  const workspaceId = workspace?.id;
   const [session, setSession] = useState<SupabaseSession | null>(null);
   const [artists, setArtists] = useState<ArtistProfile[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -108,13 +112,13 @@ export default function ArtistManagementPage() {
     const stored = getStoredSession();
     setSession(stored);
 
-    if (!stored) {
+    if (!stored || !workspaceId) {
       setLoading(false);
       return;
     }
 
     setLoading(true);
-    listArtists(stored)
+    listArtists(stored, workspaceId)
       .then((rows) => {
         setArtists(rows);
         setSelectedId(rows[0]?.id ?? null);
@@ -123,7 +127,7 @@ export default function ArtistManagementPage() {
         setError(err instanceof Error ? err.message : "Unable to load artists.");
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [workspaceId]);
 
   const counts = useMemo(() => {
     return {
@@ -223,17 +227,17 @@ export default function ArtistManagementPage() {
   }
 
   async function handleSeedArtists() {
-    if (!session || seeding) return;
+    if (!session || !workspaceId || seeding) return;
 
     setSeeding(true);
     setError(null);
 
     try {
       for (const draft of buildSeedArtistDrafts()) {
-        await createArtist(draft, session);
+        await createArtist(draft, session, workspaceId);
       }
 
-      const rows = await listArtists(session);
+      const rows = await listArtists(session, workspaceId);
       setArtists(rows);
       setSelectedId(rows[0]?.id ?? null);
       setPage(1);
@@ -592,7 +596,10 @@ export default function ArtistManagementPage() {
                           <p className="text-[#E4E4E7]">{formatLocation(artist)}</p>
                           <p className="text-xs capitalize text-[#A1A1AA]">{artist.reach}</p>
                         </ManagementTableCell>
-                        <ManagementTableCell className="text-[#E4E4E7]">{formatDate(artist.addedDate)}</ManagementTableCell>
+                        <ManagementTableCell className="text-[#E4E4E7]">
+                          <p>{formatDate(artist.addedDate)}</p>
+                          <AddedByLine userId={artist.createdBy} members={members} />
+                        </ManagementTableCell>
                         <ManagementTableCell>
                           <div className="flex justify-end gap-2">
                             {editing ? (
@@ -694,8 +701,10 @@ export default function ArtistManagementPage() {
           open={importOpen}
           onClose={() => setImportOpen(false)}
           session={session}
+          workspaceId={workspaceId ?? ""}
           onImported={() => {
-            listArtists(session)
+            if (!workspaceId) return;
+            listArtists(session, workspaceId)
               .then(setArtists)
               .catch(() => undefined);
           }}

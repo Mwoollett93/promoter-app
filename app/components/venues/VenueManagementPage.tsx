@@ -41,6 +41,8 @@ import {
 } from "@/lib/supabase/browser";
 import { MANAGEMENT_TABLE_PAGE_SIZE_VENUES, PAGE_STACK_GAP } from "@/lib/layout/page-layout";
 import * as SupabaseBrowser from "@/lib/supabase/browser";
+import AddedByLine from "@/app/components/ui/AddedByLine";
+import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import type { SupabaseSession } from "@/lib/types/artist";
 
 type VenueStatus = "active" | "inactive";
@@ -103,6 +105,7 @@ type VenueProfile = {
   loadInDetails?: string;
   loadOutDetails?: string;
   addedDate: string;
+  createdBy?: string;
   createdAt: string;
   updatedAt: string;
   documents: VenueDocument[];
@@ -214,6 +217,7 @@ type VenueRow = {
   load_in_details: string | null;
   load_out_details: string | null;
   added_date: string;
+  created_by?: string | null;
   created_at: string;
   updated_at: string;
   venue_documents?: VenueDocumentRow[] | null;
@@ -221,9 +225,9 @@ type VenueRow = {
 
 const venueApi = SupabaseBrowser as {
   createSignedVenueDocumentUrl?: (filePath: string, session: SupabaseSession) => Promise<string>;
-  createVenue?: (draft: VenueDraft, session: SupabaseSession) => Promise<VenueProfile>;
+  createVenue?: (draft: VenueDraft, session: SupabaseSession, workspaceId: string) => Promise<VenueProfile>;
   deleteVenue?: (venueId: string, session: SupabaseSession) => Promise<void>;
-  listVenues?: (session: SupabaseSession) => Promise<VenueProfile[]>;
+  listVenues?: (session: SupabaseSession, workspaceId: string) => Promise<VenueProfile[]>;
 };
 
 async function readSupabaseError(response: Response, fallback: string) {
@@ -367,6 +371,7 @@ function mapVenueRow(row: VenueRow): VenueProfile {
     loadInDetails: row.load_in_details ?? undefined,
     loadOutDetails: row.load_out_details ?? undefined,
     addedDate: row.added_date,
+    createdBy: row.created_by ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     documents: (row.venue_documents ?? []).map((doc) => ({
@@ -382,15 +387,26 @@ function mapVenueRow(row: VenueRow): VenueProfile {
   };
 }
 
-async function listVenuesLocal(session: SupabaseSession): Promise<VenueProfile[]> {
-  const rows = await venueRest<VenueRow[]>("venues?select=*,venue_documents(*)&order=created_at.desc", session);
+async function listVenuesLocal(session: SupabaseSession, workspaceId: string): Promise<VenueProfile[]> {
+  const rows = await venueRest<VenueRow[]>(
+    `venues?select=*,venue_documents(*)&workspace_id=eq.${workspaceId}&order=created_at.desc`,
+    session,
+  );
   return rows.map(mapVenueRow);
 }
 
-async function createVenueLocal(draft: VenueDraft, session: SupabaseSession): Promise<VenueProfile> {
+async function createVenueLocal(
+  draft: VenueDraft,
+  session: SupabaseSession,
+  workspaceId: string,
+): Promise<VenueProfile> {
   const [created] = await venueRest<VenueRow[]>("venues?select=*", session, {
     method: "POST",
-    body: venueDraftToRow(draft),
+    body: {
+      ...venueDraftToRow(draft),
+      workspace_id: workspaceId,
+      created_by: session.user.id,
+    },
     prefer: "return=representation",
   });
 
@@ -451,6 +467,8 @@ const pageSize = MANAGEMENT_TABLE_PAGE_SIZE_VENUES;
 const showSeedAction = process.env.NODE_ENV !== "production";
 
 export default function VenueManagementPage() {
+  const { workspace, members } = useWorkspace();
+  const workspaceId = workspace?.id;
   const [session, setSession] = useState<SupabaseSession | null>(null);
   const [venues, setVenues] = useState<VenueProfile[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -473,13 +491,13 @@ export default function VenueManagementPage() {
     const stored = getStoredSession();
     setSession(stored);
 
-    if (!stored) {
+    if (!stored || !workspaceId) {
       setLoading(false);
       return;
     }
 
     setLoading(true);
-    listVenues(stored)
+    listVenues(stored, workspaceId)
       .then((rows) => {
         setVenues(rows);
         setSelectedId(rows[0]?.id ?? null);
@@ -488,7 +506,7 @@ export default function VenueManagementPage() {
         setError(err instanceof Error ? err.message : "Unable to load venues.");
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [workspaceId]);
 
   const counts = useMemo(
     () => ({
@@ -570,17 +588,17 @@ export default function VenueManagementPage() {
   }
 
   async function handleSeedVenues() {
-    if (!session || seeding) return;
+    if (!session || !workspaceId || seeding) return;
 
     setSeeding(true);
     setError(null);
 
     try {
       for (const draft of venueSeedDrafts) {
-        await createVenue(draft, session);
+        await createVenue(draft, session, workspaceId);
       }
 
-      const rows = await listVenues(session);
+      const rows = await listVenues(session, workspaceId);
       setVenues(rows);
       setSelectedId(rows[0]?.id ?? null);
       setPage(1);
@@ -816,7 +834,10 @@ export default function VenueManagementPage() {
                           <ManagementTableCell>
                             <StatusBadge status={venue.status} />
                           </ManagementTableCell>
-                          <ManagementTableCell className="text-[#E4E4E7]">{formatDate(venue.addedDate)}</ManagementTableCell>
+                          <ManagementTableCell className="text-[#E4E4E7]">
+                            <p>{formatDate(venue.addedDate)}</p>
+                            <AddedByLine userId={venue.createdBy} members={members} />
+                          </ManagementTableCell>
                           <ManagementTableCell>
                             <div className="flex justify-end">
                               <button

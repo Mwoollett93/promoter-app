@@ -17,75 +17,9 @@ import TipCard from "@/app/components/ui/TipCard";
 import { loadWizardEventDraft, saveWizardEventDraft } from "@/lib/data";
 import { hasWizardProgress } from "@/lib/event-wizard/persist-wizard-draft";
 import { useWizardFlush } from "@/lib/event-wizard/use-wizard-flush";
-import { getStoredSession, getSupabaseConfig } from "@/lib/supabase/browser";
-import * as SupabaseBrowser from "@/lib/supabase/browser";
-import type { SupabaseSession } from "@/lib/types/artist";
-
-type VenueProfile = {
-  id: string;
-  name: string;
-  city: string;
-  country: string;
-  addressLine1: string;
-  maxCapacity: number;
-  imageUrl?: string;
-};
-
-const venueApi = SupabaseBrowser as {
-  listVenues?: (session: SupabaseSession) => Promise<VenueProfile[]>;
-};
-
-type VenueRow = {
-  id: string;
-  name: string;
-  city: string;
-  country: string;
-  address_line1: string;
-  max_capacity: number | null;
-  image_url: string | null;
-};
-
-async function readSupabaseError(response: Response, fallback: string) {
-  try {
-    const data = (await response.json()) as { message?: string; error_description?: string; hint?: string };
-    return data.message ?? data.error_description ?? data.hint ?? fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-async function listVenuesLocal(session: SupabaseSession): Promise<VenueProfile[]> {
-  const config = getSupabaseConfig();
-  if (!config) throw new Error("Missing Supabase environment variables.");
-
-  const response = await fetch(
-    `${config.url}/rest/v1/venues?select=id,name,city,country,address_line1,max_capacity,image_url&order=created_at.desc`,
-    {
-      headers: {
-        apikey: config.anonKey,
-        Authorization: `Bearer ${session.accessToken}`,
-        Accept: "application/json",
-      },
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(await readSupabaseError(response, "Unable to load venues."));
-  }
-
-  const rows = (await response.json()) as VenueRow[];
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    city: row.city,
-    country: row.country,
-    addressLine1: row.address_line1,
-    maxCapacity: row.max_capacity ?? 0,
-    imageUrl: row.image_url ?? undefined,
-  }));
-}
-
-const listVenues = venueApi.listVenues ?? listVenuesLocal;
+import { getStoredSession, getSupabaseConfig, listVenues } from "@/lib/supabase/browser";
+import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
+import type { VenueProfile } from "@/lib/types/venue";
 
 type Venue = {
   id: string;
@@ -150,6 +84,8 @@ function formatTimeLabel(time24?: string) {
 
 export default function EventBasicsPage() {
   const router = useRouter();
+  const { workspace } = useWorkspace();
+  const workspaceId = workspace?.id;
   const [availableVenues, setAvailableVenues] = React.useState<Venue[]>(venues);
   const [draft, setDraft] = React.useState<EventDraft>({
     eventName: "ABYSSAL 007",
@@ -161,16 +97,16 @@ export default function EventBasicsPage() {
 
   React.useEffect(() => {
     const stored = getStoredSession();
-    if (!stored || !getSupabaseConfig()) return;
+    if (!stored || !getSupabaseConfig() || !workspaceId) return;
 
-    listVenues(stored)
+    listVenues(stored, workspaceId)
       .then((rows) => {
         if (!rows || rows.length === 0) return;
         const mapped = rows.map(mapVenueOption);
         setAvailableVenues(mapped);
       })
       .catch(() => undefined);
-  }, []);
+  }, [workspaceId]);
 
   React.useEffect(() => {
     if (!availableVenues.some((venue) => venue.id === draft.venueId)) {

@@ -18,6 +18,8 @@ export type ManagedEventRecord = {
   expectedRevenue: number;
   totalCosts: number;
   projectedProfit: number;
+  /** User id of the team member who created this event. */
+  createdBy?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -83,6 +85,7 @@ function parseManagedEventRecord(raw: unknown): ManagedEventRecord | null {
     totalCosts: sanitizeCurrency(value.totalCosts),
     projectedProfit:
       isFiniteNumber(value.projectedProfit) ? Math.round(value.projectedProfit * 100) / 100 : 0,
+    createdBy: isNonEmptyString(value.createdBy) ? value.createdBy.trim() : undefined,
     createdAt: value.createdAt,
     updatedAt: value.updatedAt,
   };

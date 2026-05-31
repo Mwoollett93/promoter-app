@@ -13,6 +13,7 @@ import type { Task } from "@/lib/types/collaboration";
 export type TaskCardMeta = {
   eventName?: string;
   assigneeName?: string;
+  creatorName?: string;
   commentCount?: number;
 };
 
@@ -90,6 +91,7 @@ export default function TaskKanbanCard({
               </span>
             ) : null}
             {meta.assigneeName ? <span>{meta.assigneeName} assigned</span> : null}
+            {meta.creatorName ? <span>Added by {meta.creatorName}</span> : null}
             {(meta.commentCount ?? 0) > 0 ? (
               <span className="inline-flex items-center gap-0.5">
                 <MessageSquare className="size-2.5" />

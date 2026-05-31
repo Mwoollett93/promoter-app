@@ -37,3 +37,14 @@ export function normalizeWorkspaceMember(member: WorkspaceMember): WorkspaceMemb
 export function normalizeWorkspaceMembers(members: WorkspaceMember[]) {
   return members.map(normalizeWorkspaceMember);
 }
+
+/** Resolve a workspace member's display label from their user id. */
+export function getMemberLabelByUserId(
+  members: WorkspaceMember[],
+  userId: string | null | undefined,
+): string | null {
+  if (!userId) return null;
+  const member = members.find((m) => m.userId === userId);
+  if (!member) return null;
+  return getWorkspaceMemberLabel(member);
+}

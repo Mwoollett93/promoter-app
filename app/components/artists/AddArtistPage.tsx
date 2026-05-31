@@ -37,6 +37,7 @@ import {
   uploadArtistMedia,
   updateArtistPromoImage,
 } from "@/lib/supabase/browser";
+import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import ArtistAiFillButton from "@/app/components/artists/ArtistAiFillButton";
 import ArtistAvatar from "@/app/components/artists/ArtistAvatar";
 import { countWords, MAX_ARTIST_BIO_WORDS, trimToMaxWords } from "@/lib/ai/artist-text";
@@ -282,6 +283,8 @@ function artistProfileToDraft(artist: ArtistProfile): ArtistDraft {
 export default function AddArtistPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { workspace } = useWorkspace();
+  const workspaceId = workspace?.id;
   const editingArtistId = searchParams.get("artistId");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [session, setSession] = useState<SupabaseSession | null>(null);
@@ -349,6 +352,11 @@ export default function AddArtistPage() {
       return;
     }
 
+    if (!workspaceId) {
+      setError("Your team workspace is still loading. Please try again in a moment.");
+      return;
+    }
+
     if (!draft.name.trim() || !draft.artistType.trim()) {
       setStep("basic");
       setError("Artist name and artist type are required.");
@@ -362,7 +370,7 @@ export default function AddArtistPage() {
     try {
       const artist = editingArtistId
         ? await updateArtist(editingArtistId, { ...draft, documents: [] }, session)
-        : await createArtist({ ...draft, documents: [] }, session);
+        : await createArtist({ ...draft, documents: [] }, session, workspaceId);
       if (promoImageFile) {
         const promoImageUrl = await uploadArtistMedia(promoImageFile, session);
         await updateArtistPromoImage(artist.id, promoImageUrl, session);

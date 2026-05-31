@@ -75,8 +75,8 @@ export default function SeasonPageContent() {
 
   React.useEffect(() => {
     const session = getStoredSession();
-    if (!session || !getSupabaseConfig()) return;
-    void listVenueSummaries(session).then((venues) => {
+    if (!session || !getSupabaseConfig() || !workspace?.id) return;
+    void listVenueSummaries(session, workspace.id).then((venues) => {
       setVenueLookup(buildVenueImageLookup(venues));
     });
   }, [workspace?.id]);

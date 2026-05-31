@@ -110,6 +110,7 @@ export function workspaceEventToManaged(event: WorkspaceEvent): ManagedEventReco
     expectedRevenue: event.expectedRevenue,
     totalCosts: event.totalCosts,
     projectedProfit: event.projectedProfit,
+    createdBy: event.createdBy,
     createdAt: event.createdAt,
     updatedAt: event.updatedAt,
   };

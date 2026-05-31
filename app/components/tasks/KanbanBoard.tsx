@@ -204,6 +204,7 @@ export default function KanbanBoard({ workspaceId, eventId: lockedEventId }: Kan
       assigneeName: task.assigneeId
         ? (task.assigneeName ?? assigneeNameById.get(task.assigneeId))
         : undefined,
+      creatorName: assigneeNameById.get(task.createdBy),
       commentCount: commentCounts[task.id],
     }),
     [eventNameById, assigneeNameById, commentCounts],

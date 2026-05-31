@@ -136,8 +136,8 @@ export default function ReviewCreatePage() {
 
         const session = getStoredSession();
         const artists =
-          session && getSupabaseConfig()
-            ? await listArtists(session).catch(() => [])
+          session && getSupabaseConfig() && workspace?.id
+            ? await listArtists(session, workspace.id).catch(() => [])
             : [];
 
         const artistsById = new Map(
@@ -206,7 +206,7 @@ export default function ReviewCreatePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [workspace?.id]);
 
   const canCreate = Boolean(
     reviewState?.eventDraft?.eventName?.trim() &&

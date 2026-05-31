@@ -30,6 +30,7 @@ import {
 import CurrencyText from "@/app/components/ui/CurrencyText";
 import { formatDateLabel, formatTimeLabel } from "@/lib/data/format";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
+import AddedByLine from "@/app/components/ui/AddedByLine";
 import { prepareEventForWizardEdit } from "@/lib/event-wizard/open-event-in-wizard";
 import { clearWizardEditingEventId } from "@/lib/event-wizard/wizard-editing-event";
 import {
@@ -69,6 +70,7 @@ export default function EventManagementPage() {
   const {
     session,
     workspace,
+    members,
     events: workspaceEvents,
     refreshEvents: refreshWorkspaceEvents,
   } = useWorkspace();
@@ -309,6 +311,7 @@ export default function EventManagementPage() {
                           <p className="truncate text-xs text-[#A1A1AA]">
                             {event.artistCount} artists {"\u00b7"} {event.slotCount} lineup slots
                           </p>
+                          <AddedByLine userId={event.createdBy} members={members} />
                         </div>
                       </ManagementTableCell>
                       <ManagementTableCell className="text-[#E4E4E7]">

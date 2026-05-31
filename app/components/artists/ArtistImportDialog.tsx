@@ -15,6 +15,7 @@ type ArtistImportDialogProps = {
   open: boolean;
   onClose: () => void;
   session: SupabaseSession;
+  workspaceId: string;
   onImported: () => void;
 };
 
@@ -22,6 +23,7 @@ export default function ArtistImportDialog({
   open,
   onClose,
   session,
+  workspaceId,
   onImported,
 }: ArtistImportDialogProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -65,7 +67,7 @@ export default function ArtistImportDialog({
 
     for (const row of validRows) {
       try {
-        await createArtist({ ...row.draft, documents: [] }, session);
+        await createArtist({ ...row.draft, documents: [] }, session, workspaceId);
         ok++;
       } catch {
         failed++;

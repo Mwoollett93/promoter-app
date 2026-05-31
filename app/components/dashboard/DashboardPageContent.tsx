@@ -77,19 +77,19 @@ function FinancialSparkline({ values }: { values: number[] }) {
 const EMPTY_SNAPSHOT = buildDashboardSnapshot({ events: [] });
 
 const artistsCache: {
-  sessionId: string | null;
+  workspaceId: string | null;
   artists: Awaited<ReturnType<typeof listArtists>>;
-} = { sessionId: null, artists: [] };
+} = { workspaceId: null, artists: [] };
 
 const venuesCache: {
-  sessionId: string | null;
+  workspaceId: string | null;
   venues: Awaited<ReturnType<typeof listVenueSummaries>>;
-} = { sessionId: null, venues: [] };
+} = { workspaceId: null, venues: [] };
 
 export default function DashboardPageContent() {
   const router = useRouter();
   const { settings } = useSettings();
-  const { events: workspaceEvents, ready: workspaceReady, refresh: refreshWorkspace } = useWorkspace();
+  const { events: workspaceEvents, ready: workspaceReady, refresh: refreshWorkspace, workspace } = useWorkspace();
   const ops = useDashboardOpsData();
   const [financeScope, setFinanceScope] = React.useState<DashboardFinanceScope>("portfolio");
   const [snapshot, setSnapshot] = React.useState<DashboardSnapshot>(EMPTY_SNAPSHOT);
@@ -102,26 +102,26 @@ export default function DashboardPageContent() {
     let venues: Awaited<ReturnType<typeof listVenueSummaries>> = [];
 
     try {
-      if (session && getSupabaseConfig()) {
-        const sessionId = session.user.id;
-        if (artistsCache.sessionId === sessionId) {
+      if (session && getSupabaseConfig() && workspace?.id) {
+        const workspaceId = workspace.id;
+        if (artistsCache.workspaceId === workspaceId) {
           artists = artistsCache.artists;
         } else {
           try {
-            artists = await listArtists(session);
-            artistsCache.sessionId = sessionId;
+            artists = await listArtists(session, workspaceId);
+            artistsCache.workspaceId = workspaceId;
             artistsCache.artists = artists;
           } catch {
             artists = [];
           }
         }
 
-        if (venuesCache.sessionId === sessionId) {
+        if (venuesCache.workspaceId === workspaceId) {
           venues = venuesCache.venues;
         } else {
           try {
-            venues = await listVenueSummaries(session);
-            venuesCache.sessionId = sessionId;
+            venues = await listVenueSummaries(session, workspaceId);
+            venuesCache.workspaceId = workspaceId;
             venuesCache.venues = venues;
           } catch {
             venues = [];
@@ -141,7 +141,7 @@ export default function DashboardPageContent() {
     } finally {
       setSnapshotReady(true);
     }
-  }, [settings.preferences, financeScope]);
+  }, [settings.preferences, financeScope, workspace?.id]);
 
   React.useEffect(() => {
     if (workspaceReady) void refreshSnapshot();

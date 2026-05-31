@@ -14,13 +14,16 @@ type VenueRow = {
   image_url: string | null;
 };
 
-export async function listVenueSummaries(session: SupabaseSession): Promise<VenueSummary[]> {
+export async function listVenueSummaries(
+  session: SupabaseSession,
+  workspaceId: string,
+): Promise<VenueSummary[]> {
   const config = getSupabaseConfig();
   if (!config) return [];
 
   try {
     const response = await fetch(
-      `${config.url}/rest/v1/venues?select=id,name,image_url&order=created_at.desc`,
+      `${config.url}/rest/v1/venues?select=id,name,image_url&workspace_id=eq.${workspaceId}&order=created_at.desc`,
       {
         headers: {
           apikey: config.anonKey,

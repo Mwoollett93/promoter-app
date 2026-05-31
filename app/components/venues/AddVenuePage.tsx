@@ -23,6 +23,7 @@ import {
   startGithubSignIn,
 } from "@/lib/supabase/browser";
 import * as SupabaseBrowser from "@/lib/supabase/browser";
+import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import type { SupabaseSession } from "@/lib/types/artist";
 import { applyVenueExtraction } from "@/lib/ai/apply-venue-extraction";
 import { VENUE_FACILITY_OPTIONS } from "@/lib/venues/facility-options";
@@ -209,7 +210,7 @@ type VenueRow = {
 
 const venueApi = SupabaseBrowser as {
   addVenueDocuments?: (venueId: string, documents: VenueDocument[], session: SupabaseSession) => Promise<void>;
-  createVenue?: (draft: VenueDraft, session: SupabaseSession) => Promise<VenueProfile>;
+  createVenue?: (draft: VenueDraft, session: SupabaseSession, workspaceId: string) => Promise<VenueProfile>;
   getVenue?: (venueId: string, session: SupabaseSession) => Promise<VenueProfile>;
   updateVenue?: (venueId: string, draft: VenueDraft, session: SupabaseSession) => Promise<VenueProfile>;
   updateVenueImage?: (venueId: string, imageUrl: string, session: SupabaseSession) => Promise<void>;
@@ -404,10 +405,18 @@ async function addVenueDocumentsLocal(venueId: string, documents: VenueDocument[
   });
 }
 
-async function createVenueLocal(draft: VenueDraft, session: SupabaseSession): Promise<VenueProfile> {
+async function createVenueLocal(
+  draft: VenueDraft,
+  session: SupabaseSession,
+  workspaceId: string,
+): Promise<VenueProfile> {
   const [created] = await venueRest<VenueRow[]>("venues?select=*", session, {
     method: "POST",
-    body: venueDraftToRow(draft),
+    body: {
+      ...venueDraftToRow(draft),
+      workspace_id: workspaceId,
+      created_by: session.user.id,
+    },
     prefer: "return=representation",
   });
 
@@ -657,6 +666,8 @@ function venueProfileToDraft(venue: VenueProfile): VenueDraft {
 export default function AddVenuePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { workspace } = useWorkspace();
+  const workspaceId = workspace?.id;
   const editingVenueId = searchParams.get("venueId");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -890,6 +901,11 @@ export default function AddVenuePage() {
       return;
     }
 
+    if (!workspaceId) {
+      setError("Your team workspace is still loading. Please try again in a moment.");
+      return;
+    }
+
     const reviewValidation = validateStep("review");
     if (reviewValidation) {
       setError(reviewValidation);
@@ -903,7 +919,7 @@ export default function AddVenuePage() {
     try {
       const venue = editingVenueId
         ? await updateVenue(editingVenueId, { ...draft, documents: [] }, session)
-        : await createVenue({ ...draft, documents: [] }, session);
+        : await createVenue({ ...draft, documents: [] }, session, workspaceId);
 
       if (imageFile) {
         const imageUrl = await uploadVenueMedia(imageFile, session);

@@ -54,6 +54,8 @@ export type ArtistProfile = {
   bookingNotes?: string;
   tags: string[];
   addedDate: string;
+  /** User id of the team member who added this artist (maps to owner_id in DB). */
+  createdBy?: string;
   createdAt: string;
   updatedAt: string;
   socialLinks: ArtistSocialLink[];
