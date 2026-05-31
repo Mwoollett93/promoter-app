@@ -17,11 +17,11 @@ const financeRows: Array<{
   positive: boolean;
   bold?: boolean;
 }> = [
-  { label: "Ticket revenue", value: "£18,400", positive: true },
-  { label: "Artist fees", value: "−£6,200", positive: false },
-  { label: "Venue & ops", value: "−£4,100", positive: false },
-  { label: "Projected profit", value: "£4,280", positive: true, bold: true },
-] ;
+  { label: "Total revenue", value: "$543,690", positive: true },
+  { label: "Total costs", value: "$169,920", positive: false },
+  { label: "Projected profit", value: "$373,770", positive: true, bold: true },
+  { label: "Break-even point", value: "$169,920", positive: false },
+];
 
 export default function FinanceSection() {
   return (
@@ -32,7 +32,7 @@ export default function FinanceSection() {
             align="left"
             eyebrow="Finance & forecast"
             title="Know your margin before doors open"
-            description="Ticket tiers, artist fees, venue hire, and break-even — modeled in the wizard, visible on the dashboard."
+            description="Ticket tiers, costs, break-even, and projected profit — modeled in the wizard and rolled up on your dashboard Financial Overview."
           />
           <ul className="mt-8 space-y-3">
             {financeBullets.map((item) => (

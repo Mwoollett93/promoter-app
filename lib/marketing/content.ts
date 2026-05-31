@@ -3,10 +3,12 @@ import {
   BarChart3,
   Building2,
   CalendarDays,
+  CalendarRange,
   ClipboardList,
   DollarSign,
   Mic2,
   Sparkles,
+  Ticket,
   Users,
   Zap,
 } from "lucide-react";
@@ -17,32 +19,38 @@ export const coreFeatures = [
   {
     icon: CalendarDays,
     title: "Event Creation",
-    description: "Wizard-driven event setup from basics through review — no scattered docs.",
+    description: "Four-step wizard: basics, lineup, finance, and review — with Active/Draft/Canceled/Completed states.",
     href: "/features#events",
   },
   {
-    icon: Zap,
-    title: "Lineup Scheduling",
-    description: "Slot-based run-of-show with B2B sets, durations, and artist fees in one timeline.",
-    href: "/features#lineup",
+    icon: CalendarRange,
+    title: "Run Overview",
+    description: "Season-wide shows, projected P/L, monthly profit bars, and operational risks on one viewport.",
+    href: "/features#run",
+  },
+  {
+    icon: Ticket,
+    title: "Sales Tracker",
+    description: "Per-event ticket checkpoints, CSV import, break-even progress, and forecast attendance.",
+    href: "/features#sales",
   },
   {
     icon: DollarSign,
     title: "Finance Forecasting",
-    description: "Ticket tiers, costs, break-even, and projected profit before doors open.",
+    description: "Ticket tiers, costs, break-even, and projected profit — on the dashboard and in the wizard.",
     href: "/features#finance",
-  },
-  {
-    icon: Mic2,
-    title: "Artist CRM",
-    description: "AI-assisted roster building — portraits, bios, contacts, and CSV import in minutes.",
-    href: "/features#artists",
   },
   {
     icon: ClipboardList,
     title: "Operational Tasks",
-    description: "Kanban boards with event context, overdue metrics, and intelligence from your shows.",
+    description: "Backlog → Complete kanban with event pills, assignees, and overdue metrics.",
     href: "/features#tasks",
+  },
+  {
+    icon: Mic2,
+    title: "Artist CRM",
+    description: "AI-assisted roster building — portraits, bios, contacts, and CSV import.",
+    href: "/features#artists",
   },
   {
     icon: Building2,
@@ -50,23 +58,29 @@ export const coreFeatures = [
     description: "Capacities, hire fees, contracts, and AI extraction from venue PDFs.",
     href: "/features#venues",
   },
+  {
+    icon: Users,
+    title: "Team Workspaces",
+    description: "Shared events, roles, comments, and workspace-scoped artists & venues.",
+    href: "/features#team",
+  },
 ] as const;
 
 export const howItWorks = [
   {
     step: "01",
     title: "Build the event",
-    description: "Name the night, lock the venue, and sketch the lineup in minutes.",
+    description: "Use the wizard for basics, lineup slots, and finance tiers — then publish from review.",
   },
   {
     step: "02",
-    title: "Manage logistics",
-    description: "Artists, schedules, costs, and team tasks stay in one mission-control view.",
+    title: "Run the season",
+    description: "Dashboard, Run overview, tasks, and team workspaces keep everyone aligned.",
   },
   {
     step: "03",
-    title: "Track performance",
-    description: "Forecast revenue, watch margins, and learn what worked after last call.",
+    title: "Track ticket sales",
+    description: "Add checkpoints or import CSVs in the Sales Tracker tab as doors approach.",
   },
 ] as const;
 
@@ -141,14 +155,15 @@ export const pricingComparisonRows = [
 export const testimonials = [
   {
     quote:
-      "Finally something that feels built for how we actually run nights — not another corporate CRM.",
-    author: "Local promoter",
-    role: "Melbourne underground",
+      "The dashboard, Run page, and Sales Tracker finally feel like one product — not five spreadsheets.",
+    author: "Early access promoter",
+    role: "Melbourne independent events",
   },
   {
-    quote: "The finance view alone saved us from guessing break-even on a 400-cap room.",
-    author: "Collective lead",
-    role: "Independent events",
+    quote:
+      "Break-even and projected profit show up in the wizard and on the dashboard before we announce lineups.",
+    author: "Collective operator",
+    role: "Multi-venue programming",
   },
 ] as const;
 
@@ -165,22 +180,44 @@ export const featureSections: FeatureSection[] = [
     id: "events",
     icon: CalendarDays,
     title: "Event Creation",
-    subtitle: "From concept to confirmed — guided, fast, and repeatable.",
+    subtitle: "Status cards, search, filters, and a detail panel — the same Events page you use in-app.",
     bullets: [
-      "Event basics: venue, date, capacity, and internal notes",
-      "Draft, active, and completed states across your portfolio",
-      "Review & create step before anything goes live",
+      "Active, Draft, Canceled, and Completed counts at a glance",
+      "Search events, venues, and notes; filter by status",
+      "Projected P/L column and quick jump to event workspace",
+    ],
+  },
+  {
+    id: "run",
+    icon: CalendarRange,
+    title: "Run Overview",
+    subtitle: "Your promoter calendar for the selected timeframe — shows, P/L, and risks without scrolling the whole app.",
+    bullets: [
+      "Summary strip: total shows, projected P/L, attendance, revenue, avg break-even",
+      "Upcoming shows grouped by month with venue and margin per card",
+      "Monthly P/L bars and operational risk list in the right rail",
+    ],
+  },
+  {
+    id: "sales",
+    icon: Ticket,
+    title: "Sales Tracker",
+    subtitle: "Ticket sales monitoring inside each event workspace — a fixed cockpit, not a long form.",
+    bullets: [
+      "Manual checkpoints: tickets sold, capacity, revenue, fees, and notes",
+      "CSV import with platform selector and column mapping",
+      "KPIs, smooth charts, break-even progress, and recent checkpoint history",
     ],
   },
   {
     id: "lineup",
     icon: Zap,
     title: "Lineup & Scheduling",
-    subtitle: "Your run-of-show, not a messy group chat thread.",
+    subtitle: "Your run-of-show in the wizard — slot order, B2B sets, and fees tied to finance.",
     bullets: [
       "Drag-order slots with set lengths and B2B markers",
       "Per-slot artist fees rolled into finance automatically",
-      "Runtime and artist count at a glance",
+      "Runtime and artist count at a glance before review",
     ],
   },
   {
@@ -189,53 +226,53 @@ export const featureSections: FeatureSection[] = [
     title: "Finance & Forecasting",
     subtitle: "Know your margin before you announce the headliner.",
     bullets: [
-      "Ticket tiers with expected sell-through",
-      "Venue fees, artist costs, and additional line items",
-      "Projected profit, break-even, and risk indicators",
+      "Ticket tiers with expected sell-through in the wizard",
+      "Dashboard Financial Overview with smooth portfolio sparkline",
+      "Projected profit, break-even, and cost rollups per event",
     ],
   },
   {
     id: "artists",
     icon: Mic2,
     title: "Artist CRM",
-    subtitle: "Roster intelligence for booking and rebooking.",
+    subtitle: "Roster intelligence for booking and rebooking — shared across your workspace.",
     bullets: [
-      "AI lookup: bio, portrait candidates, and contact hints in seconds",
+      "AI lookup: bio, portrait candidates, and contact hints",
       "Typical fees, deposits, and booking notes per artist",
-      "CSV import for migrating an existing roster",
+      "CSV import and workspace-scoped artist library",
     ],
   },
   {
     id: "venues",
     icon: Building2,
     title: "Venue Management",
-    subtitle: "Specs and commercial terms where they belong.",
+    subtitle: "Specs and commercial terms where they belong — visible to the whole team.",
     bullets: [
       "Capacity, hire fees, and minimum spend",
       "AI document extraction from venue spec PDFs",
-      "Deposit terms and internal ops notes",
+      "Top venues on the dashboard from your real portfolio",
     ],
   },
   {
     id: "tasks",
     icon: ClipboardList,
     title: "Operational Tasks",
-    subtitle: "A task board that understands your season — not a generic todo app.",
+    subtitle: "Kanban that understands your events — Backlog through Complete.",
     bullets: [
-      "Kanban workflow: backlog → to do → in progress → waiting → complete",
+      "Columns: Backlog, To Do, In Progress, Waiting, Complete",
       "Event pills, due dates, assignees, and priority on every card",
-      "Operational intelligence: suggested tasks from lineup, venue, and margin gaps",
+      "Overdue and completion metrics on the board toolbar",
     ],
   },
   {
     id: "team",
     icon: Users,
     title: "Team Collaboration",
-    subtitle: "Your crew on one workspace — live today.",
+    subtitle: "Workspaces, roles, and shared data — live in production.",
     bullets: [
-      "Shared event workspaces with role-based permissions",
-      "Task assignments, due dates, checklists, and comment threads",
-      "Invites, MFA security, and in-app notifications for show week",
+      "Event workspaces with Overview, Sales Tracker, Activity, Tasks, Comments",
+      "Workspace-scoped artists and venues with creator attribution",
+      "Invites, MFA, and operational alerts on the dashboard",
     ],
   },
   {
@@ -244,20 +281,20 @@ export const featureSections: FeatureSection[] = [
     title: "AI-Assisted Ops",
     subtitle: "Less admin, more time on the floor.",
     bullets: [
-      "Fast artist profile preview before you commit to a roster entry",
+      "Artist profile preview before you commit to a roster entry",
       "Portrait evidence scoring — real photos, not random album art",
-      "Venue spec extraction from uploaded documents",
+      "Venue spec extraction from uploaded PDFs",
     ],
   },
   {
     id: "reporting",
     icon: BarChart3,
-    title: "Reporting & Insights",
-    subtitle: "Portfolio-level learning across your seasons.",
+    title: "Dashboard & Insights",
+    subtitle: "Portfolio pulse on login — no digging through folders.",
     bullets: [
-      "Event status distribution and trends on the dashboard",
-      "Revenue and cost rollups across shows",
-      "Exportable summaries for stakeholders (expanding)",
+      "Ops stats: upcoming, confirmed, open tasks, approvals, overdue",
+      "Financial overview, top venues, top artists, operational alerts",
+      "Upcoming events list with the same cards you see in-app",
     ],
   },
 ];
@@ -275,7 +312,7 @@ export const sceneTags = [
 
 /** Live collaboration capabilities for marketing sections */
 export const collaborationHighlights = [
-  "Kanban boards with event filters and overdue metrics",
-  "Comments and @mentions on tasks",
-  "Workspace invites with role-based access",
+  "Event workspace tabs: Overview, Sales Tracker, Activity, Tasks, Comments",
+  "Dashboard operational alerts with scroll and fade",
+  "Workspace invites with role-based access (Admin, Promoter, Finance, …)",
 ] as const;

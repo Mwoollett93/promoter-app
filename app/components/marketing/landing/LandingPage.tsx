@@ -8,6 +8,8 @@ import HeroSection from "@/app/components/marketing/landing/HeroSection";
 import HowItWorksSection from "@/app/components/marketing/landing/HowItWorksSection";
 import PricingSection from "@/app/components/marketing/landing/PricingSection";
 import ProblemSolutionSection from "@/app/components/marketing/landing/ProblemSolutionSection";
+import RunSection from "@/app/components/marketing/landing/RunSection";
+import SalesTrackerSection from "@/app/components/marketing/landing/SalesTrackerSection";
 import SceneSection from "@/app/components/marketing/landing/SceneSection";
 import TasksSection from "@/app/components/marketing/landing/TasksSection";
 import TeamSection from "@/app/components/marketing/landing/TeamSection";
@@ -23,7 +25,9 @@ export default function LandingPage() {
       <HowItWorksSection />
       <ProblemSolutionSection />
       <DashboardSection />
+      <RunSection />
       <FinanceSection />
+      <SalesTrackerSection />
       <TasksSection />
       <TeamSection />
       <TestimonialsSection />

@@ -12,7 +12,7 @@ import { usePrefersReducedMotion } from "@/app/components/marketing/landing/useP
 import { PAGE_EYEBROW } from "@/lib/ui/page-surfaces";
 import { site } from "@/lib/marketing/content";
 
-const ProductShowcase = dynamic(() => import("@/app/components/marketing/ProductShowcase"));
+const ProductShowcase = dynamic(() => import("@/app/components/marketing/DashboardShowcase"));
 
 export default function HeroSection() {
   const { scroll } = useLandingScroll();

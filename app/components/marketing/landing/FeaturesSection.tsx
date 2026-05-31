@@ -15,11 +15,11 @@ export default function FeaturesSection() {
         <SectionHeader
           eyebrow="Core features"
           title="Everything your night runs on"
-          description="From the first venue call to break-even — one brutalist mission control, not another corporate CRM."
+          description="From the first venue call to break-even — one brutalist mission control built from the screens you already use in PromoSync."
         />
       </ScrollReveal>
 
-      <StaggerGroup className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" stagger={90}>
+          <StaggerGroup className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4" stagger={90}>
         {coreFeatures.map((feature) => (
           <FeatureCard key={feature.title} {...feature} />
         ))}

@@ -38,9 +38,9 @@ export default function AboutPage() {
               honest about the numbers.
             </p>
             <p className="mt-4 text-[16px] leading-7 text-[#A1A1AA]">
-              Melbourne&apos;s independent promoters helped shape the product: event wizard flows,
-              finance forecasting, AI-assisted artist CRM, operational task boards, and team
-              workspaces that match how nights actually get booked.
+              Melbourne&apos;s independent promoters helped shape the product: a real dashboard,
+              Run overview, Sales Tracker per event, finance forecasting, AI-assisted artist CRM,
+              kanban tasks, and team workspaces that match how nights get booked.
             </p>
           </div>
           <div className="rounded-2xl border border-[#232330] bg-[#11111A] p-8">

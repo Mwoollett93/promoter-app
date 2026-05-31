@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { Section, SectionHeader } from "@/app/components/marketing/marketing-ui";
 import { ScrollReveal } from "@/app/components/marketing/landing/ScrollReveal";
 
-const ProductShowcase = dynamic(() => import("@/app/components/marketing/ProductShowcase"));
+const DashboardShowcase = dynamic(() => import("@/app/components/marketing/DashboardShowcase"));
 
 export default function DashboardSection() {
   return (
@@ -20,7 +20,7 @@ export default function DashboardSection() {
 
       <ScrollReveal delay={120} className="relative mt-14">
         <div className="pointer-events-none absolute -inset-x-20 top-1/2 h-64 -translate-y-1/2 bg-[#7C3AED]/20 blur-[100px]" />
-        <ProductShowcase variant="hero" />
+        <DashboardShowcase variant="hero" />
       </ScrollReveal>
     </Section>
   );

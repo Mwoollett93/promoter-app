@@ -6,15 +6,44 @@ import { ArrowRight } from "lucide-react";
 import { PrimaryCta, Section, SectionHeader } from "@/app/components/marketing/marketing-ui";
 import { featureSections } from "@/lib/marketing/content";
 
-const ProductShowcase = dynamic(() => import("@/app/components/marketing/ProductShowcase"));
-const TaskBoardShowcase = dynamic(() => import("@/app/components/marketing/TaskBoardShowcase"));
+const EventsShowcase = dynamic(() => import("@/app/components/marketing/EventsShowcase"));
+const RunShowcase = dynamic(() => import("@/app/components/marketing/RunShowcase"));
+const SalesTrackerShowcase = dynamic(() => import("@/app/components/marketing/SalesTrackerShowcase"));
 const WizardShowcase = dynamic(() => import("@/app/components/marketing/WizardShowcase"));
+const TaskBoardShowcase = dynamic(() => import("@/app/components/marketing/TaskBoardShowcase"));
+const DashboardShowcase = dynamic(() => import("@/app/components/marketing/DashboardShowcase"));
 
 export const metadata: Metadata = {
   title: "Features",
   description:
-    "Deep dive into PromoSync: event wizard, operational tasks, AI-assisted artist CRM, venue extraction, finance forecasting, and team workspaces.",
+    "PromoSync features: dashboard, event wizard, Run overview, Sales Tracker, finance forecasting, kanban tasks, artist & venue CRM, and team workspaces.",
 };
+
+function FeatureShowcase({ sectionId }: { sectionId: string }) {
+  switch (sectionId) {
+    case "events":
+      return <EventsShowcase />;
+    case "run":
+      return <RunShowcase />;
+    case "sales":
+      return <SalesTrackerShowcase />;
+    case "lineup":
+      return <WizardShowcase activeStep="Lineup & Schedule" />;
+    case "finance":
+      return <WizardShowcase activeStep="Finance & Forecast" />;
+    case "tasks":
+      return <TaskBoardShowcase />;
+    case "team":
+      return <SalesTrackerShowcase />;
+    case "reporting":
+      return <DashboardShowcase variant="compact" />;
+    case "artists":
+    case "venues":
+    case "ai":
+    default:
+      return <DashboardShowcase variant="compact" />;
+  }
+}
 
 export default function FeaturesPage() {
   return (
@@ -25,12 +54,11 @@ export default function FeaturesPage() {
             Product deep dive
           </p>
           <h1 className="mt-4 text-[40px] font-bold leading-tight tracking-tight text-[#F5F5F7] sm:text-[48px]">
-            Every system your night depends on
+            Built from the actual PromoSync app
           </h1>
           <p className="mt-5 text-[17px] leading-7 text-[#A1A1AA]">
-            PromoSync is not a generic project tool — it&apos;s operational intelligence for
-            underground events, from the first venue email through show-week tasks to post-show
-            reporting.
+            Every preview on this page mirrors real screens — Dashboard, Events, Run, Sales Tracker,
+            the event wizard, and kanban tasks. No stock UI mockups.
           </p>
           <div className="mt-8">
             <PrimaryCta href="/login?view=signup">Start free</PrimaryCta>
@@ -72,15 +100,7 @@ export default function FeaturesPage() {
                 </ul>
               </div>
               <div>
-                {section.id === "events" ||
-                section.id === "lineup" ||
-                section.id === "finance" ? (
-                  <WizardShowcase />
-                ) : section.id === "tasks" ? (
-                  <TaskBoardShowcase />
-                ) : (
-                  <ProductShowcase variant="compact" />
-                )}
+                <FeatureShowcase sectionId={section.id} />
               </div>
             </div>
           </Section>

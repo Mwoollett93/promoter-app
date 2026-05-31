@@ -2,7 +2,7 @@ export const site = {
   name: "PromoSync",
   tagline: "The operating system for underground events.",
   description:
-    "PromoSync centralizes event creation, lineup scheduling, artist CRM, venue ops, finance forecasting, and operational task boards — built for promoters, collectives, and venues who run the night.",
+    "PromoSync centralizes your dashboard, event wizard, Run overview, Sales Tracker, artist & venue CRM, kanban tasks, and team workspaces — built for promoters who need one mission control before doors open.",
   audience: "Promoters, collectives & venues",
 };
 
