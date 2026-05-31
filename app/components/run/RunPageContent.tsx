@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import * as React from "react";
-import { ChevronDown, Plus } from "lucide-react";
+import { CalendarPlus, ChevronDown } from "lucide-react";
 
 import StartNewEventLink from "@/app/components/events/StartNewEventLink";
 import PageContent from "@/app/components/layout/PageContent";
@@ -20,12 +19,15 @@ import {
   type TimeframeId,
 } from "@/lib/run/timeframe";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
-import { GRID_CARD_GAP } from "@/lib/layout/page-layout";
+import { GRID_CARD_GAP, PAGE_STACK_GAP } from "@/lib/layout/page-layout";
 import { getStoredSession, getSupabaseConfig } from "@/lib/supabase/browser";
 import { buildVenueImageLookup, listVenueSummaries } from "@/lib/supabase/venue-summaries";
-import { PAGE_EYEBROW, SELECT_SURFACE } from "@/lib/ui/page-surfaces";
+import { SELECT_SURFACE } from "@/lib/ui/page-surfaces";
 
 const TIMEFRAME_STORAGE_KEY = "promosync:run-timeframe";
+
+const CREATE_EVENT_BUTTON =
+  "inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-[8px] border border-[rgba(139,92,246,0.45)] bg-[#7C3AED] px-6 text-[16px] font-medium leading-5 tracking-[0.08px] text-white transition-all hover:border-[#A855F7] hover:bg-[linear-gradient(178.683deg,#7C3AED_4.7705%,rgba(71,33,135,0.76)_96.232%)] hover:shadow-[0_0_24px_0_rgba(139,92,246,0.3)] active:bg-[rgba(124,58,237,0.44)]";
 
 export default function RunPageContent() {
   const { workspace, events, ready } = useWorkspace();
@@ -80,24 +82,23 @@ export default function RunPageContent() {
 
   return (
     <PageContent fill>
-      <div className="flex min-h-0 flex-1 flex-col gap-2.5">
-        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#232330] pb-2.5">
-          <div className="flex min-w-0 flex-wrap items-start gap-3">
-            <div>
-              <p className={PAGE_EYEBROW}>Promoter workspace</p>
-              <h1 className="text-[18px] font-semibold tracking-tight text-[#F5F5F7]">
-                Run Overview
-              </h1>
-              <p className="text-[13px] font-medium text-[#C4B5FD]">{timeframe.shortLabel}</p>
-              <p className="text-[12px] text-[#71717A]">
-                {formatTimeframeRange(timeframe.bounds)}
-              </p>
-              <p className="mt-1 max-w-xl text-[11px] leading-4 text-[#52525B]">
-                Track upcoming shows, financial health, and operational risks across the selected
-                timeframe.
-              </p>
-            </div>
-            <div className="relative min-w-[200px] pt-1">
+      <div className={`flex h-full min-h-0 flex-col overflow-hidden ${PAGE_STACK_GAP}`}>
+        <header
+          className={`flex shrink-0 flex-col ${PAGE_STACK_GAP} lg:flex-row lg:items-start lg:justify-between`}
+        >
+          <div>
+            <h1 className="text-[32px] font-bold leading-9 tracking-tight text-[#F5F5F7]">Run</h1>
+            <p className="mt-1 text-[14px] leading-5 text-[#A1A1AA]">
+              Track upcoming shows, financial health, and operational risks across the selected
+              timeframe.
+            </p>
+            <p className="mt-0.5 text-[12px] text-[#71717A]">
+              {timeframe.label} · {formatTimeframeRange(timeframe.bounds)}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative min-w-[200px]">
               <label className="sr-only" htmlFor="timeframe-select">
                 Timeframe
               </label>
@@ -105,7 +106,7 @@ export default function RunPageContent() {
                 id="timeframe-select"
                 value={timeframeId}
                 onChange={(e) => setTimeframeId(e.target.value)}
-                className={`${SELECT_SURFACE} w-full appearance-none pr-8`}
+                className={`${SELECT_SURFACE} h-11 w-full appearance-none pr-8`}
               >
                 {timeframeOptions.map((opt) => (
                   <option key={opt.id} value={opt.id}>
@@ -114,26 +115,25 @@ export default function RunPageContent() {
                 ))}
               </select>
               <ChevronDown
-                className="pointer-events-none absolute right-2.5 top-[calc(50%+2px)] size-4 -translate-y-1/2 text-[#71717A]"
+                className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-[#71717A]"
                 aria-hidden
               />
             </div>
+            <StartNewEventLink className={CREATE_EVENT_BUTTON}>
+              <CalendarPlus className="size-5 shrink-0" strokeWidth={2} aria-hidden />
+              Create New Event
+            </StartNewEventLink>
           </div>
-
-          <StartNewEventLink
-            className="inline-flex h-9 items-center gap-2 rounded-lg border border-[rgba(139,92,246,0.45)] bg-[#7C3AED] px-4 text-[13px] font-medium text-white hover:bg-[#6D28D9]"
-          >
-            <Plus className="size-4" strokeWidth={2} aria-hidden />
-            Add event
-          </StartNewEventLink>
         </header>
 
-        <RunSummaryStrip snapshot={insights.snapshot} />
+        <div className="shrink-0">
+          <RunSummaryStrip snapshot={insights.snapshot} />
+        </div>
 
         <div
-          className={`grid min-h-0 flex-1 grid-cols-1 gap-2.5 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_300px] ${GRID_CARD_GAP}`}
+          className={`grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_300px] lg:items-stretch ${GRID_CARD_GAP}`}
         >
-          <div className="flex min-h-0 flex-1 flex-col gap-2.5">
+          <div className="flex min-h-0 flex-col gap-3 overflow-hidden">
             <RunTimeline
               monthGroups={insights.monthGroups}
               venueLookup={venueLookup}
@@ -141,15 +141,13 @@ export default function RunPageContent() {
               onToggleFinancials={() => setShowFinancials((v) => !v)}
             />
             {showFinancials ? (
-              <RunFinancialsPanel snapshot={insights.snapshot} months={insights.months} />
+              <div className="max-h-[min(240px,32vh)] shrink-0 overflow-y-auto overscroll-contain">
+                <RunFinancialsPanel snapshot={insights.snapshot} months={insights.months} />
+              </div>
             ) : null}
           </div>
 
-          <RunInsightsSidebar
-            snapshot={insights.snapshot}
-            alerts={insights.alerts}
-            months={insights.months}
-          />
+          <RunInsightsSidebar alerts={insights.alerts} months={insights.months} />
         </div>
       </div>
     </PageContent>

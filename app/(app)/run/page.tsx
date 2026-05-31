@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function RunPage() {
   return (
-    <DashboardShell>
+    <DashboardShell viewportLock>
       <RunPageContent />
     </DashboardShell>
   );

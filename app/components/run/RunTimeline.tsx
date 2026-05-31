@@ -3,6 +3,7 @@
 import { CalendarOff } from "lucide-react";
 
 import RunMonthRow from "@/app/components/run/RunMonthRow";
+import ScrollFadeContainer from "@/app/components/ui/ScrollFadeContainer";
 import type { TimelineMonthGroup } from "@/lib/run/run-insights";
 import {
   type buildVenueImageLookup,
@@ -48,7 +49,7 @@ export default function RunTimeline({
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <ScrollFadeContainer>
         {!hasAnyEvents ? (
           <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-[#3F3F46] py-10 text-center">
             <CalendarOff className="size-7 text-[#52525B]" strokeWidth={1.5} />
@@ -64,7 +65,7 @@ export default function RunTimeline({
             ))}
           </div>
         )}
-      </div>
+      </ScrollFadeContainer>
     </div>
   );
 }
