@@ -8,6 +8,9 @@ const appRoot = __dirname;
 loadEnvConfig(appRoot);
 
 const nextConfig: NextConfig = {
+  experimental: {
+    optimizePackageImports: ["lucide-react", "date-fns", "@dnd-kit/core", "@dnd-kit/sortable"],
+  },
   async headers() {
     return [
       {

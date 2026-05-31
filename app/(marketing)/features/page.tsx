@@ -1,12 +1,14 @@
+import dynamic from "next/dynamic";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-import ProductShowcase from "@/app/components/marketing/ProductShowcase";
-import TaskBoardShowcase from "@/app/components/marketing/TaskBoardShowcase";
-import WizardShowcase from "@/app/components/marketing/WizardShowcase";
 import { PrimaryCta, Section, SectionHeader } from "@/app/components/marketing/marketing-ui";
 import { featureSections } from "@/lib/marketing/content";
+
+const ProductShowcase = dynamic(() => import("@/app/components/marketing/ProductShowcase"));
+const TaskBoardShowcase = dynamic(() => import("@/app/components/marketing/TaskBoardShowcase"));
+const WizardShowcase = dynamic(() => import("@/app/components/marketing/WizardShowcase"));
 
 export const metadata: Metadata = {
   title: "Features",

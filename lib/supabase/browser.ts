@@ -8,8 +8,14 @@ import type {
   ArtistStatus,
   SupabaseSession,
 } from "@/lib/types/artist";
+import {
+  clearStoredSessionRecord,
+  getStoredSession,
+  isDemoSession,
+  storeSessionRecord,
+} from "@/lib/supabase/session-store";
 
-const SESSION_KEY = "promosync.supabase.session";
+export { getStoredSession, isDemoSession } from "@/lib/supabase/session-store";
 const AUTH_RETURN_PATH = "/auth/callback";
 const DOCUMENT_BUCKET = "artist-documents";
 const MEDIA_BUCKET = "artist-media";
@@ -97,10 +103,6 @@ export function isDemoAuthEnabled() {
 export const DEMO_LOGIN_EMAIL = "demo@promosync.app";
 export const DEMO_LOGIN_PASSWORD = "demo1234";
 
-export function isDemoSession(session: SupabaseSession | null | undefined) {
-  return Boolean(session?.demo);
-}
-
 export function signInAsDemo(): SupabaseSession {
   const session: SupabaseSession = {
     accessToken: "demo-access-token",
@@ -116,21 +118,6 @@ export function signInAsDemo(): SupabaseSession {
 }
 
 const SESSION_REFRESH_SKEW_SEC = 120;
-
-export function getStoredSession(): SupabaseSession | null {
-  if (typeof window === "undefined") return null;
-
-  try {
-    const raw = window.localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-
-    const session = JSON.parse(raw) as SupabaseSession;
-    if (!session.accessToken || !session.user?.id) return null;
-    return session;
-  } catch {
-    return null;
-  }
-}
 
 export function isSessionNearExpiry(session: SupabaseSession) {
   if (!session.expiresAt) return false;
@@ -218,12 +205,12 @@ export async function getValidSession(): Promise<SupabaseSession | null> {
   }
 }
 
-export function storeSession(session: SupabaseSession) {
-  window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+function storeSession(session: SupabaseSession) {
+  storeSessionRecord(session);
 }
 
-export function clearStoredSession() {
-  window.localStorage.removeItem(SESSION_KEY);
+function clearStoredSession() {
+  clearStoredSessionRecord();
 }
 
 type OAuthProvider = "github" | "google" | "apple";

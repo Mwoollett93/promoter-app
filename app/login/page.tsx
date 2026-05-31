@@ -1,7 +1,10 @@
 import { Suspense } from "react";
+import dynamic from "next/dynamic";
 import type { Metadata } from "next";
 
-import AuthLandingPage from "@/app/components/auth/AuthLandingPage";
+const AuthLandingPage = dynamic(() => import("@/app/components/auth/AuthLandingPage"), {
+  loading: () => <AuthLoading />,
+});
 
 export const metadata: Metadata = {
   title: "Log in",

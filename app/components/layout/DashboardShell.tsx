@@ -8,7 +8,7 @@ import { SHELL_PADDING_X, SHELL_PADDING_Y } from "@/lib/layout/page-layout";
 import { WorkspaceProvider } from "@/lib/collaboration/WorkspaceContext";
 import { SettingsProvider } from "@/lib/settings/SettingsProvider";
 import { isAccountActive, loadSettings, reactivateAccount } from "@/lib/settings/settings";
-import { getStoredSession } from "@/lib/supabase/browser";
+import { getStoredSession } from "@/lib/supabase/session-store";
 
 export default function DashboardShell({
   children,

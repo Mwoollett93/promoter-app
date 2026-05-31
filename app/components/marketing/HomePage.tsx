@@ -1,8 +1,8 @@
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { ArrowRight, Check, LayoutDashboard, Users } from "lucide-react";
 
 import ProductShowcase from "@/app/components/marketing/ProductShowcase";
-import WizardShowcase from "@/app/components/marketing/WizardShowcase";
 import {
   FeatureCard,
   PrimaryCta,
@@ -20,7 +20,10 @@ import {
   site,
   testimonials,
 } from "@/lib/marketing/content";
-import TaskBoardShowcase from "@/app/components/marketing/TaskBoardShowcase";
+
+const WizardShowcase = dynamic(() => import("@/app/components/marketing/WizardShowcase"));
+const TaskBoardShowcase = dynamic(() => import("@/app/components/marketing/TaskBoardShowcase"));
+const DeferredProductShowcase = dynamic(() => import("@/app/components/marketing/ProductShowcase"));
 
 export default function HomePage() {
   return (
@@ -159,7 +162,7 @@ export default function HomePage() {
         />
         <div className="relative mt-14">
           <div className="pointer-events-none absolute -inset-x-20 top-1/2 h-64 -translate-y-1/2 bg-[#7C3AED]/20 blur-[100px]" />
-          <ProductShowcase variant="hero" />
+          <DeferredProductShowcase variant="hero" />
         </div>
       </Section>
 

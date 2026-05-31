@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 import type { LucideIcon } from "lucide-react";
@@ -26,12 +27,15 @@ import {
   CheckSquare,
 } from "lucide-react";
 
-import NotificationPanel from "@/app/components/notifications/NotificationPanel";
-
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useSettings } from "@/lib/settings/SettingsProvider";
 import type { SettingsTabId } from "@/lib/settings/settings";
 import { signOutOfSupabase } from "@/lib/supabase/browser";
+
+const NotificationPanel = dynamic(
+  () => import("@/app/components/notifications/NotificationPanel"),
+  { ssr: false },
+);
 
 type SidebarProps = {
   isOpen: boolean;

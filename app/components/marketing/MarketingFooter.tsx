@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { navLinks, site } from "@/lib/marketing/content";
+import { navLinks, site } from "@/lib/marketing/site-meta";
 import { siteLinks } from "@/lib/marketing/site-links";
 
 export default function MarketingFooter() {
