@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 import { buildContactFormEmail } from "@/lib/email/contact-form-template";
 import { ensureResendEnvLoaded } from "@/lib/email/resend-env";
 import { sendTransactionalEmail } from "@/lib/email/send-transactional";
+import { jsonError, logRouteError } from "@/lib/security/api-response";
+import { assertSameOrigin } from "@/lib/security/origin-check";
+import { checkContactLimit, rateLimitResponse } from "@/lib/security/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -19,6 +22,12 @@ function contactInbox() {
 export async function POST(request: Request) {
   ensureResendEnvLoaded();
 
+  const originBlock = assertSameOrigin(request);
+  if (originBlock) return originBlock;
+
+  const contactLimit = await checkContactLimit(request);
+  if (!contactLimit.ok) return rateLimitResponse(contactLimit);
+
   try {
     const body = (await request.json()) as {
       name?: string;
@@ -33,23 +42,23 @@ export async function POST(request: Request) {
     const message = body.message?.trim() ?? "";
 
     if (!name || !email) {
-      return NextResponse.json({ error: "Name and email are required." }, { status: 400 });
+      return jsonError("Name and email are required.", 400);
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
+      return jsonError("Enter a valid email address.", 400);
     }
 
     const { subject, html } = buildContactFormEmail({ name, email, intent, message });
     const sent = await sendTransactionalEmail({ to: contactInbox(), subject, html });
 
     if (!sent.ok) {
-      return NextResponse.json({ error: sent.error }, { status: 503 });
+      return jsonError(sent.error, 503);
     }
 
     return NextResponse.json({ ok: true, stub: sent.stub });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unable to send message.";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    logRouteError("api/contact", err);
+    return jsonError("Unable to send message.", 500);
   }
 }

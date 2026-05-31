@@ -1,3 +1,5 @@
+import { validatePasswordPolicy } from "@/lib/auth/password-policy";
+
 export const SETTINGS_STORAGE_KEY = "promosync:settings";
 export const SETTINGS_UPDATED_EVENT = "promosync:settings-updated";
 
@@ -351,8 +353,9 @@ export function validatePasswordChange(input: {
     return { ok: false as const, message: "Enter a new password." };
   }
 
-  if (input.next.length < 8) {
-    return { ok: false as const, message: "Password must be at least 8 characters." };
+  const policy = validatePasswordPolicy(input.next);
+  if (!policy.ok) {
+    return { ok: false as const, message: policy.message };
   }
 
   if (input.next !== input.confirm) {

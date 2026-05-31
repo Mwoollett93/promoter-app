@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { integrationEnvReady, INTEGRATION_PROVIDERS } from "@/lib/integrations/providers";
+import { assertSameOrigin } from "@/lib/security/origin-check";
 import type { IntegrationId } from "@/lib/settings/settings";
 import { getBearerToken, getUserFromAccessToken } from "@/lib/supabase/server-user";
 
@@ -14,6 +15,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ provider: string }> },
 ) {
+  const originBlock = assertSameOrigin(request);
+  if (originBlock) return originBlock;
+
   const { provider: providerParam } = await context.params;
   const provider = providerParam as IntegrationId;
   const config = INTEGRATION_PROVIDERS[provider];

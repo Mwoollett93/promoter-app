@@ -6,6 +6,7 @@ import {
 } from "@/lib/email/resend-env";
 import { buildWorkspaceInviteEmail } from "@/lib/email/workspace-invite-template";
 import { sendTransactionalEmail } from "@/lib/email/send-transactional";
+import { assertSameOrigin } from "@/lib/security/origin-check";
 
 export const runtime = "nodejs";
 
@@ -30,6 +31,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   ensureResendEnvLoaded();
+
+  const originBlock = assertSameOrigin(request);
+  if (originBlock) return originBlock;
 
   try {
     const accessToken = getBearerToken(request);

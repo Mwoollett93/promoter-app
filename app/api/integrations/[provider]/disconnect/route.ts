@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { deleteIntegrationConnection } from "@/lib/integrations/connections";
+import { assertSameOrigin } from "@/lib/security/origin-check";
 import type { IntegrationId } from "@/lib/settings/settings";
 import { getBearerToken, getUserFromAccessToken } from "@/lib/supabase/server-user";
 
@@ -8,6 +9,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ provider: string }> },
 ) {
+  const originBlock = assertSameOrigin(request);
+  if (originBlock) return originBlock;
+
   try {
     const accessToken = getBearerToken(request);
     if (!accessToken) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

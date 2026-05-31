@@ -111,6 +111,7 @@ export function signInAsDemo(): SupabaseSession {
     },
   };
   storeSession(session);
+  void setSessionIndicator({ demo: true });
   return session;
 }
 
@@ -295,6 +296,7 @@ async function postAuthApi<T extends Record<string, unknown>>(path: string, body
     response = await fetch(path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
       body: JSON.stringify(body),
     });
   } catch {
@@ -308,6 +310,24 @@ async function postAuthApi<T extends Record<string, unknown>>(path: string, body
   }
 
   return payload;
+}
+
+async function setSessionIndicator(options?: { demo?: boolean; accessToken?: string }) {
+  try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (options?.accessToken) {
+      headers.Authorization = `Bearer ${options.accessToken}`;
+    }
+
+    await fetch("/api/auth/session-indicator", {
+      method: "POST",
+      headers,
+      credentials: "same-origin",
+      body: JSON.stringify(options?.demo ? { demo: true } : {}),
+    });
+  } catch {
+    /* cookie is defense-in-depth; client auth still works via localStorage */
+  }
 }
 
 export async function startOAuthSignIn(provider: OAuthProvider) {
@@ -426,6 +446,14 @@ export async function completeSupabaseHashSession(hash: string): Promise<Supabas
   return persistSessionFromSupabase(data.session);
 }
 
+export async function establishSessionIndicator(session: SupabaseSession) {
+  if (isDemoSession(session)) {
+    await setSessionIndicator({ demo: true });
+    return;
+  }
+  await setSessionIndicator({ accessToken: session.accessToken });
+}
+
 export async function signOutOfSupabase() {
   const config = getSupabaseConfig();
   const session = getStoredSession();
@@ -439,6 +467,11 @@ export async function signOutOfSupabase() {
       },
     }).catch(() => undefined);
   }
+
+  await fetch("/api/auth/signout", {
+    method: "POST",
+    credentials: "same-origin",
+  }).catch(() => undefined);
 
   clearStoredSession();
 }

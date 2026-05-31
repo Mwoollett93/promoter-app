@@ -1,48 +1,58 @@
 import { NextResponse } from "next/server";
 
+import { validatePasswordPolicy } from "@/lib/auth/password-policy";
+import {
+  jsonError,
+  logRouteError,
+  safeAuthError,
+} from "@/lib/security/api-response";
+import { signUpSchema, parseJsonBody } from "@/lib/security/auth-schemas";
+import { assertSameOrigin } from "@/lib/security/origin-check";
+import { checkSignupIpLimit, rateLimitResponse } from "@/lib/security/rate-limit";
+import { attachSessionIndicator } from "@/lib/security/session-cookie";
 import { getSupabaseServerConfig, serverSignUp } from "@/lib/supabase/server-auth";
 
 export async function POST(request: Request) {
+  const originBlock = assertSameOrigin(request);
+  if (originBlock) return originBlock;
+
   try {
     if (!getSupabaseServerConfig()) {
-      return NextResponse.json(
-        {
-          error:
-            "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel, then redeploy.",
-        },
-        { status: 500 },
+      return jsonError(
+        "Authentication is not configured. Please contact support.",
+        500,
       );
     }
 
-    let body: {
-      email?: string;
-      password?: string;
-      emailRedirectTo?: string;
-      data?: Record<string, string | null>;
-    };
+    const signupLimit = await checkSignupIpLimit(request);
+    if (!signupLimit.ok) return rateLimitResponse(signupLimit);
 
+    let body: unknown;
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+      return jsonError("Invalid request body.", 400);
     }
 
-    const email = body.email?.trim().toLowerCase();
-    const password = body.password;
+    const parsed = parseJsonBody(signUpSchema, body);
+    if (!parsed.ok) return jsonError(parsed.error, 400);
 
-    if (!email || !password) {
-      return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
-    }
+    const { email, password, emailRedirectTo, data } = parsed.data;
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const passwordCheck = validatePasswordPolicy(password);
+    if (!passwordCheck.ok) return jsonError(passwordCheck.message, 400);
 
     const result = await serverSignUp({
-      email,
+      email: normalizedEmail,
       password,
-      emailRedirectTo: body.emailRedirectTo,
-      data: body.data,
+      emailRedirectTo,
+      data,
     });
 
     if (result.kind === "session") {
-      return NextResponse.json({ session: result.session });
+      const response = NextResponse.json({ session: result.session });
+      return attachSessionIndicator(response, request);
     }
 
     return NextResponse.json({
@@ -50,8 +60,7 @@ export async function POST(request: Request) {
       message: result.message,
     });
   } catch (error) {
-    console.error("[api/auth/signup]", error);
-    const message = error instanceof Error ? error.message : "Unable to create account.";
-    return NextResponse.json({ error: message }, { status: 400 });
+    logRouteError("api/auth/signup", error);
+    return jsonError(safeAuthError(error, "Unable to create account."), 400);
   }
 }

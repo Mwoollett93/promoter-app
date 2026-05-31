@@ -1,39 +1,65 @@
 import { NextResponse } from "next/server";
 
+import {
+  jsonError,
+  logRouteError,
+  randomFailedSignInDelay,
+  safeAuthError,
+} from "@/lib/security/api-response";
+import { signInSchema, parseJsonBody } from "@/lib/security/auth-schemas";
+import { assertSameOrigin } from "@/lib/security/origin-check";
+import {
+  checkSignInFailureLimit,
+  checkSignInIpLimit,
+  rateLimitResponse,
+  recordSignInFailure,
+} from "@/lib/security/rate-limit";
+import { attachSessionIndicator } from "@/lib/security/session-cookie";
 import { getSupabaseServerConfig, serverSignIn } from "@/lib/supabase/server-auth";
 
 export async function POST(request: Request) {
+  const originBlock = assertSameOrigin(request);
+  if (originBlock) return originBlock;
+
   try {
     if (!getSupabaseServerConfig()) {
-      return NextResponse.json(
-        {
-          error:
-            "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel, then redeploy.",
-        },
-        { status: 500 },
+      return jsonError(
+        "Authentication is not configured. Please contact support.",
+        500,
       );
     }
 
-    let body: { email?: string; password?: string };
+    const ipLimit = await checkSignInIpLimit(request);
+    if (!ipLimit.ok) return rateLimitResponse(ipLimit);
 
+    let body: unknown;
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+      return jsonError("Invalid request body.", 400);
     }
 
-    const email = body.email?.trim().toLowerCase();
-    const password = body.password;
+    const parsed = parseJsonBody(signInSchema, body);
+    if (!parsed.ok) return jsonError(parsed.error, 400);
 
-    if (!email || !password) {
-      return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
+    const { email, password } = parsed.data;
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const failureLimit = await checkSignInFailureLimit(request, normalizedEmail);
+    if (!failureLimit.ok) return rateLimitResponse(failureLimit);
+
+    try {
+      const session = await serverSignIn({ email: normalizedEmail, password });
+      const response = NextResponse.json({ session });
+      return attachSessionIndicator(response, request);
+    } catch (signInError) {
+      await recordSignInFailure(request, normalizedEmail);
+      await randomFailedSignInDelay();
+      logRouteError("api/auth/signin", signInError);
+      return jsonError(safeAuthError(signInError, "Unable to sign in."), 400);
     }
-
-    const session = await serverSignIn({ email, password });
-    return NextResponse.json({ session });
   } catch (error) {
-    console.error("[api/auth/signin]", error);
-    const message = error instanceof Error ? error.message : "Unable to sign in.";
-    return NextResponse.json({ error: message }, { status: 400 });
+    logRouteError("api/auth/signin", error);
+    return jsonError("Unable to sign in.", 400);
   }
 }

@@ -8,6 +8,7 @@ import {
 } from "@/lib/billing/plans";
 import { getStripe } from "@/lib/billing/stripe";
 import { getWorkspaceBilling, upsertWorkspaceBilling } from "@/lib/billing/workspace-billing";
+import { assertSameOrigin } from "@/lib/security/origin-check";
 import { getBearerToken, getUserFromAccessToken } from "@/lib/supabase/server-user";
 
 function appOrigin(request: Request) {
@@ -17,6 +18,9 @@ function appOrigin(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const originBlock = assertSameOrigin(request);
+  if (originBlock) return originBlock;
+
   if (!isStripeConfigured()) {
     return NextResponse.json(
       { error: "Stripe is not configured. Add STRIPE_SECRET_KEY and price IDs to your environment." },

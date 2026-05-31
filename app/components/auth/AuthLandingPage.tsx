@@ -18,6 +18,7 @@ import {
 
 import AuthField from "@/app/components/auth/AuthField";
 import { getLandingPagePath, reactivateAccount } from "@/lib/settings/settings";
+import { validatePasswordPolicy } from "@/lib/auth/password-policy";
 import { bootstrapSettingsFromAuth } from "@/lib/settings/user-bootstrap";
 import {
   getPasswordStrength,
@@ -169,6 +170,12 @@ export default function AuthLandingPage() {
 
     if (!acceptedTerms) {
       setError("Please accept the Terms of Service and Privacy Policy.");
+      return;
+    }
+
+    const passwordCheck = validatePasswordPolicy(password);
+    if (!passwordCheck.ok) {
+      setError(passwordCheck.message);
       return;
     }
 
