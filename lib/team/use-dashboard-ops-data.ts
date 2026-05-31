@@ -2,38 +2,13 @@
 
 import * as React from "react";
 
-import { listTasks } from "@/lib/collaboration/tasks";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import { buildDashboardOpsStats } from "@/lib/data/dashboard-ops-stats";
 import { computeMemberWorkloads } from "@/lib/team/member-workload";
 import { buildTeamNotifications } from "@/lib/team/team-notifications";
-import type { Task } from "@/lib/types/collaboration";
 
 export function useDashboardOpsData() {
-  const { session, workspace, members, events, membership, ready } = useWorkspace();
-  const [tasks, setTasks] = React.useState<Task[]>([]);
-  const [tasksReady, setTasksReady] = React.useState(false);
-
-  const refreshTasks = React.useCallback(async () => {
-    if (!session || !workspace) {
-      setTasks([]);
-      setTasksReady(true);
-      return;
-    }
-    try {
-      const list = await listTasks(session, workspace.id);
-      setTasks(list);
-    } catch {
-      setTasks([]);
-    } finally {
-      setTasksReady(true);
-    }
-  }, [session, workspace]);
-
-  React.useEffect(() => {
-    setTasksReady(false);
-    void refreshTasks();
-  }, [refreshTasks]);
+  const { session, workspace, members, events, membership, ready, tasks } = useWorkspace();
 
   const assignedToYou = tasks.filter(
     (t) => t.assigneeId === session?.user.id && t.column !== "complete",
@@ -62,7 +37,7 @@ export function useDashboardOpsData() {
         : [];
 
   return {
-    ready: ready && tasksReady,
+    ready,
     session,
     workspace,
     events,
@@ -72,6 +47,5 @@ export function useDashboardOpsData() {
     workloads,
     activeMembers,
     assignedToYou,
-    refreshTasks,
   };
 }

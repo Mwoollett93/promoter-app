@@ -54,11 +54,31 @@ type KanbanBoardProps = {
 };
 
 export default function KanbanBoard({ workspaceId, eventId: lockedEventId }: KanbanBoardProps) {
-  const { session, members, events, membership } = useWorkspace();
+  const {
+    session,
+    members,
+    events,
+    membership,
+    tasks: workspaceTasks,
+    taskCommentCounts: workspaceCommentCounts,
+    usingLocalFallback,
+    refresh: refreshWorkspace,
+    ready: workspaceReady,
+  } = useWorkspace();
   const cacheKey = tasksBoardCacheKey(workspaceId, lockedEventId);
-  const [tasks, setTasks] = React.useState<Task[]>(() => readTasksBoardCache(cacheKey) ?? []);
-  const [commentCounts, setCommentCounts] = React.useState<Record<string, number>>({});
-  const [loadingTasks, setLoadingTasks] = React.useState(() => readTasksBoardCache(cacheKey) == null);
+
+  const contextTasks = React.useMemo(() => {
+    if (lockedEventId) {
+      return workspaceTasks.filter((task) => task.eventId === lockedEventId);
+    }
+    return workspaceTasks;
+  }, [workspaceTasks, lockedEventId]);
+
+  const [tasks, setTasks] = React.useState<Task[]>(() => readTasksBoardCache(cacheKey) ?? contextTasks);
+  const [commentCounts, setCommentCounts] = React.useState<Record<string, number>>(workspaceCommentCounts);
+  const [loadingTasks, setLoadingTasks] = React.useState(
+    () => readTasksBoardCache(cacheKey) == null && contextTasks.length === 0,
+  );
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [overColumn, setOverColumn] = React.useState<TaskColumn | null>(null);
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
@@ -76,6 +96,14 @@ export default function KanbanBoard({ workspaceId, eventId: lockedEventId }: Kan
   const refresh = React.useCallback(
     async (options?: { silent?: boolean }) => {
       if (!session) return;
+
+      if (!usingLocalFallback) {
+        if (!options?.silent && tasks.length === 0) setLoadingTasks(true);
+        await refreshWorkspace();
+        setLoadingTasks(false);
+        return;
+      }
+
       if (!options?.silent && tasks.length === 0) setLoadingTasks(true);
 
       const list = await listTasks(session, workspaceId, {
@@ -89,13 +117,22 @@ export default function KanbanBoard({ workspaceId, eventId: lockedEventId }: Kan
         .then(setCommentCounts)
         .catch(() => setCommentCounts({}));
     },
-    [session, workspaceId, lockedEventId, cacheKey, tasks.length],
+    [session, workspaceId, lockedEventId, cacheKey, tasks.length, usingLocalFallback, refreshWorkspace],
   );
 
   React.useEffect(() => {
+    if (!workspaceReady || usingLocalFallback) return;
+    setTasks(contextTasks);
+    writeTasksBoardCache(cacheKey, contextTasks);
+    setCommentCounts(workspaceCommentCounts);
+    setLoadingTasks(false);
+  }, [workspaceReady, usingLocalFallback, contextTasks, workspaceCommentCounts, cacheKey]);
+
+  React.useEffect(() => {
+    if (!usingLocalFallback) return;
     const cached = readTasksBoardCache(cacheKey);
     void refresh({ silent: cached != null });
-  }, [refresh, cacheKey]);
+  }, [refresh, cacheKey, usingLocalFallback]);
 
   React.useEffect(() => {
     if (lockedEventId) setEventFilter(lockedEventId);

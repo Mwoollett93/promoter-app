@@ -5,8 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 
 import Sidebar from "./Sidebar";
 import { SHELL_PADDING_X, SHELL_PADDING_Y } from "@/lib/layout/page-layout";
-import { WorkspaceProvider } from "@/lib/collaboration/WorkspaceContext";
-import { SettingsProvider } from "@/lib/settings/SettingsProvider";
 import { isAccountActive, loadSettings, reactivateAccount } from "@/lib/settings/settings";
 import { getStoredSession } from "@/lib/supabase/session-store";
 
@@ -47,9 +45,7 @@ export default function DashboardShell({
   }
 
   return (
-    <SettingsProvider>
-      <WorkspaceProvider>
-      <div className="h-screen overflow-hidden bg-[#0B0B10]">
+    <div className="h-screen overflow-hidden bg-[#0B0B10]">
       <div
         className="isolate grid h-full transition-[grid-template-columns] duration-300 ease-out"
         style={{ gridTemplateColumns: sidebarOpen ? "218px 1fr" : "72px 1fr" }}
@@ -72,7 +68,5 @@ export default function DashboardShell({
         </section>
       </div>
     </div>
-      </WorkspaceProvider>
-    </SettingsProvider>
   );
 }

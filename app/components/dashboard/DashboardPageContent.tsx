@@ -88,7 +88,7 @@ const venuesCache: {
 export default function DashboardPageContent() {
   const router = useRouter();
   const { settings } = useSettings();
-  const { events: workspaceEvents, ready: workspaceReady } = useWorkspace();
+  const { events: workspaceEvents, ready: workspaceReady, refresh: refreshWorkspace } = useWorkspace();
   const ops = useDashboardOpsData();
   const [financeScope, setFinanceScope] = React.useState<DashboardFinanceScope>("portfolio");
   const [snapshot, setSnapshot] = React.useState<DashboardSnapshot>(EMPTY_SNAPSHOT);
@@ -152,14 +152,14 @@ export default function DashboardPageContent() {
 
     const onEventsUpdated = () => {
       void refreshSnapshot();
-      void ops.refreshTasks();
+      void refreshWorkspace();
     };
 
     const onFocus = () => {
       if (focusTimer) clearTimeout(focusTimer);
       focusTimer = setTimeout(() => {
         void refreshSnapshot();
-        void ops.refreshTasks();
+        void refreshWorkspace();
       }, 500);
     };
 
@@ -173,7 +173,7 @@ export default function DashboardPageContent() {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("promosync:events-updated", onEventsUpdated);
     };
-  }, [refreshSnapshot, ops.refreshTasks]);
+  }, [refreshSnapshot, refreshWorkspace]);
 
   const upcoming = snapshot.upcomingEvents;
   const loading = !workspaceReady || !ops.ready;

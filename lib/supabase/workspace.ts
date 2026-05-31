@@ -273,6 +273,13 @@ export async function acceptPendingWorkspaceInvites(
 async function resolvePrimaryMembership(
   session: SupabaseSession,
 ): Promise<{ workspace: Workspace; membership: WorkspaceMember } | null> {
+  return resolvePrimaryWorkspace(session);
+}
+
+/** Resolves the user's primary workspace without N+1 workspace lookups. */
+export async function resolvePrimaryWorkspace(
+  session: SupabaseSession,
+): Promise<{ workspace: Workspace; membership: WorkspaceMember } | null> {
   const email = session.user.email?.trim().toLowerCase();
 
   const rows = await supabaseRest<MemberRow[]>(
@@ -281,32 +288,31 @@ async function resolvePrimaryMembership(
   );
   if (rows.length === 0) return null;
 
-  // Prefer a team workspace you were invited to (not one you created yourself).
+  const workspaceIds = [...new Set(rows.map((row) => row.workspace_id))];
+  const workspaces = await supabaseRest<WorkspaceRow[]>(
+    `workspaces?id=in.(${workspaceIds.join(",")})`,
+    session,
+  );
+  const workspaceById = new Map(workspaces.map((row) => [row.id, mapWorkspace(row)]));
+
   for (const row of rows) {
-    const workspaces = await supabaseRest<WorkspaceRow[]>(
-      `workspaces?id=eq.${row.workspace_id}&limit=1`,
-      session,
-    );
-    const workspace = workspaces[0];
+    const workspace = workspaceById.get(row.workspace_id);
     if (!workspace) continue;
 
     const wasInvite =
       email &&
       row.invited_email?.trim().toLowerCase() === email &&
-      workspace.created_by !== session.user.id;
+      workspace.createdBy !== session.user.id;
 
-    if (wasInvite || workspace.created_by !== session.user.id) {
-      return { workspace: mapWorkspace(workspace), membership: mapMember(row) };
+    if (wasInvite || workspace.createdBy !== session.user.id) {
+      return { workspace, membership: mapMember(row) };
     }
   }
 
   const first = rows[0];
-  const workspaces = await supabaseRest<WorkspaceRow[]>(
-    `workspaces?id=eq.${first.workspace_id}&limit=1`,
-    session,
-  );
-  if (!workspaces[0]) return null;
-  return { workspace: mapWorkspace(workspaces[0]), membership: mapMember(first) };
+  const workspace = workspaceById.get(first.workspace_id);
+  if (!workspace) return null;
+  return { workspace: workspace, membership: mapMember(first) };
 }
 
 export async function probeCloudCollaboration(

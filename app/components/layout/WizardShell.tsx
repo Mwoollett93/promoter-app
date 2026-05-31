@@ -6,9 +6,8 @@ import { useRouter } from "next/navigation";
 import Sidebar from "./Sidebar";
 import WizardHeader from "./WizardHeader";
 import { SHELL_PADDING_X, SHELL_PADDING_Y } from "@/lib/layout/page-layout";
-import { WorkspaceProvider, useWorkspace } from "@/lib/collaboration/WorkspaceContext";
-import { SettingsProvider } from "@/lib/settings/SettingsProvider";
-import { getValidSession } from "@/lib/supabase/browser";
+import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
+import { getStoredSession } from "@/lib/supabase/session-store";
 import {
   hasWizardProgress,
   saveWizardProgressAsDraft,
@@ -19,12 +18,22 @@ type WizardShellProps = {
   title?: string;
 };
 
-function WizardShellLayout({ children, title }: WizardShellProps) {
+export default function WizardShell({ children, title }: WizardShellProps) {
   const router = useRouter();
   const { session, workspace, ready: workspaceReady, refreshEvents } = useWorkspace();
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const [draftMessage, setDraftMessage] = React.useState<string | null>(null);
   const [savingDraft, setSavingDraft] = React.useState(false);
+  const [ready, setReady] = React.useState(false);
+
+  React.useEffect(() => {
+    const current = getStoredSession();
+    if (!current) {
+      router.replace("/login");
+      return;
+    }
+    setReady(true);
+  }, [router]);
 
   function handleClose() {
     if (
@@ -60,6 +69,14 @@ function WizardShellLayout({ children, title }: WizardShellProps) {
     }
   }
 
+  if (!ready) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#0B0B10] text-[#A1A1AA]">
+        Loading...
+      </main>
+    );
+  }
+
   return (
     <div className="h-screen overflow-hidden bg-[#0B0B10]">
       <div
@@ -86,36 +103,5 @@ function WizardShellLayout({ children, title }: WizardShellProps) {
         </section>
       </div>
     </div>
-  );
-}
-
-export default function WizardShell({ children, title }: WizardShellProps) {
-  const router = useRouter();
-  const [ready, setReady] = React.useState(false);
-
-  React.useEffect(() => {
-    void getValidSession().then((session) => {
-      if (!session) {
-        router.replace("/login");
-        return;
-      }
-      setReady(true);
-    });
-  }, [router]);
-
-  if (!ready) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#0B0B10] text-[#A1A1AA]">
-        Loading...
-      </main>
-    );
-  }
-
-  return (
-    <SettingsProvider>
-      <WorkspaceProvider>
-        <WizardShellLayout title={title}>{children}</WizardShellLayout>
-      </WorkspaceProvider>
-    </SettingsProvider>
   );
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import * as React from "react";
+import useSWR from "swr";
 import { Bell } from "lucide-react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -10,44 +11,49 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/lib/collaboration/notifications";
-import { getStoredSession } from "@/lib/supabase/browser";
+import { getStoredSession } from "@/lib/supabase/session-store";
 import type { AppNotification } from "@/lib/types/collaboration";
+
+async function fetchNotifications() {
+  const session = getStoredSession();
+  if (!session) return [] as AppNotification[];
+  return listNotifications(session);
+}
 
 export default function NotificationPanel() {
   const [open, setOpen] = React.useState(false);
-  const [items, setItems] = React.useState<AppNotification[]>([]);
+
+  const { data: items = [], mutate } = useSWR(
+    open ? "workspace-notifications" : null,
+    fetchNotifications,
+    {
+      dedupingInterval: 30_000,
+      revalidateOnFocus: false,
+    },
+  );
 
   const unread = items.filter((n) => !n.readAt).length;
 
-  const refresh = React.useCallback(async () => {
-    const session = getStoredSession();
-    if (!session) return;
-    const list = await listNotifications(session);
-    setItems(list);
-  }, []);
-
   React.useEffect(() => {
-    void refresh();
-    window.addEventListener("promosync:notifications-updated", refresh);
-    return () => window.removeEventListener("promosync:notifications-updated", refresh);
-  }, [refresh]);
-
-  React.useEffect(() => {
-    if (open) void refresh();
-  }, [open, refresh]);
+    const onUpdated = () => {
+      void mutate();
+    };
+    window.addEventListener("promosync:notifications-updated", onUpdated);
+    return () => window.removeEventListener("promosync:notifications-updated", onUpdated);
+  }, [mutate]);
 
   async function handleRead(id: string) {
     const session = getStoredSession();
     if (!session) return;
     await markNotificationRead(session, id);
-    await refresh();
+    await mutate();
   }
 
   async function handleReadAll() {
     const session = getStoredSession();
     if (!session) return;
     await markAllNotificationsRead(session);
-    await refresh();
+    await mutate();
   }
 
   return (

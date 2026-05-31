@@ -4,18 +4,16 @@ import * as React from "react";
 
 import type { PendingInviteRow } from "@/app/components/team/PendingInviteList";
 import { canInviteMembers } from "@/lib/collaboration/permissions";
-import { listTasks } from "@/lib/collaboration/tasks";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import { computeMemberWorkloads } from "@/lib/team/member-workload";
 import { touchCurrentUserPresence } from "@/lib/team/presence";
 import { buildTeamNotifications } from "@/lib/team/team-notifications";
 import { computeWorkspaceTeamStats } from "@/lib/team/workspace-team-stats";
 import {
-  listWorkspaceInvites,
   removeWorkspaceMember,
   updateMemberRole,
 } from "@/lib/supabase/workspace";
-import type { Task, WorkspaceInvite, WorkspaceRole } from "@/lib/types/collaboration";
+import type { WorkspaceRole } from "@/lib/types/collaboration";
 
 export function useTeamWorkspaceData() {
   const {
@@ -25,10 +23,10 @@ export function useTeamWorkspaceData() {
     events,
     membership,
     role,
-    refreshMembers,
+    tasks,
+    invites,
+    refresh,
   } = useWorkspace();
-  const [tasks, setTasks] = React.useState<Task[]>([]);
-  const [invites, setInvites] = React.useState<WorkspaceInvite[]>([]);
 
   const effectiveRole = role ?? membership?.role ?? null;
   const canManage = effectiveRole ? canInviteMembers(effectiveRole) : false;
@@ -53,21 +51,6 @@ export function useTeamWorkspaceData() {
         };
       });
   }, [members, invites]);
-
-  const refreshAll = React.useCallback(async () => {
-    if (!session || !workspace) return;
-    const [taskList, inviteList] = await Promise.all([
-      listTasks(session, workspace.id),
-      listWorkspaceInvites(session, workspace.id),
-    ]);
-    setTasks(taskList);
-    setInvites(inviteList);
-    await refreshMembers();
-  }, [session, workspace, refreshMembers]);
-
-  React.useEffect(() => {
-    void refreshAll();
-  }, [refreshAll]);
 
   React.useEffect(() => {
     if (!session?.user.id) return;
@@ -108,14 +91,14 @@ export function useTeamWorkspaceData() {
   async function handleRoleChange(memberId: string, newRole: WorkspaceRole) {
     if (!session) return;
     await updateMemberRole(session, memberId, newRole);
-    await refreshAll();
+    await refresh();
   }
 
   async function handleRemove(memberId: string) {
     if (!session || !workspace) return;
     if (!window.confirm("Remove this team member?")) return;
     await removeWorkspaceMember(session, workspace.id, memberId);
-    await refreshAll();
+    await refresh();
   }
 
   return {
@@ -125,7 +108,7 @@ export function useTeamWorkspaceData() {
     tasks,
     canManage,
     pendingRows,
-    refreshAll,
+    refreshAll: refresh,
     stats,
     workloads,
     notifications,
