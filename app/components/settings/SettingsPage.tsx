@@ -49,6 +49,7 @@ import {
   fetchIntegrationStatus,
   type IntegrationStatusItem,
 } from "@/lib/integrations/client";
+import { integrationsLiveEnabled } from "@/lib/integrations/feature-flag";
 
 type SettingsTab = {
   id: SettingsTabId;
@@ -814,6 +815,32 @@ function BillingTab({ billing }: { billing: import("@/lib/settings/settings").Bi
 }
 
 function IntegrationsTab() {
+  const integrationsLive = integrationsLiveEnabled();
+
+  if (!integrationsLive) {
+    return (
+      <div className={`grid md:grid-cols-2 ${GRID_CARD_GAP}`}>
+        <p className="md:col-span-2 rounded-lg border border-[#232330] bg-[#0B0B10] px-4 py-3 text-[13px] leading-5 text-[#A1A1AA]">
+          Third-party connections are coming soon. You&apos;ll link Google Calendar, Spotify, Stripe,
+          and Mailchimp from here when workspace integrations launch.
+        </p>
+        {INTEGRATION_META.map((item) => (
+          <SettingsCard key={item.id} title={item.name}>
+            <p className="text-[13px] leading-5 text-[#A1A1AA]">{item.description}</p>
+            <div className="mt-4 flex items-center justify-between gap-2">
+              <span className="text-[12px] font-medium text-[#71717A]">Coming soon</span>
+              <ComingSoonButton size="sm">Connect</ComingSoonButton>
+            </div>
+          </SettingsCard>
+        ))}
+      </div>
+    );
+  }
+
+  return <IntegrationsTabLive />;
+}
+
+function IntegrationsTabLive() {
   const { workspace } = useWorkspace();
   const [providers, setProviders] = React.useState<IntegrationStatusItem[]>([]);
   const [error, setError] = React.useState<string | null>(null);
