@@ -11,6 +11,7 @@ import DashboardLoadingSkeleton from "@/app/components/dashboard/DashboardLoadin
 import DashboardOpsStatsRow from "@/app/components/dashboard/DashboardOpsStatsRow";
 import FinancialSparkline from "@/app/components/dashboard/FinancialSparkline";
 import UpcomingEventsList from "@/app/components/dashboard/UpcomingEventsList";
+import ScrollFadeContainer from "@/app/components/ui/ScrollFadeContainer";
 import CurrencyText from "@/app/components/ui/CurrencyText";
 import TeamNotificationsPanel from "@/app/components/team/TeamNotificationsPanel";
 import {
@@ -190,9 +191,9 @@ export default function DashboardPageContent() {
                     <ArrowRight className="size-4" strokeWidth={2} aria-hidden />
                   </Link>
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+                <ScrollFadeContainer>
                   <UpcomingEventsList events={upcoming} />
-                </div>
+                </ScrollFadeContainer>
                 <StartNewEventLink
                   className="mt-3 inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-dashed border-[#8B5CF6]/50 py-2 text-[14px] font-medium text-[#8B5CF6] transition-colors hover:border-[#8B5CF6] hover:bg-[#8B5CF6]/5"
                 >
@@ -256,25 +257,27 @@ export default function DashboardPageContent() {
                   )}
                 >
                   <h3 className={`${SECTION_TITLE} shrink-0`}>Top Venues</h3>
-                  <ul className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
-                    {snapshot.topVenues.length > 0 ? (
-                      snapshot.topVenues.map((v) => (
-                        <li key={v.name} className="flex items-center gap-2.5">
-                          <div className="h-9 w-9 shrink-0 overflow-hidden rounded-md border border-[#3F3F46] bg-[#18181F]">
-                            {v.thumb ? (
-                              <img src={v.thumb} alt="" className="h-full w-full object-cover" />
-                            ) : null}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-[13px] font-medium text-[#F5F5F7]">{v.name}</p>
-                            <p className="text-[11px] text-[#A1A1AA]">{v.events} events</p>
-                          </div>
-                        </li>
-                      ))
-                    ) : (
-                      <li className="text-[13px] text-[#A1A1AA]">No venues in your portfolio yet.</li>
-                    )}
-                  </ul>
+                  <ScrollFadeContainer className="mt-3">
+                    <ul className="space-y-2">
+                      {snapshot.topVenues.length > 0 ? (
+                        snapshot.topVenues.map((v) => (
+                          <li key={v.name} className="flex items-center gap-2.5">
+                            <div className="h-9 w-9 shrink-0 overflow-hidden rounded-md border border-[#3F3F46] bg-[#18181F]">
+                              {v.thumb ? (
+                                <img src={v.thumb} alt="" className="h-full w-full object-cover" />
+                              ) : null}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[13px] font-medium text-[#F5F5F7]">{v.name}</p>
+                              <p className="text-[11px] text-[#A1A1AA]">{v.events} events</p>
+                            </div>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="text-[13px] text-[#A1A1AA]">No venues in your portfolio yet.</li>
+                      )}
+                    </ul>
+                  </ScrollFadeContainer>
                 </section>
 
                 <section
@@ -292,32 +295,34 @@ export default function DashboardPageContent() {
                       <ArrowRight className="size-4" strokeWidth={2} aria-hidden />
                     </Link>
                   </div>
-                  <ul className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
-                    {snapshot.topArtists.length > 0 ? (
-                      snapshot.topArtists.map((a) => (
-                        <li key={a.name}>
-                          <Link
-                            href="/artists"
-                            className="flex items-center gap-2.5 rounded-lg transition-colors hover:bg-[#181824]"
-                          >
-                            <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-[#3F3F46] ring-2 ring-[#18181F]">
-                              {a.avatar ? (
-                                <img src={a.avatar} alt="" className="h-full w-full object-cover" />
-                              ) : (
-                                <div className="h-full w-full bg-gradient-to-br from-[#2D2640] to-[#11111A]" />
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-[13px] font-medium text-[#F5F5F7]">{a.name}</p>
-                              <p className="text-[11px] text-[#A1A1AA]">{a.events} bookings</p>
-                            </div>
-                          </Link>
-                        </li>
-                      ))
-                    ) : (
-                      <li className="text-[13px] text-[#A1A1AA]">Add artists to populate this list.</li>
-                    )}
-                  </ul>
+                  <ScrollFadeContainer className="mt-3">
+                    <ul className="space-y-2">
+                      {snapshot.topArtists.length > 0 ? (
+                        snapshot.topArtists.map((a) => (
+                          <li key={a.name}>
+                            <Link
+                              href="/artists"
+                              className="flex items-center gap-2.5 rounded-lg transition-colors hover:bg-[#181824]"
+                            >
+                              <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-[#3F3F46] ring-2 ring-[#18181F]">
+                                {a.avatar ? (
+                                  <img src={a.avatar} alt="" className="h-full w-full object-cover" />
+                                ) : (
+                                  <div className="h-full w-full bg-gradient-to-br from-[#2D2640] to-[#11111A]" />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-[13px] font-medium text-[#F5F5F7]">{a.name}</p>
+                                <p className="text-[11px] text-[#A1A1AA]">{a.events} bookings</p>
+                              </div>
+                            </Link>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="text-[13px] text-[#A1A1AA]">Add artists to populate this list.</li>
+                      )}
+                    </ul>
+                  </ScrollFadeContainer>
                 </section>
               </div>
             </section>

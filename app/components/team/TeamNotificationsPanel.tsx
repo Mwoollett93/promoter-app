@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { AlertTriangle, Bell, Info } from "lucide-react";
 
+import ScrollFadeContainer from "@/app/components/ui/ScrollFadeContainer";
+
 import type { TeamNotificationItem } from "@/lib/team/team-notifications";
 import {
   LINK_ACCENT,
@@ -67,49 +69,46 @@ export default function TeamNotificationsPanel({
           All clear — no urgent workspace alerts.
         </p>
       ) : (
-        <ul
-          className={[
-            "min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1",
-            embedded ? "mt-2 space-y-1.5" : "mt-3 space-y-[12px]",
-          ].join(" ")}
-        >
-          {visible.map((item) => {
-            const Icon = TONE_ICON[item.tone];
-            const content = (
-              <div
-                className={[
-                  embedded ? "flex gap-2 rounded-md border border-[#232330] bg-[#0B0B10] p-2" : [SECTION_CARD_INNER, "flex gap-2.5 p-2.5"].join(" "),
-                ].join(" ")}
-              >
-                <Icon className={["mt-0.5 shrink-0", embedded ? "size-3" : "size-3.5", TONE_ICON_CLASS[item.tone]].join(" ")} />
-                <div className="min-w-0">
-                  <p className={embedded ? "text-[11px] font-medium text-[#F5F5F7]" : "text-[12px] font-medium text-[#F5F5F7]"}>
-                    {item.title}
-                  </p>
-                  <p
-                    className={[
-                      "line-clamp-2 text-[#71717A]",
-                      embedded ? "text-[10px] leading-3" : "mt-0.5 text-[11px] leading-4",
-                    ].join(" ")}
-                  >
-                    {item.detail}
-                  </p>
+        <ScrollFadeContainer className={embedded ? "mt-2" : "mt-3"}>
+          <ul className={embedded ? "space-y-1.5" : "space-y-[12px]"}>
+            {visible.map((item) => {
+              const Icon = TONE_ICON[item.tone];
+              const content = (
+                <div
+                  className={[
+                    embedded ? "flex gap-2 rounded-md border border-[#232330] bg-[#0B0B10] p-2" : [SECTION_CARD_INNER, "flex gap-2.5 p-2.5"].join(" "),
+                  ].join(" ")}
+                >
+                  <Icon className={["mt-0.5 shrink-0", embedded ? "size-3" : "size-3.5", TONE_ICON_CLASS[item.tone]].join(" ")} />
+                  <div className="min-w-0">
+                    <p className={embedded ? "text-[11px] font-medium text-[#F5F5F7]" : "text-[12px] font-medium text-[#F5F5F7]"}>
+                      {item.title}
+                    </p>
+                    <p
+                      className={[
+                        "line-clamp-2 text-[#71717A]",
+                        embedded ? "text-[10px] leading-3" : "mt-0.5 text-[11px] leading-4",
+                      ].join(" ")}
+                    >
+                      {item.detail}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            );
-            return (
-              <li key={item.id}>
-                {item.href ? (
-                  <Link href={item.href} className="block transition-opacity hover:opacity-90">
-                    {content}
-                  </Link>
-                ) : (
-                  content
-                )}
-              </li>
-            );
-          })}
-        </ul>
+              );
+              return (
+                <li key={item.id}>
+                  {item.href ? (
+                    <Link href={item.href} className="block transition-opacity hover:opacity-90">
+                      {content}
+                    </Link>
+                  ) : (
+                    content
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </ScrollFadeContainer>
       )}
     </section>
   );
