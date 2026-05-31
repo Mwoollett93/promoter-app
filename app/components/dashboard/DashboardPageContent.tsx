@@ -203,7 +203,6 @@ export default function DashboardPageContent() {
 
               <TeamNotificationsPanel
                 items={ops.notifications}
-                limit={4}
                 onViewAll={() => router.push("/team?tab=activity")}
               />
             </section>
@@ -250,10 +249,14 @@ export default function DashboardPageContent() {
                 </div>
               </div>
 
-              <div className={`grid min-h-0 grid-cols-1 grid-rows-2 ${GRID_CARD_GAP}`}>
-                <section className={[SECTION_CARD, SECTION_CARD_PADDING, "flex min-h-0 flex-col"].join(" ")}>
-                  <h3 className={SECTION_TITLE}>Top Venues</h3>
-                  <ul className="mt-3 min-h-0 flex-1 space-y-2">
+              <div className={`grid min-h-0 grid-cols-1 grid-rows-2 overflow-hidden ${GRID_CARD_GAP}`}>
+                <section
+                  className={[SECTION_CARD, SECTION_CARD_PADDING, "flex min-h-0 flex-col overflow-hidden"].join(
+                    " ",
+                  )}
+                >
+                  <h3 className={`${SECTION_TITLE} shrink-0`}>Top Venues</h3>
+                  <ul className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
                     {snapshot.topVenues.length > 0 ? (
                       snapshot.topVenues.map((v) => (
                         <li key={v.name} className="flex items-center gap-2.5">
@@ -274,7 +277,11 @@ export default function DashboardPageContent() {
                   </ul>
                 </section>
 
-                <section className={[SECTION_CARD, SECTION_CARD_PADDING, "flex min-h-0 flex-col"].join(" ")}>
+                <section
+                  className={[SECTION_CARD, SECTION_CARD_PADDING, "flex min-h-0 flex-col overflow-hidden"].join(
+                    " ",
+                  )}
+                >
                   <div className="flex shrink-0 items-center justify-between gap-2">
                     <h3 className={SECTION_TITLE}>Top Artists</h3>
                     <Link
@@ -285,7 +292,7 @@ export default function DashboardPageContent() {
                       <ArrowRight className="size-4" strokeWidth={2} aria-hidden />
                     </Link>
                   </div>
-                  <ul className="mt-3 min-h-0 flex-1 space-y-2">
+                  <ul className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
                     {snapshot.topArtists.length > 0 ? (
                       snapshot.topArtists.map((a) => (
                         <li key={a.name}>

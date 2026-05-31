@@ -44,9 +44,9 @@ export default function TeamNotificationsPanel({
     <section
       className={[
         embedded
-          ? "flex h-full min-h-0 flex-col rounded-xl border border-[#232330] bg-[#11111A] p-3 shadow-[0px_8px_24px_rgba(0,0,0,0.35)]"
+          ? "flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-[#232330] bg-[#11111A] p-3 shadow-[0px_8px_24px_rgba(0,0,0,0.35)]"
           : [SECTION_CARD, SECTION_CARD_PADDING].join(" "),
-        "flex h-full min-h-0 flex-col",
+        "flex h-full min-h-0 flex-col overflow-hidden",
       ].join(" ")}
     >
       <div className="flex shrink-0 items-center justify-between gap-2">
@@ -67,7 +67,12 @@ export default function TeamNotificationsPanel({
           All clear — no urgent workspace alerts.
         </p>
       ) : (
-        <ul className={["min-h-0 flex-1 overflow-hidden", embedded ? "mt-2 space-y-1.5" : "mt-3 space-y-[12px]"].join(" ")}>
+        <ul
+          className={[
+            "min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1",
+            embedded ? "mt-2 space-y-1.5" : "mt-3 space-y-[12px]",
+          ].join(" ")}
+        >
           {visible.map((item) => {
             const Icon = TONE_ICON[item.tone];
             const content = (
