@@ -2,22 +2,20 @@
 
 import * as React from "react";
 
-import Button from "@/app/components/ui/Button";
 import {
   FIELD_LABEL,
   INPUT_SURFACE,
-  SECTION_CARD,
-  SECTION_CARD_PADDING,
-  SECTION_TITLE,
   SELECT_SURFACE,
 } from "@/lib/ui/page-surfaces";
 import type { ManualCheckpointInput, SalesProvider } from "@/lib/ticket-sales/types";
 import { SALES_PROVIDER_LABELS } from "@/lib/ticket-sales/types";
 
 type ManualCheckpointFormProps = {
+  formId: string;
   defaultCapacity: number;
   onSubmit: (input: ManualCheckpointInput) => void;
-  onCancel?: () => void;
+  /** Reset fields when modal reopens. */
+  resetKey?: number;
 };
 
 function toLocalInputValue(date: Date) {
@@ -26,9 +24,10 @@ function toLocalInputValue(date: Date) {
 }
 
 export default function ManualCheckpointForm({
+  formId,
   defaultCapacity,
   onSubmit,
-  onCancel,
+  resetKey = 0,
 }: ManualCheckpointFormProps) {
   const [provider, setProvider] = React.useState<SalesProvider>("ra");
   const [ticketsSold, setTicketsSold] = React.useState("");
@@ -38,6 +37,17 @@ export default function ManualCheckpointForm({
   const [fees, setFees] = React.useState("");
   const [checkedAt, setCheckedAt] = React.useState(toLocalInputValue(new Date()));
   const [notes, setNotes] = React.useState("");
+
+  React.useEffect(() => {
+    setProvider("ra");
+    setTicketsSold("");
+    setCapacity(String(defaultCapacity || ""));
+    setGrossRevenue("");
+    setNetRevenue("");
+    setFees("");
+    setCheckedAt(toLocalInputValue(new Date()));
+    setNotes("");
+  }, [resetKey, defaultCapacity]);
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -54,15 +64,7 @@ export default function ManualCheckpointForm({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className={[SECTION_CARD, SECTION_CARD_PADDING, "space-y-3"].join(" ")}
-    >
-      <h3 className={SECTION_TITLE}>Manual checkpoint</h3>
-      <p className="text-[12px] text-[#A1A1AA]">
-        Record a snapshot from your ticketing dashboard — no scraping required.
-      </p>
-
+    <form id={formId} onSubmit={handleSubmit} className="space-y-3">
       <label className="block">
         <span className={FIELD_LABEL}>Data source</span>
         <select
@@ -99,23 +101,12 @@ export default function ManualCheckpointForm({
       <label className="block">
         <span className={FIELD_LABEL}>Notes</span>
         <textarea
-          className="mt-1 min-h-[72px] w-full rounded-lg border border-[#3F3F46] bg-[#0B0B10] px-3 py-2 text-[13px] text-[#F5F5F7] outline-none focus:border-[#8B5CF6]"
+          className="mt-1 min-h-[64px] w-full rounded-lg border border-[#3F3F46] bg-[#0B0B10] px-3 py-2 text-[13px] text-[#F5F5F7] outline-none focus:border-[#8B5CF6]"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Optional context — e.g. after presale drop"
         />
       </label>
-
-      <div className="flex justify-end gap-2 pt-1">
-        {onCancel ? (
-          <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-            Cancel
-          </Button>
-        ) : null}
-        <Button type="submit" variant="primary" size="sm">
-          Save checkpoint
-        </Button>
-      </div>
     </form>
   );
 }

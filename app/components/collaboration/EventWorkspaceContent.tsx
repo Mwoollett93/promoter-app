@@ -34,7 +34,7 @@ export default function EventWorkspaceContent({ eventId }: { eventId: string }) 
 
   return (
     <PageContent fill>
-      <div className="space-y-6">
+      <div className="flex min-h-0 flex-1 flex-col space-y-6 overflow-hidden">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <Link href="/events" className="text-[12px] text-[#8B5CF6] hover:text-[#C4B5FD]">
@@ -83,7 +83,11 @@ export default function EventWorkspaceContent({ eventId }: { eventId: string }) 
           </div>
         ) : null}
 
-        {tab === "sales" && event ? <SalesTrackerTab eventId={eventId} event={event} /> : null}
+        {tab === "sales" && event ? (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <SalesTrackerTab eventId={eventId} event={event} />
+          </div>
+        ) : null}
         {tab === "sales" && !event ? (
           <p className="text-[13px] text-[#A1A1AA]">Loading event data…</p>
         ) : null}

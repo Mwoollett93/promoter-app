@@ -3,22 +3,14 @@
 import * as React from "react";
 import { Upload } from "lucide-react";
 
-import Button from "@/app/components/ui/Button";
 import {
   autoDetectFieldMapping,
-  CSV_FIELD_ALIASES,
   mapCsvRows,
   parseCsvText,
 } from "@/lib/ticket-sales/csv-parser";
 import type { CsvFieldKey, CsvImportInput, SalesProvider } from "@/lib/ticket-sales/types";
 import { SALES_PROVIDER_LABELS } from "@/lib/ticket-sales/types";
-import {
-  FIELD_LABEL,
-  SECTION_CARD,
-  SECTION_CARD_PADDING,
-  SECTION_TITLE,
-  SELECT_SURFACE,
-} from "@/lib/ui/page-surfaces";
+import { FIELD_LABEL, SELECT_SURFACE } from "@/lib/ui/page-surfaces";
 
 const FIELD_LABELS: Record<CsvFieldKey, string> = {
   tierName: "Tier name",
@@ -30,12 +22,22 @@ const FIELD_LABELS: Record<CsvFieldKey, string> = {
   capacity: "Capacity",
 };
 
-type CsvImportPanelProps = {
-  onImport: (input: CsvImportInput) => void;
-  onCancel?: () => void;
+export type CsvImportPanelState = {
+  canImport: boolean;
+  triggerImport: () => void;
 };
 
-export default function CsvImportPanel({ onImport, onCancel }: CsvImportPanelProps) {
+type CsvImportPanelProps = {
+  onImport: (input: CsvImportInput) => void;
+  onStateChange?: (state: CsvImportPanelState) => void;
+  resetKey?: number;
+};
+
+export default function CsvImportPanel({
+  onImport,
+  onStateChange,
+  resetKey = 0,
+}: CsvImportPanelProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [provider, setProvider] = React.useState<SalesProvider>("ra");
   const [filename, setFilename] = React.useState("");
@@ -45,6 +47,16 @@ export default function CsvImportPanel({ onImport, onCancel }: CsvImportPanelPro
     autoDetectFieldMapping([]),
   );
   const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setProvider("ra");
+    setFilename("");
+    setHeaders([]);
+    setRows([]);
+    setMapping(autoDetectFieldMapping([]));
+    setError(null);
+    if (inputRef.current) inputRef.current.value = "";
+  }, [resetKey]);
 
   async function handleFile(file: File) {
     setError(null);
@@ -62,10 +74,10 @@ export default function CsvImportPanel({ onImport, onCancel }: CsvImportPanelPro
     setMapping(autoDetectFieldMapping(parsed.headers));
   }
 
-  const preview = rows.length > 0 ? mapCsvRows(rows.slice(0, 5), mapping) : [];
-  const canImport = rows.length > 0 && mapping.ticketsSold;
+  const preview = rows.length > 0 ? mapCsvRows(rows.slice(0, 3), mapping) : [];
+  const canImport = rows.length > 0 && Boolean(mapping.ticketsSold);
 
-  function handleImport() {
+  const triggerImport = React.useCallback(() => {
     if (!canImport) return;
     onImport({
       provider,
@@ -73,16 +85,14 @@ export default function CsvImportPanel({ onImport, onCancel }: CsvImportPanelPro
       rawRows: rows,
       mappedFields: mapping,
     });
-  }
+  }, [canImport, onImport, provider, filename, rows, mapping]);
+
+  React.useEffect(() => {
+    onStateChange?.({ canImport, triggerImport });
+  }, [canImport, triggerImport, onStateChange]);
 
   return (
-    <section className={[SECTION_CARD, SECTION_CARD_PADDING, "space-y-3"].join(" ")}>
-      <h3 className={SECTION_TITLE}>Import CSV report</h3>
-      <p className="text-[12px] text-[#A1A1AA]">
-        Upload exports from RA, Eventbrite, Humanitix, or any platform. Map columns when headers
-        differ.
-      </p>
-
+    <div className="space-y-3">
       <label className="block">
         <span className={FIELD_LABEL}>Platform</span>
         <select
@@ -99,7 +109,7 @@ export default function CsvImportPanel({ onImport, onCancel }: CsvImportPanelPro
       </label>
 
       <div
-        className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-[#3F3F46] bg-[#0B0B10] px-4 py-6 text-center transition-colors hover:border-[#8B5CF6]/50"
+        className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-[#3F3F46] bg-[#0B0B10] px-4 py-5 text-center transition-colors hover:border-[#8B5CF6]/50"
         onClick={() => inputRef.current?.click()}
         onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
         role="button"
@@ -126,13 +136,13 @@ export default function CsvImportPanel({ onImport, onCancel }: CsvImportPanelPro
 
       {headers.length > 0 ? (
         <div className="space-y-2">
-          <p className={FIELD_LABEL}>Column mapping</p>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <p className={FIELD_LABEL}>Field mapping</p>
+          <div className="grid grid-cols-2 gap-2">
             {(Object.keys(FIELD_LABELS) as CsvFieldKey[]).map((key) => (
               <label key={key} className="block">
-                <span className="text-[11px] text-[#71717A]">{FIELD_LABELS[key]}</span>
+                <span className="text-[10px] text-[#71717A]">{FIELD_LABELS[key]}</span>
                 <select
-                  className={`${SELECT_SURFACE} mt-1 w-full text-[12px]`}
+                  className={`${SELECT_SURFACE} mt-0.5 w-full text-[12px]`}
                   value={mapping[key] ?? ""}
                   onChange={(e) =>
                     setMapping((prev) => ({
@@ -148,9 +158,6 @@ export default function CsvImportPanel({ onImport, onCancel }: CsvImportPanelPro
                     </option>
                   ))}
                 </select>
-                <span className="mt-0.5 block text-[10px] text-[#52525B]">
-                  Aliases: {CSV_FIELD_ALIASES[key].slice(0, 3).join(", ")}…
-                </span>
               </label>
             ))}
           </div>
@@ -159,12 +166,11 @@ export default function CsvImportPanel({ onImport, onCancel }: CsvImportPanelPro
 
       {preview.length > 0 ? (
         <div className="overflow-x-auto rounded-lg border border-[#232330]">
-          <table className="w-full min-w-[480px] text-left text-[11px]">
+          <table className="w-full text-left text-[11px]">
             <thead className="bg-[#0B0B10] text-[#71717A]">
               <tr>
                 <th className="px-2 py-1.5">Tier</th>
                 <th className="px-2 py-1.5">Sold</th>
-                <th className="px-2 py-1.5">Gross</th>
                 <th className="px-2 py-1.5">Net</th>
               </tr>
             </thead>
@@ -173,7 +179,6 @@ export default function CsvImportPanel({ onImport, onCancel }: CsvImportPanelPro
                 <tr key={index} className="border-t border-[#232330]">
                   <td className="px-2 py-1.5 text-[#E4E4E7]">{row.tierName}</td>
                   <td className="px-2 py-1.5 tabular-nums text-[#A1A1AA]">{row.ticketsSold}</td>
-                  <td className="px-2 py-1.5 tabular-nums text-[#A1A1AA]">{row.grossRevenue}</td>
                   <td className="px-2 py-1.5 tabular-nums text-[#A1A1AA]">{row.netRevenue}</td>
                 </tr>
               ))}
@@ -181,17 +186,6 @@ export default function CsvImportPanel({ onImport, onCancel }: CsvImportPanelPro
           </table>
         </div>
       ) : null}
-
-      <div className="flex justify-end gap-2">
-        {onCancel ? (
-          <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-            Cancel
-          </Button>
-        ) : null}
-        <Button type="button" variant="primary" size="sm" disabled={!canImport} onClick={handleImport}>
-          Import &amp; create checkpoint
-        </Button>
-      </div>
-    </section>
+    </div>
   );
 }
