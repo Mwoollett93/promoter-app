@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -21,8 +21,12 @@ export default function SupabaseAuthCallbackPage() {
   const [error, setError] = useState<string | null>(null);
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const exchangedRef = useRef(false);
 
   useEffect(() => {
+    if (exchangedRef.current) return;
+    exchangedRef.current = true;
+
     completeSupabaseOAuthCallback(window.location.search, window.location.hash)
       .then(async (session) => {
         if (!isDemoSession(session)) {

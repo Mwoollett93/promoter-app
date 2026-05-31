@@ -304,10 +304,12 @@ export default function AuthLandingPage({
   async function handleOAuth(provider: "google" | "apple") {
     if (!hasSupabase) return;
     setError(null);
+    setLoading(true);
     try {
       await startOAuthSignIn(provider);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to start social sign in.");
+      setLoading(false);
     }
   }
 
@@ -566,7 +568,7 @@ function LoginPanel({
       ) : null}
 
       <AuthDivider />
-      <SocialAuthButtons disabled={disabled} mode="continue" onOAuth={onOAuth} />
+      <SocialAuthButtons disabled={disabled || loading} mode="continue" onOAuth={onOAuth} />
 
       <p className="text-center text-[14px] text-[#A1A1AA]">
         Don&apos;t have an account?{" "}
@@ -770,7 +772,7 @@ function SignUpPanel({
       <PrimaryAuthButton loading={loading} disabled={disabled} label="Create account" />
 
       <AuthDivider />
-      <SocialAuthButtons disabled={disabled} mode="signup" onOAuth={onOAuth} />
+      <SocialAuthButtons disabled={disabled || loading} mode="signup" onOAuth={onOAuth} />
 
       <p className="text-center text-[14px] text-[#A1A1AA]">
         Already have an account?{" "}
@@ -841,7 +843,7 @@ function ResetPanel({
       />
 
       <AuthDivider />
-      <SocialAuthButtons disabled={disabled} mode="continue" onOAuth={onOAuth} />
+      <SocialAuthButtons disabled={disabled || loading} mode="continue" onOAuth={onOAuth} />
 
       <div className="rounded-xl border border-[#232330] bg-[#11111A] p-4">
         <div className="flex gap-3">

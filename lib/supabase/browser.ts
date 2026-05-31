@@ -17,6 +17,8 @@ import {
 
 export { getStoredSession, isDemoSession } from "@/lib/supabase/session-store";
 const AUTH_RETURN_PATH = "/auth/callback";
+/** Isolated storage key — PKCE verifier must survive the OAuth redirect (localStorage, not memory). */
+const OAUTH_AUTH_STORAGE_KEY = "promosync.supabase.oauth-pkce";
 const DOCUMENT_BUCKET = "artist-documents";
 const MEDIA_BUCKET = "artist-media";
 
@@ -228,6 +230,25 @@ function createBrowserAuthClient() {
   });
 }
 
+/** OAuth client — persistSession + pkce so code_verifier survives redirect round-trip. */
+let oauthAuthClient: ReturnType<typeof createClient> | null = null;
+
+function getOAuthAuthClient() {
+  if (!oauthAuthClient) {
+    const config = requireSupabaseConfig();
+    oauthAuthClient = createClient(config.url, config.anonKey, {
+      auth: {
+        persistSession: true,
+        storageKey: OAUTH_AUTH_STORAGE_KEY,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+        flowType: "pkce",
+      },
+    });
+  }
+  return oauthAuthClient;
+}
+
 let realtimeClient: ReturnType<typeof createBrowserAuthClient> | null = null;
 
 /** Single shared client for Realtime presence — avoids spawning one per page view. */
@@ -320,11 +341,14 @@ async function setSessionIndicator(options?: { demo?: boolean; accessToken?: str
 }
 
 export async function startOAuthSignIn(provider: OAuthProvider) {
-  const supabase = createBrowserAuthClient();
+  const supabase = getOAuthAuthClient();
   const redirectTo = `${window.location.origin}${AUTH_RETURN_PATH}`;
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
-    options: { redirectTo },
+    options: {
+      redirectTo,
+      ...(provider === "apple" ? { scopes: "name email" } : {}),
+    },
   });
 
   if (error) throw new Error(error.message);
@@ -445,13 +469,13 @@ export async function completeSupabaseOAuthCallback(
   search: string,
   hash: string,
 ): Promise<SupabaseSession> {
-  const supabase = createBrowserAuthClient();
+  const supabase = getOAuthAuthClient();
   const searchParams = new URLSearchParams(search.replace(/^\?/, ""));
 
   const oauthError = searchParams.get("error");
   if (oauthError) {
     const description = searchParams.get("error_description") ?? oauthError;
-    throw new Error(description);
+    throw new Error(decodeURIComponent(description.replace(/\+/g, " ")));
   }
 
   const code = searchParams.get("code");
@@ -459,7 +483,10 @@ export async function completeSupabaseOAuthCallback(
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) throw new Error(error.message);
     if (!data.session) throw new Error("Unable to complete Supabase sign in.");
-    return persistSessionFromSupabase(data.session);
+
+    const mapped = persistSessionFromSupabase(data.session);
+    await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+    return mapped;
   }
 
   if (hash && hash.includes("access_token")) {
