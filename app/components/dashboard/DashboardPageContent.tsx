@@ -6,6 +6,7 @@ import * as React from "react";
 import { ArrowRight, Plus } from "lucide-react";
 
 import PageContent from "@/app/components/layout/PageContent";
+import DashboardLoadingSkeleton from "@/app/components/dashboard/DashboardLoadingSkeleton";
 import DashboardOpsStatsRow from "@/app/components/dashboard/DashboardOpsStatsRow";
 import UpcomingEventRow from "@/app/components/dashboard/UpcomingEventRow";
 import CurrencyText from "@/app/components/ui/CurrencyText";
@@ -92,6 +93,7 @@ export default function DashboardPageContent() {
   const ops = useDashboardOpsData();
   const [financeScope, setFinanceScope] = React.useState<DashboardFinanceScope>("portfolio");
   const [snapshot, setSnapshot] = React.useState<DashboardSnapshot>(EMPTY_SNAPSHOT);
+  const [snapshotReady, setSnapshotReady] = React.useState(false);
 
   const refreshSnapshot = React.useCallback(async () => {
     const events = loadManagedEvents();
@@ -99,42 +101,46 @@ export default function DashboardPageContent() {
     let artists: Awaited<ReturnType<typeof listArtists>> = [];
     let venues: Awaited<ReturnType<typeof listVenueSummaries>> = [];
 
-    if (session && getSupabaseConfig()) {
-      const sessionId = session.user.id;
-      if (artistsCache.sessionId === sessionId) {
-        artists = artistsCache.artists;
-      } else {
-        try {
-          artists = await listArtists(session);
-          artistsCache.sessionId = sessionId;
-          artistsCache.artists = artists;
-        } catch {
-          artists = [];
+    try {
+      if (session && getSupabaseConfig()) {
+        const sessionId = session.user.id;
+        if (artistsCache.sessionId === sessionId) {
+          artists = artistsCache.artists;
+        } else {
+          try {
+            artists = await listArtists(session);
+            artistsCache.sessionId = sessionId;
+            artistsCache.artists = artists;
+          } catch {
+            artists = [];
+          }
+        }
+
+        if (venuesCache.sessionId === sessionId) {
+          venues = venuesCache.venues;
+        } else {
+          try {
+            venues = await listVenueSummaries(session);
+            venuesCache.sessionId = sessionId;
+            venuesCache.venues = venues;
+          } catch {
+            venues = [];
+          }
         }
       }
 
-      if (venuesCache.sessionId === sessionId) {
-        venues = venuesCache.venues;
-      } else {
-        try {
-          venues = await listVenueSummaries(session);
-          venuesCache.sessionId = sessionId;
-          venuesCache.venues = venues;
-        } catch {
-          venues = [];
-        }
-      }
+      setSnapshot(
+        buildDashboardSnapshot({
+          events,
+          artists,
+          venues,
+          preferences: settings.preferences,
+          financeScope,
+        }),
+      );
+    } finally {
+      setSnapshotReady(true);
     }
-
-    setSnapshot(
-      buildDashboardSnapshot({
-        events,
-        artists,
-        venues,
-        preferences: settings.preferences,
-        financeScope,
-      }),
-    );
   }, [settings.preferences, financeScope]);
 
   React.useEffect(() => {
@@ -176,7 +182,7 @@ export default function DashboardPageContent() {
   }, [refreshSnapshot, refreshWorkspace]);
 
   const upcoming = snapshot.upcomingEvents;
-  const loading = !workspaceReady || !ops.ready;
+  const loading = !snapshotReady;
 
   return (
     <PageContent fill>
@@ -205,7 +211,7 @@ export default function DashboardPageContent() {
         </header>
 
         {loading ? (
-          <p className="text-[14px] text-[#A1A1AA]">Loading dashboard…</p>
+          <DashboardLoadingSkeleton />
         ) : (
           <div className={`flex min-h-0 flex-1 flex-col ${PAGE_STACK_GAP} overflow-hidden`}>
             <DashboardOpsStatsRow stats={ops.opsStats} />

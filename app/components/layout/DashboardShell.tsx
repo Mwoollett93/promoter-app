@@ -3,6 +3,8 @@
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
 
+import WorkspaceLoadingScreen from "@/app/components/ui/WorkspaceLoadingScreen";
+import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import Sidebar from "./Sidebar";
 import { SHELL_PADDING_X, SHELL_PADDING_Y } from "@/lib/layout/page-layout";
 import { isAccountActive, loadSettings, reactivateAccount } from "@/lib/settings/settings";
@@ -18,6 +20,7 @@ export default function DashboardShell({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { ready: workspaceReady } = useWorkspace();
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const [ready, setReady] = React.useState(false);
 
@@ -37,11 +40,11 @@ export default function DashboardShell({
   }, [pathname, router]);
 
   if (!ready) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#0B0B10] text-[#A1A1AA]">
-        Loading...
-      </main>
-    );
+    return <WorkspaceLoadingScreen message="Checking session" />;
+  }
+
+  if (!workspaceReady) {
+    return <WorkspaceLoadingScreen />;
   }
 
   return (

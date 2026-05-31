@@ -16,14 +16,17 @@ export function SoftGlowLoader({ children, className = "" }: SoftGlowLoaderProps
   );
 }
 
-/** Cycles "Searching for artist profiles" + 1–3 trailing dots. */
+/** Cycles status text + 1–3 trailing dots. */
 export function SearchingEllipsisText({
-  text = "Searching for artist profiles",
+  text,
+  message,
   className = "",
 }: {
   text?: string;
+  message?: string;
   className?: string;
 }) {
+  const label = message ?? text ?? "Loading";
   const [dotCount, setDotCount] = React.useState(1);
 
   React.useEffect(() => {
@@ -35,7 +38,7 @@ export function SearchingEllipsisText({
 
   return (
     <span className={className}>
-      {text}
+      {label}
       <span className="inline-block w-[1.1em] text-left" aria-hidden>
         {".".repeat(dotCount)}
       </span>

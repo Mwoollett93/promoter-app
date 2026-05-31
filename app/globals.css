@@ -143,6 +143,19 @@ body {
   }
 }
 
+@keyframes promosync-loader-shimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.promosync-loader-shimmer {
+  animation: promosync-loader-shimmer 1.6s ease-in-out infinite;
+}
+
 /* Rotating border glow — gradient sits in 1px padding ring only */
 .promosync-border-glow-wrap {
   position: relative;

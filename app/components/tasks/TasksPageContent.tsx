@@ -6,15 +6,7 @@ import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
 import { PAGE_DESCRIPTION, PAGE_TITLE } from "@/lib/ui/page-surfaces";
 
 export default function TasksPageContent() {
-  const { ready, workspace, error, refresh } = useWorkspace();
-
-  if (!ready) {
-    return (
-      <PageContent>
-        <p className="text-[#A1A1AA]">Loading workspace…</p>
-      </PageContent>
-    );
-  }
+  const { workspace, error, refresh } = useWorkspace();
 
   if (!workspace) {
     return (

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
+import WorkspaceLoadingScreen from "@/app/components/ui/WorkspaceLoadingScreen";
 import Sidebar from "./Sidebar";
 import WizardHeader from "./WizardHeader";
 import { SHELL_PADDING_X, SHELL_PADDING_Y } from "@/lib/layout/page-layout";
@@ -70,11 +71,11 @@ export default function WizardShell({ children, title }: WizardShellProps) {
   }
 
   if (!ready) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#0B0B10] text-[#A1A1AA]">
-        Loading...
-      </main>
-    );
+    return <WorkspaceLoadingScreen message="Checking session" />;
+  }
+
+  if (!workspaceReady) {
+    return <WorkspaceLoadingScreen />;
   }
 
   return (
