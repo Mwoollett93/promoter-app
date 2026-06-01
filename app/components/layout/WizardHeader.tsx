@@ -23,12 +23,12 @@ export default function WizardHeader({
   const stepperState = wizardStepFromPathname(pathname);
 
   return (
-    <div className="relative mb-4 hidden min-h-[72px] items-center md:flex">
+    <div className="relative mb-4 hidden min-h-[65px] items-center md:flex">
       <h1 className="relative z-10 shrink-0 text-[32px] font-bold leading-[36px] text-[#F5F5F7]">
         {title}
       </h1>
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
+      <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
         <Stepper state={stepperState} variant="desktop" className="pointer-events-auto" />
       </div>
 
