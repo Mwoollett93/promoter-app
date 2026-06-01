@@ -101,7 +101,7 @@ export default function AuthLandingPage({
           try {
             await establishSessionIndicator(session);
           } catch {
-            /* cookie repair failed — banner lets user retry or sign out */
+            await signOutOfSupabase();
           }
         }
         setExistingSession(Boolean(getStoredSession()));
@@ -164,6 +164,10 @@ export default function AuthLandingPage({
       reactivateAccount();
       router.push(getLandingPagePath());
     } catch (err) {
+      if (!isDemoSession(session)) {
+        await signOutOfSupabase();
+        setExistingSession(false);
+      }
       setError(err instanceof Error ? err.message : "Unable to complete sign in.");
     } finally {
       setLoading(false);
@@ -354,6 +358,7 @@ export default function AuthLandingPage({
                 onClick={async () => {
                   await signOutOfSupabase();
                   setExistingSession(false);
+                  setError(null);
                 }}
                 className="inline-flex h-9 items-center justify-center rounded-lg border border-[#3F3F46] bg-[#11111A] px-4 text-[13px] font-medium text-[#F5F5F7] transition-colors hover:border-[#71717A]"
               >

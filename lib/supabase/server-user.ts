@@ -1,3 +1,4 @@
+import { buildSupabaseApiHeaders } from "@/lib/supabase/config";
 import { getSupabaseServerConfig } from "@/lib/supabase/server-auth";
 
 type AuthUserResponse = {
@@ -10,12 +11,9 @@ export async function getUserFromAccessToken(accessToken: string): Promise<AuthU
   const config = getSupabaseServerConfig();
   if (!config) return null;
 
-  const headers: Record<string, string> = {
-    apikey: config.anonKey,
-    Authorization: `Bearer ${accessToken}`,
-  };
-
-  const response = await fetch(`${config.url}/auth/v1/user`, { headers });
+  const response = await fetch(`${config.url}/auth/v1/user`, {
+    headers: buildSupabaseApiHeaders(config.anonKey, accessToken),
+  });
   if (!response.ok) return null;
 
   return (await response.json()) as AuthUserResponse;

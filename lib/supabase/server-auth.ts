@@ -1,14 +1,9 @@
+import { buildSupabaseApiHeaders, normalizeSupabaseUrl } from "@/lib/supabase/config";
+
 type SupabaseServerConfig = {
   url: string;
   anonKey: string;
 };
-
-function normalizeSupabaseUrl(url: string) {
-  return url
-    .replace(/\/$/, "")
-    .replace(/\/auth\/v1$/i, "")
-    .replace(/\/rest\/v1$/i, "");
-}
 
 export function getSupabaseServerConfig(): SupabaseServerConfig | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -22,18 +17,11 @@ export function getSupabaseServerConfig(): SupabaseServerConfig | null {
   };
 }
 
-/** Publishable keys (sb_publishable_...) must use apikey only — not Authorization: Bearer. */
 function supabaseHeaders(config: SupabaseServerConfig): HeadersInit {
-  const headers: Record<string, string> = {
-    apikey: config.anonKey,
+  return {
+    ...buildSupabaseApiHeaders(config.anonKey),
     "Content-Type": "application/json",
   };
-
-  if (config.anonKey.startsWith("eyJ")) {
-    headers.Authorization = `Bearer ${config.anonKey}`;
-  }
-
-  return headers;
 }
 
 type GoTrueErrorBody = {

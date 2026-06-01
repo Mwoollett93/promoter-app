@@ -109,7 +109,12 @@ async function finishSignIn(
   session: SupabaseSession,
   router: { replace: (href: string) => void },
 ) {
-  await establishSessionIndicator(session);
+  try {
+    await establishSessionIndicator(session);
+  } catch (err) {
+    await signOutOfSupabase();
+    throw err;
+  }
   reactivateAccount();
   router.replace(getLandingPagePath());
 }

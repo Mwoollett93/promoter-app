@@ -9,6 +9,7 @@ import type {
   SupabaseSession,
 } from "@/lib/types/artist";
 import { normalizeSupabaseUserMetadata } from "@/lib/supabase/auth-metadata";
+import { buildSupabaseApiHeaders, normalizeSupabaseUrl } from "@/lib/supabase/config";
 import {
   clearStoredSessionRecord,
   getStoredSession,
@@ -94,7 +95,7 @@ export function getSupabaseConfig(): SupabaseConfig | null {
 
   if (!url || !anonKey) return null;
   return {
-    url: url.replace(/\/$/, ""),
+    url: normalizeSupabaseUrl(url),
     anonKey,
   };
 }
@@ -130,14 +131,23 @@ export function isSessionNearExpiry(session: SupabaseSession) {
 }
 
 function authHeaders(config: SupabaseConfig): Record<string, string> {
-  const headers: Record<string, string> = {
-    apikey: config.anonKey,
+  return {
+    ...buildSupabaseApiHeaders(config.anonKey),
     "Content-Type": "application/json",
   };
-  if (config.anonKey.startsWith("eyJ")) {
-    headers.Authorization = `Bearer ${config.anonKey}`;
+}
+
+function clearOAuthPkceStorage() {
+  if (typeof window === "undefined") return;
+  const prefix = OAUTH_AUTH_STORAGE_KEY;
+  const keys: string[] = [];
+  for (let i = 0; i < window.localStorage.length; i++) {
+    const key = window.localStorage.key(i);
+    if (key?.startsWith(prefix)) keys.push(key);
   }
-  return headers;
+  for (const key of keys) {
+    window.localStorage.removeItem(key);
+  }
 }
 
 /** Refresh an expired access token using the stored refresh token. */
@@ -339,13 +349,16 @@ async function setSessionIndicator(options?: { demo?: boolean; accessToken?: str
 
   const payload = (await response.json().catch(() => ({}))) as { error?: string };
   if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("Your sign-in could not be verified. Please try Google sign-in again.");
+    }
     throw new Error(payload.error ?? `Unable to establish session (${response.status}).`);
   }
 }
 
 export async function startOAuthSignIn(provider: OAuthProvider) {
   const supabase = getOAuthAuthClient();
-  await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+  clearOAuthPkceStorage();
   const redirectTo = `${window.location.origin}${AUTH_RETURN_PATH}`;
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
@@ -489,7 +502,8 @@ export async function completeSupabaseOAuthCallback(
     if (!data.session) throw new Error("Unable to complete Supabase sign in.");
 
     const mapped = persistSessionFromSupabase(data.session);
-    await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+    // Do not call auth.signOut here — it can revoke the session we just created.
+    clearOAuthPkceStorage();
     return mapped;
   }
 
@@ -515,10 +529,7 @@ export async function signOutOfSupabase() {
   if (config && session && !isDemoSession(session)) {
     await fetch(`${config.url}/auth/v1/logout`, {
       method: "POST",
-      headers: {
-        apikey: config.anonKey,
-        Authorization: `Bearer ${session.accessToken}`,
-      },
+      headers: buildSupabaseApiHeaders(config.anonKey, session.accessToken),
     }).catch(() => undefined);
   }
 
