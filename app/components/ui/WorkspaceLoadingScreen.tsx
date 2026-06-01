@@ -1,6 +1,7 @@
 "use client";
 
 import { SoftGlowLoader, SearchingEllipsisText } from "@/app/components/ui/SoftGlowLoader";
+import { BRAND_TAGLINE } from "@/lib/pwa/brand";
 import { PAGE_EYEBROW } from "@/lib/ui/page-surfaces";
 
 type WorkspaceLoadingScreenProps = {
@@ -41,7 +42,7 @@ export default function WorkspaceLoadingScreen({
 
         <div className="text-center">
           <p className="text-[22px] font-bold leading-7 tracking-tight text-[#F5F5F7]">PromoSync</p>
-          <p className={`mt-1 ${PAGE_EYEBROW}`}>Promoter OS</p>
+          <p className={`mt-1 ${PAGE_EYEBROW}`}>{BRAND_TAGLINE}</p>
         </div>
 
         <SearchingEllipsisText message={message} className="text-[14px] leading-5 text-[#A1A1AA]" />

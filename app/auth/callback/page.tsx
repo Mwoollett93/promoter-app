@@ -46,7 +46,7 @@ export default function SupabaseAuthCallbackPage() {
         await finishSignIn(session, router);
       })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Unable to complete Supabase sign in.");
+        setError(err instanceof Error ? err.message : "Unable to finish sign-in. Please try again.");
       });
   }, [router]);
 
@@ -83,12 +83,20 @@ export default function SupabaseAuthCallbackPage() {
           />
         ) : (
           <div className="text-center">
-            <h1 className="text-2xl font-bold tracking-tight">
-              {error ? "Sign in needs attention" : "Connecting Supabase"}
+            <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-[#151320]">
+              <img
+                src="/Promosync_icon.svg"
+                alt=""
+                width={28}
+                height={28}
+                className="size-7 object-contain brightness-0 invert"
+              />
+            </div>
+            <h1 className="mt-5 text-2xl font-bold tracking-tight">
+              {error ? "Couldn't finish sign-in" : "Signing you in"}
             </h1>
             <p className="mt-3 text-sm leading-6 text-[#A1A1AA]">
-              {error ??
-                "We are completing your Supabase session and will return you to your dashboard."}
+              {error ?? "Just a moment — we're getting your workspace ready."}
             </p>
             {error ? (
               <Link
@@ -97,7 +105,12 @@ export default function SupabaseAuthCallbackPage() {
               >
                 Back to sign in
               </Link>
-            ) : null}
+            ) : (
+              <div
+                className="mx-auto mt-6 size-8 animate-spin rounded-full border-2 border-[#3F3F46] border-t-[#8B5CF6]"
+                aria-hidden
+              />
+            )}
           </div>
         )}
       </section>

@@ -26,6 +26,7 @@ import {
   getPasswordStrength,
   strengthLabelText,
 } from "@/app/components/auth/password-strength";
+import { BRAND_TAGLINE } from "@/lib/pwa/brand";
 import {
   DEMO_LOGIN_EMAIL,
   DEMO_LOGIN_PASSWORD,
@@ -472,7 +473,7 @@ function AuthBrand() {
           <p className="text-left text-[22px] font-bold leading-7 tracking-tight text-[#F5F5F7]">
             PromoSync
           </p>
-          <p className="text-left text-[13px] leading-4 text-[#8B5CF6]">Promoter OS</p>
+          <p className="text-left text-[13px] leading-4 text-[#8B5CF6]">{BRAND_TAGLINE}</p>
         </div>
       </div>
     </div>

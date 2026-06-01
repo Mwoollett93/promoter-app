@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { BRAND_TAGLINE } from "@/lib/pwa/brand";
 import { useSettings } from "@/lib/settings/SettingsProvider";
 import type { SettingsTabId } from "@/lib/settings/settings";
 import { signOutOfSupabase } from "@/lib/supabase/browser";
@@ -340,7 +341,7 @@ export default function Sidebar({ isOpen, onToggle, variant = "rail", onNavClick
               <p className="truncate text-[18px] font-bold leading-6 tracking-tight text-[#F5F5F7]">
                 PromoSync
               </p>
-              <p className="truncate text-[12px] leading-4 text-[#8B5CF6]">Promoter OS</p>
+              <p className="truncate text-[12px] leading-4 text-[#8B5CF6]">{BRAND_TAGLINE}</p>
             </div>
           </div>
         </div>
