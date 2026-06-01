@@ -1,6 +1,8 @@
 import Link from "next/link";
 
+import BetaBadge from "@/app/components/beta/BetaBadge";
 import MarketingNavInteractive from "@/app/components/marketing/MarketingNavInteractive";
+import { isBetaMode } from "@/lib/beta/config";
 import { navLinks, site } from "@/lib/marketing/site-meta";
 
 export default function MarketingNav() {
@@ -16,6 +18,7 @@ export default function MarketingNav() {
             className="size-8 brightness-0 invert"
           />
           <span className="text-[17px] font-bold tracking-tight text-[#F5F5F7]">{site.name}</span>
+          {isBetaMode() ? <BetaBadge label="Private beta" className="hidden sm:inline-flex" /> : null}
         </Link>
 
         <MarketingNavInteractive links={navLinks} />

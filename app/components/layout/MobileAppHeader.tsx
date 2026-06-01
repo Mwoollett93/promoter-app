@@ -4,7 +4,9 @@ import dynamic from "next/dynamic";
 import type { ReactNode } from "react";
 import { Plus } from "lucide-react";
 
+import BetaBadge from "@/app/components/beta/BetaBadge";
 import StartNewEventLink from "@/app/components/events/StartNewEventLink";
+import { isBetaMode } from "@/lib/beta/config";
 import { cn } from "@/lib/utils";
 
 const NotificationPanel = dynamic(
@@ -22,7 +24,10 @@ export default function MobileAppHeader({ title, subtitle }: MobileAppHeaderProp
     <header className="shrink-0 border-b border-[#232330]/80 bg-[#11111A] px-4 pb-3 pt-[max(8px,env(safe-area-inset-top))] md:hidden">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1 pt-1">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-[#71717A]">PromoSync</p>
+          <div className="flex items-center gap-2">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-[#71717A]">PromoSync</p>
+            {isBetaMode() ? <BetaBadge /> : null}
+          </div>
           <h1 className="mt-0.5 truncate text-[22px] font-bold leading-7 tracking-tight text-[#F5F5F7]">
             {title}
           </h1>

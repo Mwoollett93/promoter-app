@@ -19,6 +19,7 @@ import MobileAppHeader, {
 } from "./MobileAppHeader";
 import MobileBottomNav from "./MobileBottomNav";
 import { mobileTabBarSpacerClass } from "@/lib/layout/mobile-nav";
+import BetaShell from "@/app/components/beta/BetaShell";
 import MobileMoreSheet from "./MobileMoreSheet";
 import Sidebar from "./Sidebar";
 
@@ -120,6 +121,7 @@ export default function DashboardShell({
 
       {isMobile ? <MobileBottomNav onMorePress={() => setMoreOpen(true)} /> : null}
       {showFab ? <MobileCreateEventFab /> : null}
+      <BetaShell />
     </div>
   );
 }

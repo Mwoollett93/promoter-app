@@ -15,7 +15,9 @@ import {
   Users,
 } from "lucide-react";
 
+import CreateSampleEventButton from "@/app/components/beta/CreateSampleEventButton";
 import StartNewEventLink from "@/app/components/events/StartNewEventLink";
+import { isBetaMode } from "@/lib/beta/config";
 import EventStatusBadge from "@/app/components/ui/EventStatusBadge";
 import PageContent from "@/app/components/layout/PageContent";
 import {
@@ -191,6 +193,7 @@ export default function EventManagementPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          {isBetaMode() ? <CreateSampleEventButton /> : null}
           {showSeedAction ? (
             <button
               type="button"

@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
 
+import BetaPaymentsNotice from "@/app/components/beta/BetaPaymentsNotice";
 import { Section, SectionHeader } from "@/app/components/marketing/marketing-ui";
+import { isBetaMode } from "@/lib/beta/config";
 import MarketingAccordion from "@/app/components/marketing/landing/MarketingAccordion";
 import { ScrollReveal, StaggerGroup } from "@/app/components/marketing/landing/ScrollReveal";
 import { pricingComparisonRows, pricingPlans } from "@/lib/marketing/content";
@@ -18,6 +20,12 @@ export default function PricingSection() {
           description="Upgrade to Pro in-app when you need unlimited events, team seats, and AI-assisted roster tools."
         />
       </ScrollReveal>
+
+      {isBetaMode() ? (
+        <div className="mt-8 max-w-2xl">
+          <BetaPaymentsNotice />
+        </div>
+      ) : null}
 
       <StaggerGroup className="mt-14 grid gap-6 lg:grid-cols-3" stagger={100}>
         {pricingPlans.map((plan) => (

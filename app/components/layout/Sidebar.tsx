@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import BetaBadge from "@/app/components/beta/BetaBadge";
+import { isBetaMode } from "@/lib/beta/config";
 import { BRAND_TAGLINE } from "@/lib/pwa/brand";
 import { useSettings } from "@/lib/settings/SettingsProvider";
 import type { SettingsTabId } from "@/lib/settings/settings";
@@ -338,9 +340,12 @@ export default function Sidebar({ isOpen, onToggle, variant = "rail", onNavClick
               ].join(" ")}
               aria-hidden={!showLabels}
             >
-              <p className="truncate text-[18px] font-bold leading-6 tracking-tight text-[#F5F5F7]">
-                PromoSync
-              </p>
+              <div className="flex min-w-0 items-center gap-2">
+                <p className="truncate text-[18px] font-bold leading-6 tracking-tight text-[#F5F5F7]">
+                  PromoSync
+                </p>
+                {isBetaMode() ? <BetaBadge /> : null}
+              </div>
               <p className="truncate text-[12px] leading-4 text-[#8B5CF6]">{BRAND_TAGLINE}</p>
             </div>
           </div>

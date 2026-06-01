@@ -38,7 +38,9 @@ import {
 import { signOutOfSupabase, updateUserPassword } from "@/lib/supabase/browser";
 import { updateWorkspaceMemberProfile } from "@/lib/supabase/workspace";
 import { useAsyncAction } from "@/lib/ui/use-async-action";
+import BetaPaymentsNotice from "@/app/components/beta/BetaPaymentsNotice";
 import ComingSoonButton from "@/app/components/ui/ComingSoonButton";
+import { paymentsDisabledInBeta } from "@/lib/beta/config";
 import MfaSetupPanel from "@/app/components/settings/MfaSetupPanel";
 import Link from "next/link";
 import { useWorkspace } from "@/lib/collaboration/WorkspaceContext";
@@ -729,6 +731,7 @@ function BillingTab({ billing }: { billing: import("@/lib/settings/settings").Bi
   const billingLoading = remote === null && !error;
   const stripeReady = remote === null || Boolean(remote.stripeConfigured);
   const hasBillingCustomer = Boolean(remote?.hasCustomer);
+  const paymentsLocked = paymentsDisabledInBeta();
 
   async function handleCheckout(planId: CheckoutPlanId) {
     if (!workspace?.id) return;
@@ -756,6 +759,11 @@ function BillingTab({ billing }: { billing: import("@/lib/settings/settings").Bi
 
   return (
     <div className={`grid lg:grid-cols-2 ${GRID_CARD_GAP}`}>
+      {paymentsLocked ? (
+        <div className="lg:col-span-2">
+          <BetaPaymentsNotice />
+        </div>
+      ) : null}
       {error ? (
         <p className="lg:col-span-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[13px] text-red-200">
           {error}
@@ -776,7 +784,7 @@ function BillingTab({ billing }: { billing: import("@/lib/settings/settings").Bi
             variant="primary"
             size="sm"
             type="button"
-            disabled={loading || !stripeReady}
+            disabled={loading || !stripeReady || paymentsLocked}
             onClick={() => void handleCheckout("professional")}
           >
             {CHECKOUT_PLAN_DISPLAY.professional.label} ({CHECKOUT_PLAN_DISPLAY.professional.priceHint})
@@ -785,7 +793,7 @@ function BillingTab({ billing }: { billing: import("@/lib/settings/settings").Bi
             variant="secondary"
             size="sm"
             type="button"
-            disabled={loading || !stripeReady}
+            disabled={loading || !stripeReady || paymentsLocked}
             onClick={() => void handleCheckout("enterprise")}
           >
             {CHECKOUT_PLAN_DISPLAY.enterprise.label} ({CHECKOUT_PLAN_DISPLAY.enterprise.priceHint})
@@ -805,7 +813,7 @@ function BillingTab({ billing }: { billing: import("@/lib/settings/settings").Bi
           size="sm"
           type="button"
           className="mt-4 px-6"
-          disabled={loading || (remote !== null && !hasBillingCustomer)}
+          disabled={loading || paymentsLocked || (remote !== null && !hasBillingCustomer)}
           onClick={() => void handlePortal()}
         >
           {loading ? "Opening…" : "Update Card & Invoices"}

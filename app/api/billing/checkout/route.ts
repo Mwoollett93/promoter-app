@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { BETA_PAYMENTS_DISABLED_MESSAGE, paymentsDisabledInBeta } from "@/lib/beta/config";
 import {
   CHECKOUT_PLANS,
   isStripeConfigured,
@@ -20,6 +21,10 @@ function appOrigin(request: Request) {
 export async function POST(request: Request) {
   const originBlock = assertSameOrigin(request);
   if (originBlock) return originBlock;
+
+  if (paymentsDisabledInBeta()) {
+    return NextResponse.json({ error: BETA_PAYMENTS_DISABLED_MESSAGE }, { status: 403 });
+  }
 
   if (!isStripeConfigured()) {
     return NextResponse.json(

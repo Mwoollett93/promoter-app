@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Check } from "lucide-react";
 
+import BetaPaymentsNotice from "@/app/components/beta/BetaPaymentsNotice";
 import { PrimaryCta, Section, SectionHeader } from "@/app/components/marketing/marketing-ui";
+import { isBetaMode } from "@/lib/beta/config";
 import { pricingComparisonRows, pricingPlans } from "@/lib/marketing/content";
 
 export const metadata: Metadata = {
@@ -20,6 +22,11 @@ export default function PricingPage() {
           title="Plans that grow with your scene"
           description="Start on Free, then upgrade to Pro in Settings when you need unlimited events, team seats, and AI-assisted tools. Collective plans are custom."
         />
+        {isBetaMode() ? (
+          <div className="mt-8 max-w-2xl">
+            <BetaPaymentsNotice />
+          </div>
+        ) : null}
         <div className="mt-14 grid gap-8 lg:grid-cols-3">
           {pricingPlans.map((plan) => (
             <div

@@ -13,6 +13,8 @@ const PROTECTED_PREFIXES = [
   "/season",
   "/run",
   "/event-wizard",
+  "/feedback",
+  "/tester-survey",
 ];
 
 export function middleware(request: Request) {
@@ -53,5 +55,7 @@ export const config = {
     "/season/:path*",
     "/run/:path*",
     "/event-wizard/:path*",
+    "/feedback",
+    "/tester-survey",
   ],
 };

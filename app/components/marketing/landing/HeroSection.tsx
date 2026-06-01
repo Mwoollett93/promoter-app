@@ -9,8 +9,10 @@ import {
 import { useLandingScroll } from "@/app/components/marketing/landing/LenisProvider";
 import { ScrollReveal } from "@/app/components/marketing/landing/ScrollReveal";
 import { usePrefersReducedMotion } from "@/app/components/marketing/landing/usePrefersReducedMotion";
-import { PAGE_EYEBROW } from "@/lib/ui/page-surfaces";
+import BetaBadge from "@/app/components/beta/BetaBadge";
+import { isBetaMode } from "@/lib/beta/config";
 import { site } from "@/lib/marketing/content";
+import { PAGE_EYEBROW } from "@/lib/ui/page-surfaces";
 
 const ProductShowcase = dynamic(() => import("@/app/components/marketing/DashboardShowcase"));
 
@@ -47,6 +49,11 @@ export default function HeroSection() {
 
       <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
         <ScrollReveal>
+          {isBetaMode() ? (
+            <div className="mb-3">
+              <BetaBadge label="Private beta" className="text-[11px]" />
+            </div>
+          ) : null}
           <p className={PAGE_EYEBROW}>{site.audience}</p>
           <h1 className="mt-4 text-[40px] font-bold leading-[1.05] tracking-tight text-[#F5F5F7] sm:text-[52px] lg:text-[56px]">
             {site.tagline}

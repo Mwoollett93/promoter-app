@@ -1,5 +1,6 @@
-import { getStoredSession } from "@/lib/supabase/browser";
+import { BETA_PAYMENTS_DISABLED_MESSAGE, paymentsDisabledInBeta } from "@/lib/beta/config";
 import type { CheckoutPlanId } from "@/lib/billing/plans";
+import { getStoredSession } from "@/lib/supabase/browser";
 
 function authHeaders() {
   const session = getStoredSession();
@@ -21,6 +22,9 @@ export async function fetchBillingStatus(workspaceId: string) {
 }
 
 export async function startCheckout(workspaceId: string, planId: CheckoutPlanId) {
+  if (paymentsDisabledInBeta()) {
+    throw new Error(BETA_PAYMENTS_DISABLED_MESSAGE);
+  }
   const response = await fetch("/api/billing/checkout", {
     method: "POST",
     headers: authHeaders(),
@@ -33,6 +37,9 @@ export async function startCheckout(workspaceId: string, planId: CheckoutPlanId)
 }
 
 export async function openBillingPortal(workspaceId: string) {
+  if (paymentsDisabledInBeta()) {
+    throw new Error(BETA_PAYMENTS_DISABLED_MESSAGE);
+  }
   const response = await fetch("/api/billing/portal", {
     method: "POST",
     headers: authHeaders(),
