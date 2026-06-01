@@ -362,8 +362,8 @@ export default function ArtistManagementPage() {
           </p>
         </div>
 
-        <div className="flex w-full min-w-0 flex-wrap items-center gap-3">
-          <div className={`${MANAGEMENT_SEARCH_BAR} min-w-0 flex-1 sm:max-w-xs`}>
+        <div className="flex w-full min-w-0 flex-col gap-3 lg:w-auto lg:max-w-3xl lg:shrink-0">
+          <div className={`${MANAGEMENT_SEARCH_BAR} w-full min-w-0 sm:max-w-md lg:ml-auto`}>
             <Search className="size-4 shrink-0" aria-hidden />
             <input
               value={query}
@@ -372,6 +372,7 @@ export default function ArtistManagementPage() {
               className="w-full bg-transparent text-sm text-[#F5F5F7] outline-none placeholder:text-[#71717A]"
             />
           </div>
+          <div className="flex flex-wrap items-center justify-end gap-3">
           <FilterPopover
             label="Filters"
             value="all"
@@ -440,6 +441,7 @@ export default function ArtistManagementPage() {
             <Plus className="size-4" aria-hidden />
             Add Artist
           </Link>
+          </div>
         </div>
       </header>
 

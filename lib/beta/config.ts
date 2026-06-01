@@ -1,6 +1,7 @@
 /** Master switch — set NEXT_PUBLIC_BETA_MODE=true in Vercel for private beta builds. */
 export function isBetaMode() {
-  return process.env.NEXT_PUBLIC_BETA_MODE === "true";
+  const raw = process.env.NEXT_PUBLIC_BETA_MODE?.trim().toLowerCase();
+  return raw === "true" || raw === "1";
 }
 
 export function paymentsDisabledInBeta() {

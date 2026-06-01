@@ -8,6 +8,8 @@ Lightweight beta layer controlled by a single environment variable. The core app
 NEXT_PUBLIC_BETA_MODE=true
 ```
 
+Use lowercase `true` (Vercel’s UI may show `True` — that works too after the tolerant parser).
+
 Optional:
 
 ```env

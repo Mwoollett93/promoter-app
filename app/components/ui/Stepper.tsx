@@ -78,83 +78,68 @@ export default function Stepper({ state = "Event Basics", className = "" }: Step
         </p>
       </div>
 
-      {/* Desktop — full stepper */}
-      <div className="hidden w-full overflow-x-auto pb-1 md:block">
-        <div className="relative mx-auto min-w-[884px] w-max">
-          <div className="relative z-10 flex items-center gap-[180px]">
-            {steps.map((label, i) => {
-              const step = i + 1;
-              const isCompleted = step < current;
-              const isActive = step === current;
+      {/* Desktop — centered, no horizontal scroll */}
+      <nav
+        aria-label="Event wizard progress"
+        className="mx-auto hidden w-full max-w-4xl px-2 md:block"
+      >
+        <ol className="flex items-start justify-center">
+          {steps.map((label, i) => {
+            const step = i + 1;
+            const isCompleted = step < current;
+            const isActive = step === current;
+            const isLast = i === steps.length - 1;
 
-              return (
-                <div key={label} className="flex w-[86px] flex-col items-center gap-[10px]">
+            return (
+              <li
+                key={label}
+                className={[
+                  "relative flex min-w-0 flex-1 flex-col items-center",
+                  !isLast ? "pr-2 sm:pr-4" : "",
+                ].join(" ")}
+              >
+                {!isLast ? (
                   <div
-                    className={[
-                      "flex size-[35px] shrink-0 items-center justify-center rounded-[50px] border",
-                      isActive
-                        ? "border-[#7C3AED] bg-[#7C3AED] text-[#F5F5F7]"
-                        : isCompleted
-                          ? "border-2 border-[#22C55E] bg-[#0B0B10] text-[#F5F5F7]"
-                          : "border border-[#71717A] text-[#F5F5F7]",
-                    ].join(" ")}
-                  >
-                    {isCompleted ? (
-                      <Check className="size-5 text-[#F5F5F7]" strokeWidth={3} aria-hidden />
-                    ) : (
-                      <span className="text-[14px] leading-5">{step}</span>
-                    )}
-                  </div>
-                  <p
-                    className={[
-                      "whitespace-nowrap text-center text-[14px] leading-5 text-[#F5F5F7]",
-                      isActive ? "font-medium" : "font-normal",
-                    ].join(" ")}
-                  >
-                    {label}
-                  </p>
+                    aria-hidden
+                    className="absolute left-[calc(50%+20px)] right-0 top-[17px] h-[2px] -translate-y-1/2"
+                    style={{
+                      background: isCompleted
+                        ? "#22C55E"
+                        : isActive
+                          ? "linear-gradient(90deg, #7C3AED 0%, #71717A 100%)"
+                          : "#71717A",
+                    }}
+                  />
+                ) : null}
+                <div
+                  className={[
+                    "relative z-10 flex size-[35px] shrink-0 items-center justify-center rounded-full border",
+                    isActive
+                      ? "border-[#7C3AED] bg-[#7C3AED] text-[#F5F5F7]"
+                      : isCompleted
+                        ? "border-2 border-[#22C55E] bg-[#0B0B10] text-[#F5F5F7]"
+                        : "border border-[#71717A] text-[#F5F5F7]",
+                  ].join(" ")}
+                >
+                  {isCompleted ? (
+                    <Check className="size-5 text-[#F5F5F7]" strokeWidth={3} aria-hidden />
+                  ) : (
+                    <span className="text-[14px] leading-5">{step}</span>
+                  )}
                 </div>
-              );
-            })}
-          </div>
-
-          <div
-            className="absolute left-[62px] top-[17px] h-[2px] w-[228px] rounded-[1px]"
-            style={{
-              background:
-                current === 1
-                  ? "linear-gradient(90deg, #7C3AED 0%, #71717A 100%)"
-                  : current === 2
-                    ? "linear-gradient(90deg, #22C55E 0%, #7C3AED 100%)"
-                    : "#22C55E",
-            }}
-          />
-          <div
-            className="absolute left-[328px] top-[17px] h-[2px] w-[228px] rounded-[1px]"
-            style={{
-              background:
-                current === 1
-                  ? "#71717A"
-                  : current === 2
-                    ? "linear-gradient(90deg, #7C3AED 0%, #71717A 100%)"
-                    : current === 3
-                      ? "linear-gradient(90deg, #22C55E 0%, #7C3AED 100%)"
-                      : "#22C55E",
-            }}
-          />
-          <div
-            className="absolute left-[594px] top-[17px] h-[2px] w-[228px] rounded-[1px]"
-            style={{
-              background:
-                current <= 2
-                  ? "#71717A"
-                  : current === 3
-                    ? "linear-gradient(90deg, #7C3AED 0%, #71717A 100%)"
-                    : "linear-gradient(90deg, #22C55E 0%, #7C3AED 100%)",
-            }}
-          />
-        </div>
-      </div>
+                <p
+                  className={[
+                    "mt-2.5 max-w-[9.5rem] text-center text-[12px] leading-4 text-[#F5F5F7] sm:text-[13px] sm:leading-5 lg:text-[14px]",
+                    isActive ? "font-medium" : "font-normal text-[#A1A1AA]",
+                  ].join(" ")}
+                >
+                  {label}
+                </p>
+              </li>
+            );
+          })}
+        </ol>
+      </nav>
     </div>
   );
 }
