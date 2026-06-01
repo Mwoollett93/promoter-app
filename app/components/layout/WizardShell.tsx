@@ -15,6 +15,7 @@ import { useIsMobile } from "@/lib/ui/use-breakpoint";
 import { cn } from "@/lib/utils";
 import MobileAppHeader, { getAppPageTitle } from "./MobileAppHeader";
 import Sidebar from "./Sidebar";
+import Stepper, { wizardStepFromPathname } from "@/app/components/ui/Stepper";
 import WizardHeader from "./WizardHeader";
 
 type WizardShellProps = {
@@ -129,6 +130,11 @@ export default function WizardShell({ children, title }: WizardShellProps) {
             <p className="mb-3 rounded-lg border border-[#854D0E] bg-[#422006] px-3 py-2 text-[13px] text-[#FDE68A]">
               {draftMessage}
             </p>
+          ) : null}
+          {isMobile ? (
+            <div className="mb-4">
+              <Stepper state={wizardStepFromPathname(pathname)} />
+            </div>
           ) : null}
           {children}
         </section>

@@ -19,7 +19,6 @@ import type { LucideIcon } from "lucide-react";
 import Button from "@/app/components/ui/Button";
 import WizardMobileNavBar from "@/app/components/layout/WizardMobileNavBar";
 import CurrencyText from "@/app/components/ui/CurrencyText";
-import Stepper from "@/app/components/ui/Stepper";
 import EventStatusBadge from "@/app/components/ui/EventStatusBadge";
 import {
   getEventStartForWizard,
@@ -300,10 +299,6 @@ export default function ReviewCreatePage() {
 
   return (
     <div className="w-full space-y-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0">
-      <div className="flex w-full justify-center">
-        <Stepper state="Review & Create" />
-      </div>
-
       <section className="rounded-[16px] border border-[#181824] bg-gradient-to-b from-[#11111A] to-[#0D0D14] p-5 shadow-[0px_10px_40px_0px_rgba(0,0,0,0.4)]">
         <h2 className="text-[24px] font-bold leading-[28px] text-[#F5F5F7]">Review &amp; Create</h2>
         <p className="mt-1 max-w-[640px] text-[13px] leading-5 text-[#A1A1AA]">

@@ -51,7 +51,6 @@ import { FinancePermissionBanner } from "@/app/components/collaboration/Permissi
 import WizardMobileNavBar from "@/app/components/layout/WizardMobileNavBar";
 import Button from "@/app/components/ui/Button";
 import CurrencyText from "@/app/components/ui/CurrencyText";
-import Stepper from "@/app/components/ui/Stepper";
 import { getInitialScheduleSlots, loadWizardEventDraft } from "@/lib/data";
 import {
   buildFinanceDraft,
@@ -367,9 +366,6 @@ export default function FinanceForecastPage() {
 
   return (
     <div className="w-full space-y-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0">
-      <div className="flex w-full justify-center">
-        <Stepper state="Finance & Forecast" />
-      </div>
       <FinancePermissionBanner />
 
       <section className="rounded-[16px] border border-[#181824] bg-gradient-to-b from-[#11111A] to-[#0D0D14] p-5 shadow-[0px_10px_40px_0px_rgba(0,0,0,0.4)]">

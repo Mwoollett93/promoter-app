@@ -18,7 +18,6 @@ import { LineupPermissionBanner } from "@/app/components/collaboration/Permissio
 import WizardMobileNavBar from "@/app/components/layout/WizardMobileNavBar";
 import Button from "@/app/components/ui/Button";
 import ScheduleSummaryStrip from "@/app/components/ui/ScheduleSummaryStrip";
-import Stepper from "@/app/components/ui/Stepper";
 import type { Artist, EnrichedSlot, ScheduleSlot } from "@/lib/types/event-schedule";
 import {
   getEventStartForWizard,
@@ -437,9 +436,6 @@ export default function LineupSchedulePage() {
 
   return (
     <div className="w-full space-y-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0">
-      <div className="flex w-full justify-center">
-        <Stepper state="Lineup & Schedule" />
-      </div>
       <LineupPermissionBanner />
 
       <div className="flex w-full min-w-0 items-start">
