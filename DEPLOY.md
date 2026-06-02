@@ -27,6 +27,7 @@ In **Project → Settings → Environment Variables**, add:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon/public key |
 | `RESEND_API_KEY` | Yes (for team invites) | From [Resend → API Keys](https://resend.com/api-keys) (`re_…`) — **not** in git; set only in Vercel |
 | `RESEND_FROM` | Yes (for team invites) | e.g. `PromoSync <invites@promosync.app>` (must use your verified domain) |
+| `RESEND_FROM_FEEDBACK` | Recommended (for feedback/surveys) | e.g. `PromoSync <feedback@promosync.app>` (falls back to this default if unset) |
 | `NEXT_PUBLIC_APP_URL` | Recommended | Production URL, e.g. `https://www.promosync.app` — used in invite email links |
 | `NEXT_PUBLIC_DEMO_AUTH` | Optional | Set to `true` only if you want demo login in production |
 
@@ -94,6 +95,7 @@ vercel env add NEXT_PUBLIC_SUPABASE_URL
 vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
 vercel env add RESEND_API_KEY
 vercel env add RESEND_FROM
+vercel env add RESEND_FROM_FEEDBACK
 vercel env add NEXT_PUBLIC_APP_URL
 ```
 

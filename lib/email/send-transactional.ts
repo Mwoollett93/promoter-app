@@ -13,6 +13,7 @@ export async function sendTransactionalEmail(input: {
   to: string;
   subject: string;
   html: string;
+  from?: string;
 }): Promise<SendTransactionalEmailResult> {
   ensureResendEnvLoaded();
   const apiKey = getResendApiKey();
@@ -37,7 +38,7 @@ export async function sendTransactionalEmail(input: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: getResendFromAddress(),
+      from: input.from ?? getResendFromAddress(),
       to: input.to,
       subject: input.subject,
       html: input.html,

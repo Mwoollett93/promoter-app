@@ -71,6 +71,8 @@ export function ensureResendEnvLoaded() {
       process.env.RESEND_API_KEY = key;
       const from = readFromEnvFile(root, "RESEND_FROM");
       if (from) process.env.RESEND_FROM = from;
+      const feedbackFrom = readFromEnvFile(root, "RESEND_FROM_FEEDBACK");
+      if (feedbackFrom) process.env.RESEND_FROM_FEEDBACK = feedbackFrom;
       return;
     }
   }
@@ -86,6 +88,14 @@ export function getResendFromAddress(): string {
   return (
     process.env.RESEND_FROM?.trim() ||
     "PromoSync <invites@promosync.app>"
+  );
+}
+
+export function getResendFeedbackFromAddress(): string {
+  ensureResendEnvLoaded();
+  return (
+    process.env.RESEND_FROM_FEEDBACK?.trim() ||
+    "PromoSync <feedback@promosync.app>"
   );
 }
 

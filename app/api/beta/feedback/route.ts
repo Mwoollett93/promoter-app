@@ -3,7 +3,10 @@ import { NextResponse } from "next/server";
 import { betaApiUnavailableResponse, isBetaMode } from "@/lib/beta/config";
 import { buildBetaFeedbackEmail } from "@/lib/beta/email-templates";
 import { betaFeedbackInbox } from "@/lib/beta/inbox";
-import { ensureResendEnvLoaded } from "@/lib/email/resend-env";
+import {
+  ensureResendEnvLoaded,
+  getResendFeedbackFromAddress,
+} from "@/lib/email/resend-env";
 import { sendTransactionalEmail } from "@/lib/email/send-transactional";
 import { jsonError, logRouteError } from "@/lib/security/api-response";
 import { assertSameOrigin } from "@/lib/security/origin-check";
@@ -64,7 +67,12 @@ export async function POST(request: Request) {
       workspaceId: body.workspaceId?.trim(),
     });
 
-    const sent = await sendTransactionalEmail({ to: betaFeedbackInbox(), subject, html });
+    const sent = await sendTransactionalEmail({
+      to: betaFeedbackInbox(),
+      from: getResendFeedbackFromAddress(),
+      subject,
+      html,
+    });
     if (!sent.ok) {
       return jsonError(sent.error, 503);
     }
